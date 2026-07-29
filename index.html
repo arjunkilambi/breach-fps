@@ -86,6 +86,14 @@
   #scan{position:absolute;inset:0;pointer-events:none;opacity:.16;
     background:repeating-linear-gradient(180deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.55) 2px 4px)}
 
+  /* ---------- voice ---------- */
+  #voiceBtn{position:absolute;top:172px;left:22px;pointer-events:auto;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;
+    font-size:11px;letter-spacing:.1em;color:var(--dim)}
+  #voiceBtn small{color:var(--dim);opacity:.7}
+  #voiceBtn.on{color:#8ef5c0;border-color:rgba(142,245,192,.4)}
+  #voiceBtn.muted{color:#ff9a6a;border-color:rgba(255,154,106,.4)}
+
   /* ---------- buffs ---------- */
   #buffs{position:absolute;left:0;right:0;bottom:96px;display:flex;justify-content:center;gap:8px;padding:0 22px}
   #buffs .buff{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;
@@ -145,6 +153,7 @@
     <canvas id="minimap" width="180" height="140"></canvas>
     <div id="feed"></div>
   </div>
+  <div id="voiceBtn" class="hide">ENABLE VOICE <small>· V</small></div>
 
   <div id="banner"></div>
   <div id="buffs"></div>
@@ -1763,7 +1772,8 @@ const Net = (() => {
       g.kills = ps.kills; g.deaths = ps.deaths; g.buffs = ps.buffs; g.name = ps.name; g.skin = ps.skin;
       g.animPhase = ps.animPhase;
     }
-    for(const id of [...otherPlayers.keys()]) if(!seen.has(id)) otherPlayers.delete(id);
+    for(const id of [...otherPlayers.keys()]) if(!seen.has(id)){ otherPlayers.delete(id); dropVoicePeer(id); }
+    meshConnectAll();
   }
 
   let lobbyHeartbeat = null;
@@ -1787,6 +1797,7 @@ const Net = (() => {
     conn.on('open', () => {
       clientConns.set(conn.peer, conn);
       otherPlayers.set(conn.peer, makeRemotePlayer(conn.peer, 'Player'));
+      meshConnectAll();
     });
     conn.on('data', msg => {
       if(msg.type === 'hello'){
@@ -1803,22 +1814,95 @@ const Net = (() => {
       const st = otherPlayers.get(conn.peer);
       clientConns.delete(conn.peer);
       otherPlayers.delete(conn.peer);
+      dropVoicePeer(conn.peer);
       renderLobbyList();
       if(st) Net.emit({ kind:'leave', name: st.name });
     });
   }
 
+  /* --------------------------------- voice --------------------------------- */
+  // Full mesh: every peer opens a direct PeerJS audio call to every other peer
+  // (voice never routes through the host). To avoid both sides calling each
+  // other at once, only the numerically/lexically "smaller" id initiates.
+  let localStream = null, muted = false;
+  const voiceCalls = new Map();       // peerId -> MediaConnection
+  const remoteAudioEls = new Map();   // peerId -> <audio>
+
+  function knownPeerIds(){
+    return [myId, ...otherPlayers.keys()];
+  }
+  function wireVoiceCall(id, call){
+    voiceCalls.set(id, call);
+    call.on('stream', remoteStream => {
+      let a = remoteAudioEls.get(id);
+      if(!a){ a = document.createElement('audio'); a.autoplay = true; a.style.display = 'none'; document.body.appendChild(a); remoteAudioEls.set(id, a); }
+      a.srcObject = remoteStream;
+      a.play?.().catch(()=>{});
+    });
+    call.on('close', () => dropVoicePeer(id));
+    call.on('error', () => dropVoicePeer(id));
+  }
+  function dropVoicePeer(id){
+    const call = voiceCalls.get(id);
+    if(call){ try{ call.close(); }catch(err){} voiceCalls.delete(id); }
+    const a = remoteAudioEls.get(id);
+    if(a){ a.remove(); remoteAudioEls.delete(id); }
+  }
+  function handleIncomingCall(call){
+    if(!localStream){ call.close(); return; }
+    call.answer(localStream);
+    wireVoiceCall(call.peer, call);
+  }
+  function callPeer(id){
+    if(!localStream || voiceCalls.has(id)) return;
+    wireVoiceCall(id, peer.call(id, localStream));
+  }
+  function meshConnectAll(){
+    if(!localStream) return;
+    for(const id of knownPeerIds()){
+      if(id === myId || voiceCalls.has(id)) continue;
+      if(myId < id) callPeer(id);
+    }
+  }
+  async function enableVoice(){
+    if(localStream) return;
+    try{
+      localStream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+      muted = false;
+      meshConnectAll();
+    } catch(err){
+      feed('Microphone unavailable', '#ff9a6a');
+    }
+    updateVoiceUI();
+  }
+  function teardownVoice(){
+    if(localStream){ localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+    for(const id of [...voiceCalls.keys()]) dropVoicePeer(id);
+    muted = false;
+    updateVoiceUI();
+  }
+
   return {
     get isHost(){ return netMode === 'host'; },
+    get voice(){ return { enabled: !!localStream, muted }; },
+
+    toggleVoice(){
+      if(netMode === 'solo') return;
+      if(!localStream){ enableVoice(); return; }
+      muted = !muted;
+      localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+      updateVoiceUI();
+    },
 
     startHost(mode, name){
-      MODE = mode; netMode = 'host'; myId = 'host';
-      player.id = myId; player.name = name || 'Host';
+      MODE = mode; netMode = 'host';
+      player.name = name || 'Host';
       otherPlayers.clear();
       const code = shortCode();
       setNetMsg('Opening room…');
       peer = new Peer('breach-' + code);
-      peer.on('open', () => {
+      peer.on('open', id => {
+        myId = id; player.id = id;          // real PeerJS id (== 'breach-CODE'), needed so other clients can voice-call the host directly
         roomCode = code;
         el('lobbyCode').textContent = code;
         el('lobbyRoomWrap').classList.remove('hide');
@@ -1828,6 +1912,7 @@ const Net = (() => {
         startLobbyHeartbeat(code, mode);
       });
       peer.on('connection', wireHostConnection);
+      peer.on('call', handleIncomingCall);
       peer.on('error', err => setNetMsg('Connection error: ' + ((err && err.type) || err)));
     },
 
@@ -1853,6 +1938,7 @@ const Net = (() => {
         });
         hostConn.on('close', () => setNetMsg('Host disconnected.'));
       });
+      peer.on('call', handleIncomingCall);
       peer.on('error', err => setNetMsg('Could not connect: ' + ((err && err.type) || err)));
     },
 
@@ -1891,6 +1977,7 @@ const Net = (() => {
     leaveToMenu(){
       stopBrowsing();
       stopLobbyHeartbeat(netMode === 'host' ? roomCode : null);
+      teardownVoice();
       try{ peer && peer.destroy(); }catch(err){}
       peer = null; hostConn = null; clientConns.clear(); otherPlayers.clear();
       netMode = 'solo'; MODE = 'campaign'; myId = 'me'; player.id = 'me'; roomCode = null;
@@ -1985,6 +2072,19 @@ function updateBuffHud(){
   }
   c.innerHTML = html;
 }
+function updateVoiceUI(){
+  const b = el('voiceBtn');
+  if(!b) return;
+  b.classList.toggle('hide', netMode === 'solo');
+  const v = Net.voice;
+  b.classList.toggle('on', v.enabled && !v.muted);
+  b.classList.toggle('muted', v.enabled && v.muted);
+  b.innerHTML = !v.enabled ? 'ENABLE VOICE <small>· V</small>'
+    : v.muted ? 'MIC MUTED <small>· V</small>'
+    : 'MIC LIVE <small>· V</small>';
+}
+el('voiceBtn').addEventListener('click', () => Net.toggleVoice());
+
 function renderNameplates(){
   if(netMode === 'solo' || !otherPlayers.size) return;
   const dirX = Math.cos(player.a), dirY = Math.sin(player.a), fov = 0.72;
@@ -2029,6 +2129,7 @@ addEventListener('keydown', e => {
   if(k === '1') switchWeapon('pistol');
   if(k === '2') switchWeapon('rifle');
   if(k === 'q') switchWeapon(player.weapon === 'pistol' ? 'rifle' : 'pistol');
+  if(k === 'v' && netMode !== 'solo') Net.toggleVoice();
   if(['w','a','s','d',' '].includes(k)) e.preventDefault();
 });
 addEventListener('keyup', e => {
@@ -2112,6 +2213,7 @@ function startGame(){
   gameOver = false; paused = false; running = true;
   if(netMode !== 'client') refreshFlowFields();
   updateHUD();
+  updateVoiceUI();
   requestLock();
   if(MODE === 'deathmatch')      banner('Deathmatch', 'Eliminate everyone else');
   else if(MODE === 'coop')       banner('Co-op Breach', 'Hold the line together');
