@@ -124,8 +124,10 @@
     border-radius:10px;padding:12px;width:100%}
   .roomcode{font-size:32px;font-weight:800;letter-spacing:.22em;color:#8ef5ff;text-align:center;
     background:rgba(0,0,0,.3);border-radius:10px;padding:10px}
-  .lobbylist{list-style:none;margin:0;padding:0;text-align:left;font-size:13px;color:#9fd8e6;max-height:140px;overflow:auto}
+  .lobbylist{list-style:none;margin:0;padding:0;text-align:left;font-size:13px;color:#9fd8e6;max-height:220px;overflow:auto}
   .lobbylist li{padding:6px 4px;border-bottom:1px solid var(--line)}
+  .lobbylist li.roomrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .lobbylist .joinRoomBtn{padding:6px 14px;font-size:11px}
   #netmsg{font-size:12px;color:var(--dim);min-height:16px;letter-spacing:.06em}
 </style>
 </head>
@@ -187,8 +189,16 @@
   <div class="panelbox hide" id="menuMulti">
     <div class="mbtn" id="btnHostCoop">Host — Co-op</div>
     <div class="mbtn" id="btnHostDM">Host — Deathmatch</div>
-    <div class="mbtn" id="btnShowJoin">Join Game</div>
+    <div class="mbtn" id="btnBrowse">Browse Games</div>
+    <div class="mbtn" id="btnShowJoin">Join by Code</div>
     <div class="mbtn ghost small" id="btnBackMulti">Back</div>
+  </div>
+
+  <div class="panelbox hide" id="menuBrowse">
+    <div class="lbl">Open Games</div>
+    <ul class="lobbylist" id="browseList"><li>Loading…</li></ul>
+    <div id="netmsg3"></div>
+    <div class="mbtn ghost small" id="btnBackBrowse">Back</div>
   </div>
 
   <div class="panelbox hide" id="menuJoin">
@@ -1756,6 +1766,23 @@ const Net = (() => {
     for(const id of [...otherPlayers.keys()]) if(!seen.has(id)) otherPlayers.delete(id);
   }
 
+  let lobbyHeartbeat = null;
+  function startLobbyHeartbeat(code, mode){
+    stopLobbyHeartbeat();
+    const beat = () => {
+      fetch(LOBBY_API, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ code, mode, hostName: player.name, players: 1+otherPlayers.size, maxPlayers: 8 }),
+      }).catch(()=>{});
+    };
+    beat();
+    lobbyHeartbeat = setInterval(beat, 5000);
+  }
+  function stopLobbyHeartbeat(code){
+    if(lobbyHeartbeat){ clearInterval(lobbyHeartbeat); lobbyHeartbeat = null; }
+    if(code) fetch(LOBBY_API + '?code=' + code, { method:'DELETE' }).catch(()=>{});
+  }
+
   function wireHostConnection(conn){
     conn.on('open', () => {
       clientConns.set(conn.peer, conn);
@@ -1796,8 +1823,9 @@ const Net = (() => {
         el('lobbyCode').textContent = code;
         el('lobbyRoomWrap').classList.remove('hide');
         el('btnStartMatch').classList.remove('hide');
-        setNetMsg('Share this code with your squad.');
+        setNetMsg('Share this code with your squad — or it\'s already listed under Browse Games.');
         renderLobbyList();
+        startLobbyHeartbeat(code, mode);
       });
       peer.on('connection', wireHostConnection);
       peer.on('error', err => setNetMsg('Connection error: ' + ((err && err.type) || err)));
@@ -1828,7 +1856,7 @@ const Net = (() => {
       peer.on('error', err => setNetMsg('Could not connect: ' + ((err && err.type) || err)));
     },
 
-    beginAsHost(){ broadcast({ type:'start' }); beginMatch(); },
+    beginAsHost(){ stopLobbyHeartbeat(roomCode); broadcast({ type:'start' }); beginMatch(); },
 
     send(msg){ sendToHost(msg); },
 
@@ -1861,6 +1889,8 @@ const Net = (() => {
     },
 
     leaveToMenu(){
+      stopBrowsing();
+      stopLobbyHeartbeat(netMode === 'host' ? roomCode : null);
       try{ peer && peer.destroy(); }catch(err){}
       peer = null; hostConn = null; clientConns.clear(); otherPlayers.clear();
       netMode = 'solo'; MODE = 'campaign'; myId = 'me'; player.id = 'me'; roomCode = null;
@@ -1874,31 +1904,72 @@ const Net = (() => {
   };
 })();
 
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 function renderLobbyList(){
   const list = el('lobbyList');
   if(!list) return;
   const names = netMode === 'host'
     ? ['You (host)', ...[...otherPlayers.values()].map(p => p.name)]
     : [];
-  list.innerHTML = names.length ? names.map(n => `<li>${n}</li>`).join('') : '<li>Waiting for players…</li>';
+  list.innerHTML = names.length
+    ? names.map(n => `<li>${escapeHtml(n)}</li>`).join('')
+    : '<li>Waiting for players…</li>';
 }
 function setNetMsg(msg){
-  const a = el('netmsg'), b = el('netmsg2');
+  const a = el('netmsg'), b = el('netmsg2'), c = el('netmsg3');
   if(a) a.textContent = msg;
   if(b) b.textContent = msg;
+  if(c) c.textContent = msg;
 }
 function showPanel(id){
-  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby']) el(p).classList.toggle('hide', p !== id);
+  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse']) el(p).classList.toggle('hide', p !== id);
 }
 function beginMatch(){
   el('start').classList.add('hide');
   startGame();
 }
 
+/* ----------------------------- browse games list ---------------------------- */
+const LOBBY_API = 'https://breach-lobby.vercel.app/api/lobby';
+let browsePoll = null;
+function startBrowsing(){
+  stopBrowsing();
+  fetchAndRenderRooms();
+  browsePoll = setInterval(fetchAndRenderRooms, 3000);
+}
+function stopBrowsing(){
+  if(browsePoll){ clearInterval(browsePoll); browsePoll = null; }
+}
+async function fetchAndRenderRooms(){
+  const list = el('browseList');
+  try{
+    const r = await fetch(LOBBY_API, { cache:'no-store' });
+    const data = await r.json();
+    const rooms = data.rooms || [];
+    if(!rooms.length){ list.innerHTML = '<li>No open games right now — host one!</li>'; return; }
+    list.innerHTML = rooms.map(rm => `<li class="roomrow">
+        <span>${escapeHtml(rm.hostName)}'s ${rm.mode === 'deathmatch' ? 'Deathmatch' : 'Co-op'}
+        <small>(${Math.min(rm.players,rm.maxPlayers)}/${rm.maxPlayers})</small></span>
+        <span class="mbtn small joinRoomBtn" data-code="${escapeHtml(rm.code)}">Join</span>
+      </li>`).join('');
+  } catch(err){
+    list.innerHTML = '<li>Could not reach the game list.</li>';
+  }
+}
+el('browseList').addEventListener('click', e => {
+  const btn = e.target.closest('.joinRoomBtn');
+  if(!btn) return;
+  stopBrowsing();
+  setNetMsg('Connecting…');
+  Net.joinRoom(btn.dataset.code);
+});
+
 /* -------------------------------- scoreboard ------------------------------- */
 function renderScoreboard(){
   el('sbTitle').textContent = MODE === 'deathmatch' ? 'Deathmatch' : MODE === 'coop' ? 'Co-op' : 'Solo';
-  const rows = allPlayers().map(p => ({ name: p===player ? (p.name||'You') : (p.name||'Player'),
+  const rows = allPlayers().map(p => ({ name: escapeHtml(p===player ? (p.name||'You') : (p.name||'Player')),
     kills:p.kills||0, deaths:p.deaths||0, me:p===player }));
   rows.sort((a,b) => b.kills - a.kills);
   el('sbTable').innerHTML =
@@ -2010,6 +2081,8 @@ el('btnMulti').addEventListener('click', () => showPanel('menuMulti'));
 el('btnBackMulti').addEventListener('click', () => showPanel('menuMain'));
 el('btnShowJoin').addEventListener('click', () => showPanel('menuJoin'));
 el('btnBackJoin').addEventListener('click', () => showPanel('menuMulti'));
+el('btnBrowse').addEventListener('click', () => { showPanel('menuBrowse'); startBrowsing(); });
+el('btnBackBrowse').addEventListener('click', () => { stopBrowsing(); showPanel('menuMulti'); });
 el('btnHostCoop').addEventListener('click', () => { showPanel('menuLobby'); Net.startHost('coop'); });
 el('btnHostDM').addEventListener('click', () => { showPanel('menuLobby'); Net.startHost('deathmatch'); });
 el('btnJoinGo').addEventListener('click', () => {
