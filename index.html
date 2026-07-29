@@ -10,6 +10,7 @@
     --panel:rgba(8,14,18,.82); --line:rgba(120,220,255,.25);
   }
   *{box-sizing:border-box}
+  .hide{display:none !important}
   html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#05080a}
   body{
     font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -80,9 +81,52 @@
   /* ---------- fx ---------- */
   #vig{position:absolute;inset:0;pointer-events:none;opacity:0;
     background:radial-gradient(circle at 50% 50%,transparent 35%,rgba(255,0,0,.62) 100%);transition:opacity .2s}
+  #vig.shielded{background:radial-gradient(circle at 50% 50%,transparent 35%,rgba(80,200,255,.55) 100%)}
   #flash{position:absolute;inset:0;pointer-events:none;background:#fff;opacity:0}
   #scan{position:absolute;inset:0;pointer-events:none;opacity:.16;
     background:repeating-linear-gradient(180deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.55) 2px 4px)}
+
+  /* ---------- buffs ---------- */
+  #buffs{position:absolute;left:0;right:0;bottom:96px;display:flex;justify-content:center;gap:8px;padding:0 22px}
+  #buffs .buff{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;
+    font-size:11px;letter-spacing:.08em;display:flex;align-items:center;gap:6px;animation:pop .18s ease-out}
+  #buffs .buff b{font-weight:800}
+  #buffs .buff.speed{color:#8ef5c0}
+  #buffs .buff.damage{color:#ff9a6a}
+  #buffs .buff.rapid{color:#ffe27a}
+  #buffs .buff.shield{color:#7dd8ff}
+
+  /* ---------- scoreboard ---------- */
+  #scoreboard{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(2,6,9,.72);pointer-events:none;opacity:0;transition:opacity .15s;z-index:5}
+  #scoreboard.show{opacity:1}
+  #scoreboard .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:20px 26px;min-width:340px}
+  #scoreboard h3{margin:0 0 4px;font-size:13px;letter-spacing:.28em;color:var(--dim);text-transform:uppercase}
+  #scoreboard table{border-collapse:collapse;margin-top:10px;width:100%}
+  #scoreboard td{padding:6px 12px;font-size:14px;border-bottom:1px solid var(--line)}
+  #scoreboard td.name{text-align:left}
+  #scoreboard td.num{text-align:right;font-weight:700}
+  #scoreboard tr.me td{color:#8ef5ff}
+
+  /* ---------- menu / lobby ---------- */
+  .panelbox{display:grid;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:20px 26px;min-width:280px}
+  .mbtn{pointer-events:auto;cursor:pointer;font:inherit;font-size:14px;letter-spacing:.14em;color:#fff;
+    background:rgba(20,60,80,.5);border:1px solid var(--line);border-radius:10px;padding:14px 18px;
+    text-transform:uppercase;text-align:center;transition:background .15s}
+  .mbtn:hover{background:rgba(40,100,130,.65)}
+  .mbtn.ghost{background:transparent}
+  .mbtn.small{padding:9px 14px;font-size:12px}
+  .mrow{display:flex;gap:10px}
+  #joinCode{pointer-events:auto;font:inherit;font-size:20px;letter-spacing:.3em;text-align:center;
+    text-transform:uppercase;color:#fff;background:rgba(0,0,0,.35);border:1px solid var(--line);
+    border-radius:10px;padding:12px;width:100%}
+  .roomcode{font-size:32px;font-weight:800;letter-spacing:.22em;color:#8ef5ff;text-align:center;
+    background:rgba(0,0,0,.3);border-radius:10px;padding:10px}
+  .lobbylist{list-style:none;margin:0;padding:0;text-align:left;font-size:13px;color:#9fd8e6;max-height:140px;overflow:auto}
+  .lobbylist li{padding:6px 4px;border-bottom:1px solid var(--line)}
+  #netmsg{font-size:12px;color:var(--dim);min-height:16px;letter-spacing:.06em}
 </style>
 </head>
 <body>
@@ -101,6 +145,7 @@
   </div>
 
   <div id="banner"></div>
+  <div id="buffs"></div>
 
   <div class="hudbar">
     <div class="cell" id="hpcell">
@@ -121,27 +166,69 @@
       <div class="val"><span id="mag">12</span><small> / <span id="res">∞</span></small></div>
     </div>
   </div>
+
+  <div id="scoreboard">
+    <div class="panel">
+      <h3 id="sbTitle">Scoreboard</h3>
+      <table id="sbTable"></table>
+    </div>
+  </div>
 </div>
 
 <div class="screen" id="start">
   <h1>BREACH</h1>
   <h2>Sector 7 · Hostile NPCs Detected</h2>
-  <div class="keys">
+
+  <div class="panelbox" id="menuMain">
+    <div class="mbtn" id="btnSolo">Solo Campaign</div>
+    <div class="mbtn" id="btnMulti">Multiplayer</div>
+  </div>
+
+  <div class="panelbox hide" id="menuMulti">
+    <div class="mbtn" id="btnHostCoop">Host — Co-op</div>
+    <div class="mbtn" id="btnHostDM">Host — Deathmatch</div>
+    <div class="mbtn" id="btnShowJoin">Join Game</div>
+    <div class="mbtn ghost small" id="btnBackMulti">Back</div>
+  </div>
+
+  <div class="panelbox hide" id="menuJoin">
+    <input id="joinCode" maxlength="5" placeholder="ROOM CODE" autocomplete="off" spellcheck="false" />
+    <div class="mbtn" id="btnJoinGo">Connect</div>
+    <div class="mbtn ghost small" id="btnBackJoin">Back</div>
+    <div id="netmsg"></div>
+  </div>
+
+  <div class="panelbox hide" id="menuLobby">
+    <div id="lobbyRoomWrap" class="hide">
+      <div class="lbl">Room Code</div>
+      <div class="roomcode" id="lobbyCode">----</div>
+    </div>
+    <ul class="lobbylist" id="lobbyList"></ul>
+    <div id="netmsg2"></div>
+    <div class="mbtn hide" id="btnStartMatch">Start Match</div>
+    <div class="mbtn ghost small" id="btnLeaveLobby">Leave</div>
+  </div>
+
+  <div class="keys hide" id="keysPanel">
     <b>W A S D</b><span>Move</span>
     <b>Mouse</b><span>Look</span>
     <b>Click</b><span>Fire</span>
     <b>Shift</b><span>Sprint</span>
     <b>R</b><span>Reload</span>
     <b>1 / 2 / Q</b><span>Switch weapon</span>
+    <b>Tab</b><span>Scoreboard</span>
     <b>Esc</b><span>Pause / release cursor</span>
   </div>
-  <div class="cta">CLICK TO DEPLOY</div>
+  <div class="mbtn hide" id="btnDeploy" style="max-width:340px;margin:22px auto 0;animation:pulse 1.8s infinite">CLICK TO DEPLOY</div>
 </div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
 <div class="screen hide" id="pause">
   <h1 style="font-size:44px">PAUSED</h1>
   <h2>Cursor released</h2>
   <div class="cta">CLICK TO RESUME</div>
+  <div class="mbtn ghost small" id="btnLeaveMatch" style="margin-top:18px;pointer-events:auto">Leave Match</div>
 </div>
 
 <div class="screen hide" id="over">
@@ -210,8 +297,19 @@ buildMap();
 const SPAWNS  = [[6.5,5.5],[25.5,5.5],[6.5,18.5],[25.5,18.5],[16.5,12.5],
                  [16.5,2.5],[2.5,12.5],[29.5,12.5],[16.5,21.5]];
 const PICKUPS = [[4.5,4.5,'health'],[27.5,4.5,'ammo'],[4.5,19.5,'ammo'],
-                 [27.5,19.5,'health'],[16.5,12.5,'ammo'],[16.5,6.5,'health']];
+                 [27.5,19.5,'health'],[16.5,12.5,'ammo'],[16.5,6.5,'health'],
+                 [14.5,4.5,'speed'],[18.5,19.5,'damage'],[8.5,13.5,'rapid'],[23.5,13.5,'shield']];
 const START   = [10.5, 12.5];   // open lane west of the vault, long sightline north
+
+/* -------------------------------- power-ups ------------------------------- */
+const BUFF_DUR  = { speed:14, damage:12, rapid:12, shield:10 };
+const BUFF_META = {
+  speed : { label:'Overdrive',  color:'#8ef5c0' },
+  damage: { label:'Overcharge', color:'#ff9a6a' },
+  rapid : { label:'Frenzy',     color:'#ffe27a' },
+  shield: { label:'Aegis',      color:'#7dd8ff' },
+};
+function freshBuffs(){ return { speed:0, damage:0, rapid:0, shield:0 }; }
 
 /* ------------------------------- textures -------------------------------- */
 const TS = 64;                                  // texture size
@@ -427,6 +525,7 @@ const TYPES = {
   brute : { name:'Brute',  hp:170, speed:1.55, dmg:20, range:1.6,  cool:1.55, score:300, radius:.52, scale:1.02,
             frames:buildFrames({ body:'#6b2f2f', trim:'#3a1a1a', head:'#7d3a3a', eye:'#ff7a5c' }) },
 };
+for(const k in TYPES) TYPES[k].key = k;   // lets a network snapshot reference a type by name
 
 /* pickup + projectile sprites */
 function makeIcon(draw){
@@ -451,6 +550,40 @@ const ICONS = {
     grd.addColorStop(0,'rgba(255,255,255,1)'); grd.addColorStop(.35,'rgba(120,220,255,.95)');
     grd.addColorStop(1,'rgba(60,140,255,0)');
     g.fillStyle=grd; g.beginPath(); g.arc(16,16,14,0,TAU); g.fill();
+  }),
+  speed: makeIcon(g=>{
+    g.fillStyle='rgba(142,245,192,.22)'; g.beginPath(); g.arc(16,16,15,0,TAU); g.fill();
+    g.fillStyle='#8ef5c0';
+    for(const off of [-6,2]){
+      g.beginPath();
+      g.moveTo(9+off,7); g.lineTo(19+off,7); g.lineTo(13+off,15); g.lineTo(20+off,15); g.lineTo(8+off,27); g.lineTo(12+off,17); g.lineTo(6+off,17);
+      g.closePath(); g.fill();
+    }
+  }),
+  damage: makeIcon(g=>{
+    g.fillStyle='rgba(255,120,80,.22)'; g.beginPath(); g.arc(16,16,15,0,TAU); g.fill();
+    g.fillStyle='#ff8a5c';
+    g.beginPath();
+    g.moveTo(16,5); g.lineTo(24,12); g.lineTo(20,12); g.lineTo(27,20); g.lineTo(17,20); g.lineTo(20,28);
+    g.lineTo(7,17); g.lineTo(13,17); g.lineTo(6,10); g.lineTo(12,10); g.closePath(); g.fill();
+  }),
+  rapid: makeIcon(g=>{
+    g.fillStyle='rgba(255,225,120,.22)'; g.beginPath(); g.arc(16,16,15,0,TAU); g.fill();
+    g.fillStyle='#ffe27a';
+    for(let i=0;i<3;i++){ g.beginPath(); g.arc(9+i*7,16,2.6,0,TAU); g.fill(); }
+    g.strokeStyle='#ffe27a'; g.lineWidth=2.4; g.beginPath();
+    g.moveTo(6,24); g.lineTo(26,24); g.stroke();
+  }),
+  shield: makeIcon(g=>{
+    g.fillStyle='rgba(125,216,255,.22)'; g.beginPath(); g.arc(16,16,15,0,TAU); g.fill();
+    g.fillStyle='#7dd8ff';
+    g.beginPath();
+    g.moveTo(16,5); g.lineTo(25,9); g.lineTo(25,16); g.quadraticCurveTo(25,24,16,28);
+    g.quadraticCurveTo(7,24,7,16); g.lineTo(7,9); g.closePath(); g.fill();
+    g.fillStyle='#0c2430';
+    g.beginPath();
+    g.moveTo(16,9); g.lineTo(21,12); g.lineTo(21,17); g.quadraticCurveTo(21,21,16,24);
+    g.quadraticCurveTo(11,21,11,17); g.lineTo(11,12); g.closePath(); g.fill();
   }),
 };
 
@@ -495,6 +628,8 @@ const Sound = (()=>{
     hurt(){ burst(.22,220,.8,.34); blip(90,.22,'sine',.22,-40); },
     enemyShot(){ blip(520,.11,'square',.12,320); },
     pickup(){ blip(660,.07,'sine',.18); setTimeout(()=>blip(990,.1,'sine',.18),70); },
+    buff(){ [520,720,980].forEach((f,i)=> setTimeout(()=>blip(f,.13,'sine',.18), i*60)); },
+    shieldBlock(){ blip(180,.12,'square',.18,60); burst(.15,700,1.4,.2); },
     wave(){ [330,440,550].forEach((f,i)=> setTimeout(()=>blip(f,.4,'triangle',.16), i*110)); },
     step(){ burst(.05,320,.6,.05); },
     spot(){ blip(200,.14,'sawtooth',.1,140); },
@@ -520,13 +655,36 @@ const player = {
   hp:100, alive:true, speed:3.3, sprint:5.1,
   bob:0, kick:0, flash:0, hurt:0, weapon:'pistol',
   reloading:0, cooldown:0, stepTimer:0,
+  buffs: freshBuffs(), kills:0, deaths:0, name:'You', skin:0, id:'me',
 };
 let enemies = [], bolts = [], pickups = [];
 let wave = 0, kills = 0, score = 0, waveTimer = 0, spawning = false;
 let running = false, paused = false, gameOver = false;
-let flowField = null, flowTimer = 0;
+let flowTimer = 0;
+const flowFields = new Map();           // targetKey -> Int16Array, for multi-player chasing
 const keys = Object.create(null);
 let mouseDown = false;
+
+/* ------------------------------- multiplayer ------------------------------ */
+// netMode: 'solo' | 'host' | 'client'.  MODE: 'campaign' | 'coop' | 'deathmatch'.
+// Host is authoritative for enemies, pickups, waves and every OTHER player's
+// position/hp/buffs. Each device predicts its own local player for feel, and
+// reconciles toward whatever the host last reported for "me".
+let netMode = 'solo', MODE = 'campaign';
+let myId = 'me', roomCode = null;
+let otherPlayers = new Map();           // id -> player-shaped state (authoritative on host, ghost elsewhere)
+const SKINS = [
+  { body:'#4a7fbf', trim:'#254163', head:'#5a8fcf', eye:'#ffe27a' },
+  { body:'#b0563f', trim:'#5c2c1f', head:'#c26a4f', eye:'#7dff9b' },
+  { body:'#8a5fbf', trim:'#432c63', head:'#9a6fcf', eye:'#ffe27a' },
+  { body:'#3fb0a0', trim:'#1f5c53', head:'#4fc2b0', eye:'#ff7a5c' },
+];
+const skinFrames = SKINS.map(cfg => buildFrames(cfg));
+let nextSkin = 0;
+
+const NET_TICK = 1/16;                  // host broadcast / client input rate
+let netSendTimer = 0;
+let lastLobbyBroadcast = 0;
 
 /* ------------------------------ resolution ------------------------------- */
 function resize(){
@@ -668,6 +826,14 @@ function renderWorld(){
   for(const p of pickups)  if(!p.taken) drawables.push({ x:p.x, y:p.y, spr:ICONS[p.kind], scale:.55,
                                             lift:Math.sin(now*2.5+p.x)*0.06+0.12, glow:.35 });
   for(const b of bolts)    drawables.push({ x:b.x, y:b.y, spr:ICONS.bolt, scale:.3, lift:.05, glow:1 });
+  if(netMode !== 'solo'){
+    for(const op of otherPlayers.values()){
+      if(!op.alive) continue;
+      const frames = skinFrames[op.skin % skinFrames.length];
+      const spr = frames.walk[((op.animPhase||0)|0) % 4];
+      drawables.push({ x:op.x, y:op.y, spr, scale:.86, lift:0, tint:0 });
+    }
+  }
 
   const invDet = 1/(planeX*dirY - dirX*planeY);
   for(const s of drawables){
@@ -836,70 +1002,147 @@ function renderWeapon(){
 }
 
 /* --------------------------------- combat -------------------------------- */
+// Traces one shot from (px,py) along `ang` against enemies (always) and, in
+// deathmatch, every other living player. `authoritative` performs the actual
+// damage; otherwise it only reports what WOULD be hit (used for a client's
+// optimistic hit-marker while the host resolves the real outcome).
+function resolveShot(px, py, ang, dmg, shooter, authoritative){
+  const dx = Math.cos(ang), dy = Math.sin(ang);
+  const wallHit = castRay(px, py, dx, dy, VIEW*1.4).dist;
+  let best = null, bestT = wallHit, bestKind = null;
+  for(const e of enemies){
+    if(e.dead) continue;
+    const ex = e.x-px, ey = e.y-py;
+    const t = ex*dx + ey*dy;
+    if(t <= 0 || t >= bestT) continue;
+    const perp = Math.hypot(ex - dx*t, ey - dy*t);
+    if(perp <= e.type.radius + 0.05){ best = e; bestT = t; bestKind = 'enemy'; }
+  }
+  if(MODE === 'deathmatch'){
+    for(const op of allPlayers()){
+      if(op === shooter || !op.alive) continue;
+      const ex = op.x-px, ey = op.y-py;
+      const t = ex*dx + ey*dy;
+      if(t <= 0 || t >= bestT) continue;
+      const perp = Math.hypot(ex - dx*t, ey - dy*t);
+      if(perp <= 0.38){ best = op; bestT = t; bestKind = 'player'; }
+    }
+  }
+  if(!best) return null;
+  if(authoritative){
+    if(bestKind === 'enemy') damageEnemy(best, dmg, shooter);
+    else damageOtherPlayer(best, dmg, shooter);
+  }
+  return bestKind;
+}
+
 function fire(){
   const w = WEAPONS[player.weapon];
   if(player.reloading > 0 || player.cooldown > 0) return;
   if(w.ammo <= 0){ Sound.dry(); player.cooldown = .25; tryReload(); return; }
 
   w.ammo--;
-  player.cooldown = w.rof;
+  player.cooldown = player.buffs.rapid > 0 ? Math.min(w.rof, 0.045) : w.rof;
   player.kick = Math.min(player.kick + w.kick, 16);
   player.flash = 1;
   Sound.shoot(w.heavy);
 
   const spread = w.spread * (1 + player.kick*0.06);
   const ang = player.a + rand(spread,-spread);
-  const dx = Math.cos(ang), dy = Math.sin(ang);
-  const wallHit = castRay(player.x, player.y, dx, dy, VIEW*1.4).dist;
+  const dmg = w.dmg * (player.buffs.damage > 0 ? 2 : 1);
 
-  let best = null, bestT = wallHit;
-  for(const e of enemies){
-    if(e.dead) continue;
-    const ex = e.x-player.x, ey = e.y-player.y;
-    const t = ex*dx + ey*dy;                       // projection along the ray
-    if(t <= 0 || t >= bestT) continue;
-    const px = ex - dx*t, py = ey - dy*t;          // perpendicular offset
-    if(Math.hypot(px,py) <= e.type.radius + 0.05){ best = e; bestT = t; }
-  }
-  if(best){
-    damageEnemy(best, w.dmg);
-    hitMarker();
-  }
-  // gunfire is loud — nearby hostiles investigate the noise
-  for(const e of enemies){
-    if(e.dead || e.alert) continue;
-    if(Math.hypot(e.x-player.x, e.y-player.y) < 15){
-      e.alert = true;
-      e.lastSeen = { x:player.x, y:player.y };
+  const authoritative = netMode !== 'client';
+  const hitKind = resolveShot(player.x, player.y, ang, dmg, player, authoritative);
+  if(hitKind) hitMarker();
+
+  if(authoritative){
+    // gunfire is loud — nearby hostiles investigate the noise
+    for(const e of enemies){
+      if(e.dead || e.alert) continue;
+      if(Math.hypot(e.x-player.x, e.y-player.y) < 15){
+        e.alert = true;
+        e.lastSeen = { x:player.x, y:player.y };
+      }
     }
+  } else {
+    Net.send({ type:'shot', a: ang, dmg });
   }
   updateHUD();
 }
 
-function damageEnemy(e, dmg){
+function damageEnemy(e, dmg, shooter){
   e.hp -= dmg;
   e.flash = 0.75;
   e.painTime = 0.16;
   e.alert = true;
-  e.lastSeen = { x:player.x, y:player.y };
+  const src = shooter || player;
+  e.lastSeen = { x:src.x, y:src.y };
   if(e.hp <= 0){
     e.dead = true; e.deadTime = 0;
     kills++; score += e.type.score;
-    Sound.kill();
-    feed(`${e.type.name} eliminated`, '#8ef5c0');
+    Net.emit({ kind:'kill', name: e.type.name });
     updateHUD();
   } else {
-    Sound.hit();
+    Net.emit({ kind:'hit' });
   }
 }
 
-function damagePlayer(dmg){
+function damagePlayer(dmg, shooter){
   if(!player.alive) return;
+  if(player.buffs.shield > 0){ Net.emit({ kind:'shieldblock', targetId: player.id }); return; }
   player.hp -= dmg;
   player.hurt = 1;
   Sound.hurt();
-  if(player.hp <= 0){ player.hp = 0; die(); }
+  if(player.hp <= 0){
+    player.hp = 0;
+    player.alive = false;
+    if(MODE === 'deathmatch'){
+      player.deaths = (player.deaths||0) + 1;
+      player.respawnAt = now + 3;
+      if(shooter) shooter.kills = (shooter.kills||0) + 1;
+      Net.emit({ kind:'elim', victim: player.name, killer: shooter ? shooter.name : '???', targetId: player.id });
+    }
+    die();
+  } else if(shooter){
+    Net.emit({ kind:'hit', targetId: player.id });
+  }
   updateHUD();
+}
+
+/* damage inflicted on ANY connected player (local or remote); host-only for remotes. */
+function damageOtherPlayer(target, dmg, shooter){
+  if(!target.alive) return;
+  if(target === player){ damagePlayer(dmg, shooter); return; }
+  if(target.buffs && target.buffs.shield > 0){
+    Net.emit({ kind:'shieldblock', targetId: target.id });
+    return;
+  }
+  target.hp = Math.max(0, target.hp - dmg);
+  if(target.hp <= 0){
+    target.alive = false; target.deaths = (target.deaths||0) + 1;
+    target.respawnAt = now + 3;
+    if(shooter) shooter.kills = (shooter.kills||0) + 1;
+    Net.emit({ kind:'elim', victim: target.name, killer: shooter ? shooter.name : '???', targetId: target.id });
+  } else {
+    Net.emit({ kind:'hit', targetId: target.id });
+  }
+}
+
+function respawnDM(p){
+  const s = SPAWNS[(Math.random()*SPAWNS.length)|0];
+  p.x = s[0]; p.y = s[1]; p.hp = 100; p.alive = true; p.respawnAt = 0;
+  p.buffs = freshBuffs();
+  if(p === player){ vig.style.opacity = '0'; banner('Redeployed'); }
+}
+
+function livingPlayers(){
+  if(netMode === 'client') return player.alive ? [player] : [];
+  const list = [player, ...otherPlayers.values()];
+  return list.filter(p => p.alive);
+}
+function allPlayers(){
+  if(netMode === 'client') return [player, ...otherPlayers.values()];
+  return [player, ...otherPlayers.values()];
 }
 
 function tryReload(){
@@ -925,19 +1168,20 @@ function switchWeapon(name){
 }
 
 /* -------------------------------- enemies -------------------------------- */
+let nextEnemyId = 1;
 function spawnEnemy(type, x, y){
   enemies.push({
-    type, hp:type.hp, x, y, dead:false, deadTime:0, flash:0, painTime:0,
+    id: nextEnemyId++, type, hp:type.hp, x, y, dead:false, deadTime:0, flash:0, painTime:0,
     cool:rand(1.2,.3), attackAnim:0, windup:0, animPhase:rand(4), alert:false,
     lastSeen:null, wander:rand(TAU), wanderT:0, vx:0, vy:0,
   });
 }
 
-function computeFlowField(){
-  // Breadth-first distance field from the player's tile; enemies descend it.
+function computeFlowFieldFrom(ox, oy){
+  // Breadth-first distance field from a tile; enemies descend it toward that tile.
   const dist = new Int16Array(MAPW*MAPH).fill(-1);
-  const px = clamp(player.x|0,0,MAPW-1), py = clamp(player.y|0,0,MAPH-1);
-  if(solid(px,py)) { flowField = dist; return; }
+  const px = clamp(ox|0,0,MAPW-1), py = clamp(oy|0,0,MAPH-1);
+  if(solid(px,py)) return dist;
   const queue = new Int32Array(MAPW*MAPH);
   let head=0, tail=0;
   dist[py*MAPW+px] = 0; queue[tail++] = py*MAPW+px;
@@ -951,7 +1195,22 @@ function computeFlowField(){
       dist[n] = d+1; queue[tail++] = n;
     }
   }
-  flowField = dist;
+  return dist;
+}
+// One flow field per distinct player tile — lets enemies chase whichever
+// player they're actually after in co-op instead of only the local one.
+function refreshFlowFields(){
+  flowFields.clear();
+  for(const p of livingPlayers()){
+    const key = (p.x|0) + ',' + (p.y|0);
+    if(!flowFields.has(key)) flowFields.set(key, computeFlowFieldFrom(p.x, p.y));
+  }
+}
+function flowFieldFor(target){
+  const key = (target.x|0) + ',' + (target.y|0);
+  let f = flowFields.get(key);
+  if(!f){ f = computeFlowFieldFrom(target.x, target.y); flowFields.set(key, f); }
+  return f;
 }
 
 function moveEntity(e, dx, dy, radius){
@@ -966,6 +1225,18 @@ function moveEntity(e, dx, dy, radius){
      !solid(e.x + radius*0.7, ny + Math.sign(dy)*radius)) e.y = ny;
 }
 
+function nearestLivingPlayer(e){
+  let best = null, bd = Infinity;
+  for(const p of livingPlayers()){
+    const d = (p.x-e.x)**2 + (p.y-e.y)**2;
+    if(d < bd){ bd = d; best = p; }
+  }
+  return best;
+}
+function dealDamageToPlayer(tp, dmg){
+  if(tp === player) damagePlayer(dmg); else damageOtherPlayer(tp, dmg, null);
+}
+
 function updateEnemy(e, dt){
   if(e.flash > 0)    e.flash = Math.max(0, e.flash - dt*3.2);
   if(e.painTime > 0) e.painTime -= dt;
@@ -973,13 +1244,14 @@ function updateEnemy(e, dt){
 
   if(e.dead){ e.deadTime += dt; return; }
 
-  const dx = player.x - e.x, dy = player.y - e.y;
-  const dist = Math.hypot(dx,dy);
-  const sees = dist < 17 && lineOfSight(e.x, e.y, player.x, player.y);
+  const tp = nearestLivingPlayer(e);
+  const dx = tp ? tp.x - e.x : 0, dy = tp ? tp.y - e.y : 0;
+  const dist = tp ? Math.hypot(dx,dy) : Infinity;
+  const sees = !!tp && dist < 17 && lineOfSight(e.x, e.y, tp.x, tp.y);
 
   if(sees){
     if(!e.alert){ e.alert = true; if(Math.random()<.6) Sound.spot(); }
-    e.lastSeen = { x:player.x, y:player.y };
+    e.lastSeen = { x:tp.x, y:tp.y };
   }
 
   const T = e.type;
@@ -989,10 +1261,10 @@ function updateEnemy(e, dt){
   // connects, so backing off during the wind-up beats it
   if(e.windup > 0){
     e.windup -= dt;
-    if(e.windup <= 0 && player.alive && dist <= T.range + 0.3) damagePlayer(T.dmg);
+    if(e.windup <= 0 && tp && dist <= T.range + 0.3) dealDamageToPlayer(tp, T.dmg);
   }
 
-  if(e.alert && player.alive){
+  if(e.alert && tp){
     const inRange = dist <= T.range && (T.ranged ? sees : true);
     if(inRange){
       // hold position and attack
@@ -1014,9 +1286,9 @@ function updateEnemy(e, dt){
       }
     } else {
       // chase: follow the flow field, fall back to straight-line steering
-      const target = sees ? {x:player.x,y:player.y} : e.lastSeen;
+      const target = sees ? {x:tp.x,y:tp.y} : e.lastSeen;
       if(target){
-        const step = flowStep(e);
+        const step = flowStep(e, target);
         if(step){ moveX = step.x; moveY = step.y; }
         else { const l = Math.hypot(target.x-e.x, target.y-e.y)||1;
                moveX = (target.x-e.x)/l; moveY = (target.y-e.y)/l; }
@@ -1026,11 +1298,11 @@ function updateEnemy(e, dt){
       }
     }
   } else {
-    // searching: sweep toward the player's area at reduced speed, with drift
-    // so a squad doesn't march in a perfect line
+    // searching: sweep toward the nearest player's area at reduced speed, with
+    // drift so a squad doesn't march in a perfect line
     e.wanderT -= dt;
     if(e.wanderT <= 0){ e.wanderT = rand(2.6,1.2); e.wander = rand(TAU); }
-    const step = flowStep(e);
+    const step = tp ? flowStep(e, tp) : null;
     if(step){ moveX = step.x + Math.cos(e.wander)*0.35; moveY = step.y + Math.sin(e.wander)*0.35; }
     else    { moveX = Math.cos(e.wander)*0.45;          moveY = Math.sin(e.wander)*0.45; }
   }
@@ -1054,10 +1326,10 @@ function updateEnemy(e, dt){
   }
 }
 
-function flowStep(e){
-  if(!flowField) return null;
+function flowStep(e, target){
+  const field = flowFieldFor(target);
   const cx = e.x|0, cy = e.y|0;
-  const here = flowField[cy*MAPW+cx];
+  const here = field[cy*MAPW+cx];
   if(here < 0) return null;
   let best = here, bx = 0, by = 0;
   for(let oy=-1; oy<=1; oy++) for(let ox=-1; ox<=1; ox++){
@@ -1066,7 +1338,7 @@ function flowStep(e){
     if(nx<0||ny<0||nx>=MAPW||ny>=MAPH) continue;
     if(at(nx,ny)) continue;
     if(ox && oy && (at(cx+ox,cy) || at(cx,cy+oy))) continue;   // no corner cutting
-    const v = flowField[ny*MAPW+nx];
+    const v = field[ny*MAPW+nx];
     if(v >= 0 && v < best){ best = v; bx = ox; by = oy; }
   }
   if(bx===0 && by===0) return null;
@@ -1079,8 +1351,18 @@ function flowStep(e){
 /* -------------------------------- waves ---------------------------------- */
 function nextWave(){
   wave++;
+  // co-op checkpoint: anyone who died mid-wave rejoins the fight
+  if(MODE === 'coop'){
+    for(const p of allPlayers()){
+      if(p.alive) continue;
+      const s = SPAWNS[(Math.random()*SPAWNS.length)|0];
+      p.x = s[0]; p.y = s[1]; p.hp = 100; p.alive = true; p.buffs = freshBuffs();
+      if(p === player) vig.style.opacity = '0';
+    }
+  }
   const count = 3 + Math.floor(wave*1.6);
-  const far = SPAWNS.filter(s => Math.hypot(s[0]-player.x, s[1]-player.y) > 6);
+  const alivePlayers = livingPlayers();
+  const far = SPAWNS.filter(s => alivePlayers.every(p => Math.hypot(s[0]-p.x, s[1]-p.y) > 6));
   const pool = far.length ? far : SPAWNS;
   for(let i=0;i<count;i++){
     const [sx,sy] = pool[i % pool.length];
@@ -1093,13 +1375,33 @@ function nextWave(){
     spawnEnemy(type, ok ? jx : sx, ok ? jy : sy);   // never drop a hostile inside geometry
   }
   for(const p of pickups) if(Math.random() < .7) p.taken = false;
-  Sound.wave();
-  banner(`Wave ${wave}`, `${count} hostiles inbound`);
+  Net.emit({ kind:'wave', wave, count });
   updateHUD();
 }
 
 function resetPickups(){
-  pickups = PICKUPS.map(([x,y,kind]) => ({ x, y, kind, taken:false }));
+  pickups = PICKUPS.map(([x,y,kind]) => ({ x, y, kind, taken:false, respawnAt:0 }));
+}
+
+function decayBuffs(b, dt){
+  for(const k in b) if(b[k] > 0) b[k] = Math.max(0, b[k] - dt);
+}
+
+function applyPickup(pl, p){
+  p.taken = true;
+  p.respawnAt = now + (p.kind==='health'||p.kind==='ammo' ? 16 : 24);
+  const isMe = pl === player;
+  if(p.kind === 'health'){
+    if(pl.hp >= 100){ p.taken = false; p.respawnAt = 0; return; }
+    pl.hp = Math.min(100, pl.hp + 35);
+    Net.emit({ kind:'pickup', targetId: pl.id, text:'+35 integrity', color:'#8ef5c0' });
+  } else if(p.kind === 'ammo'){
+    Net.emit({ kind:'ammo', targetId: pl.id, text:'+40 rifle ammo', color:'#ffd479' });
+  } else {
+    pl.buffs[p.kind] = BUFF_DUR[p.kind];
+    Net.emit({ kind:'buff', targetId: pl.id, text:`${BUFF_META[p.kind].label} online`, color:BUFF_META[p.kind].color });
+  }
+  if(isMe) updateHUD();
 }
 
 /* ------------------------------- game loop ------------------------------- */
@@ -1117,10 +1419,12 @@ function update(dt){
 
   const mag = Math.hypot(fx,fy);
   const sprinting = keys['shift'] && mag > 0 && keys['w'];
+  const speedBoost = player.buffs.speed > 0 ? 1.55 : 1;
   if(mag > 0.001 && player.alive){
-    const sp = (sprinting ? player.sprint : player.speed) * dt;
+    const sp = (sprinting ? player.sprint : player.speed) * speedBoost * dt;
     moveEntity(player, (fx/mag)*sp, (fy/mag)*sp, 0.26);
     player.bob += dt * (sprinting ? 13 : 9);
+    player.animPhase = (player.animPhase||0) + dt * (sprinting ? 13 : 9);
     player.stepTimer -= dt * (sprinting ? 1.5 : 1);
     if(player.stepTimer <= 0){ player.stepTimer = 0.42; Sound.step(); }
   } else {
@@ -1131,6 +1435,7 @@ function update(dt){
   player.cooldown = Math.max(0, player.cooldown - dt);
   player.kick     = Math.max(0, player.kick - dt*46);
   player.flash    = Math.max(0, player.flash - dt*9);
+  decayBuffs(player.buffs, dt);
   if(player.reloading > 0){
     player.reloading -= dt;
     if(player.reloading <= 0){ player.reloading = 0; finishReload(); }
@@ -1139,48 +1444,64 @@ function update(dt){
     if(player.weapon === 'rifle' || !player.firedThisClick){ fire(); player.firedThisClick = true; }
   }
 
-  // ---------- enemies ----------
-  if((flowTimer -= dt) <= 0){ flowTimer = 0.25; computeFlowField(); }
-  for(const e of enemies) updateEnemy(e, dt);
-  enemies = enemies.filter(e => !(e.dead && e.deadTime > 6));
+  // ---------- enemies (host/solo simulate; clients just render the snapshot) ----------
+  if(netMode !== 'client'){
+    if((flowTimer -= dt) <= 0){ flowTimer = 0.25; refreshFlowFields(); }
+    for(const e of enemies) updateEnemy(e, dt);
+    enemies = enemies.filter(e => !(e.dead && e.deadTime > 6));
+  }
 
   // ---------- projectiles ----------
-  for(const b of bolts){
-    const steps = 3;                                  // sub-step to avoid tunnelling
-    for(let i=0;i<steps;i++){
-      b.x += b.dx*dt/steps; b.y += b.dy*dt/steps;
-      if(solid(b.x,b.y)){ b.life = 0; break; }
-      if(player.alive && Math.hypot(b.x-player.x, b.y-player.y) < 0.32){
-        damagePlayer(b.dmg); b.life = 0; break;
+  if(netMode !== 'client'){
+    for(const b of bolts){
+      const steps = 3;                                  // sub-step to avoid tunnelling
+      for(let i=0;i<steps;i++){
+        b.x += b.dx*dt/steps; b.y += b.dy*dt/steps;
+        if(solid(b.x,b.y)){ b.life = 0; break; }
+        let hitPlayer = false;
+        for(const pl of livingPlayers()){
+          if(Math.hypot(b.x-pl.x, b.y-pl.y) < 0.32){ dealDamageToPlayer(pl, b.dmg); hitPlayer = true; break; }
+        }
+        if(hitPlayer){ b.life = 0; break; }
       }
+      b.life -= dt;
     }
-    b.life -= dt;
-  }
-  bolts = bolts.filter(b => b.life > 0);
-
-  // ---------- pickups ----------
-  for(const p of pickups){
-    if(p.taken) continue;
-    if(Math.hypot(p.x-player.x, p.y-player.y) < 0.55){
-      if(p.kind === 'health'){
-        if(player.hp >= 100) continue;
-        player.hp = Math.min(100, player.hp + 35);
-        feed('+35 integrity', '#8ef5c0');
-      } else {
-        const r = WEAPONS.rifle;
-        r.reserve = Math.min(180, r.reserve + 40);
-        feed('+40 rifle ammo', '#ffd479');
-      }
-      p.taken = true; Sound.pickup(); updateHUD();
-    }
+    bolts = bolts.filter(b => b.life > 0);
   }
 
-  // ---------- wave flow ----------
+  // ---------- pickups (host/solo authoritative; clients mirror via snapshot) ----------
+  if(netMode !== 'client'){
+    for(const p of pickups){
+      if(p.taken) continue;
+      for(const pl of livingPlayers()){
+        if(Math.hypot(p.x-pl.x, p.y-pl.y) >= 0.55) continue;
+        applyPickup(pl, p);
+        break;
+      }
+    }
+    for(const p of pickups){
+      if(p.taken && now >= p.respawnAt) p.taken = false;
+    }
+  }
+
+  // ---------- wave flow (campaign / co-op only — deathmatch has no waves) ----------
   const aliveCount = enemies.filter(e => !e.dead).length;
-  if(aliveCount === 0 && player.alive){
-    if(!spawning){ spawning = true; waveTimer = wave === 0 ? 0.6 : 4; }
-    waveTimer -= dt;
-    if(waveTimer <= 0){ spawning = false; nextWave(); }
+  if(netMode !== 'client' && MODE !== 'deathmatch'){
+    if(aliveCount === 0 && livingPlayers().length > 0){
+      if(!spawning){ spawning = true; waveTimer = wave === 0 ? 0.6 : 4; }
+      waveTimer -= dt;
+      if(waveTimer <= 0){ spawning = false; nextWave(); }
+    }
+    if(MODE === 'coop' && running && !gameOver && livingPlayers().length === 0){
+      triggerGameOver();
+    }
+  }
+
+  // ---------- deathmatch respawns (host/solo only) ----------
+  if(netMode !== 'client' && MODE === 'deathmatch'){
+    for(const p of allPlayers()){
+      if(!p.alive && p.respawnAt && now >= p.respawnAt) respawnDM(p);
+    }
   }
 
   // ---------- fx decay ----------
@@ -1188,8 +1509,14 @@ function update(dt){
     player.hurt = Math.max(0, player.hurt - dt*2);
     vig.style.opacity = String(player.hurt * 0.85);
   }
+  vig.classList.toggle('shielded', player.buffs.shield > 0);
+
+  // ---------- multiplayer: apply local prediction/reconciliation + net tick ----------
+  if(netMode !== 'solo') Net.tick(dt);
+
   now += dt;
   if(aliveCount !== lastAlive){ lastAlive = aliveCount; updateHUD(); }
+  updateBuffHud();
 }
 let lastAlive = -1;
 
@@ -1201,7 +1528,9 @@ function frame(t){
   update(dt);
   renderWorld();
   renderWeapon();
+  renderNameplates();
   drawMinimap();
+  if(el('scoreboard').classList.contains('show')) renderScoreboard();
 }
 requestAnimationFrame(frame);
 
@@ -1221,13 +1550,20 @@ function drawMinimap(){
   }
   for(const p of pickups){
     if(p.taken) continue;
-    mg.fillStyle = p.kind==='health' ? '#ff6b6b' : '#ffd479';
+    mg.fillStyle = p.kind==='health' ? '#ff6b6b' : p.kind==='ammo' ? '#ffd479' : BUFF_META[p.kind].color;
     mg.fillRect(ox+p.x*cell-1.5, oy+p.y*cell-1.5, 3, 3);
   }
   for(const e of enemies){
     if(e.dead) continue;
     mg.fillStyle = e.alert ? '#ff5a5a' : 'rgba(255,140,140,.5)';
     mg.beginPath(); mg.arc(ox+e.x*cell, oy+e.y*cell, 2.2, 0, TAU); mg.fill();
+  }
+  if(netMode !== 'solo'){
+    for(const op of otherPlayers.values()){
+      if(!op.alive) continue;
+      mg.fillStyle = SKINS[op.skin % SKINS.length].body;
+      mg.beginPath(); mg.arc(ox+op.x*cell, oy+op.y*cell, 2.4, 0, TAU); mg.fill();
+    }
   }
   // player + view cone
   const px = ox+player.x*cell, py = oy+player.y*cell;
@@ -1275,11 +1611,348 @@ function hitMarker(){
   hitT = setTimeout(()=> cross.classList.remove('hit'), 90);
 }
 
+/* ------------------------------- networking -------------------------------- */
+// Star-topology WebRTC via PeerJS's free public broker — no backend of our own.
+// Host is authoritative for enemies, pickups, waves, and every OTHER player's
+// position/hp/buffs. Each device predicts its own local player for feel and
+// reconciles toward whatever the host last reported.
+function handleNetEvent(evt){
+  switch(evt.kind){
+    case 'hit':
+      if(evt.targetId && evt.targetId === myId) Sound.hurt(); else Sound.hit();
+      break;
+    case 'shieldblock': Sound.shieldBlock(); break;
+    case 'elim':
+      feed(`${evt.victim} eliminated by ${evt.killer}`, '#ff9a6a');
+      Sound.kill();
+      break;
+    case 'kill':
+      feed(`${evt.name} eliminated`, '#8ef5c0');
+      Sound.kill();
+      break;
+    case 'pickup':
+      feed(evt.text, evt.color);
+      if(evt.targetId === myId) Sound.pickup();
+      break;
+    case 'buff':
+      feed(evt.text, evt.color);
+      if(evt.targetId === myId) Sound.buff();
+      break;
+    case 'ammo':
+      feed(evt.text, evt.color);
+      if(evt.targetId === myId){
+        const r = WEAPONS.rifle; r.reserve = Math.min(180, r.reserve + 40); Sound.pickup(); updateHUD();
+      }
+      break;
+    case 'wave':
+      banner(`Wave ${evt.wave}`, `${evt.count} hostiles inbound`);
+      Sound.wave();
+      break;
+    case 'gameover':
+      gameOver = true;
+      showGameOverScreen(evt.wave, evt.kills, evt.score);
+      break;
+    case 'join': feed(`${evt.name} connected`, '#8ef5ff'); break;
+    case 'leave': feed(`${evt.name} disconnected`, '#7d99a3'); break;
+  }
+}
+
+const Net = (() => {
+  let peer = null, hostConn = null;
+  const clientConns = new Map();          // host-side: peerId -> DataConnection
+
+  function shortCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = ''; for(let i=0;i<4;i++) s += chars[(Math.random()*chars.length)|0];
+    return s;
+  }
+  function safeSend(conn, msg){ try{ conn && conn.open && conn.send(msg); }catch(err){} }
+  function broadcast(msg){ for(const c of clientConns.values()) safeSend(c, msg); }
+  function sendToHost(msg){ safeSend(hostConn, msg); }
+
+  function makeRemotePlayer(id, name){
+    const s = SPAWNS[(Math.random()*SPAWNS.length)|0];
+    return {
+      id, name, x:s[0], y:s[1], a:0, pitch:0, hp:100, alive:true, weapon:'pistol',
+      kills:0, deaths:0, buffs:freshBuffs(), skin:(nextSkin++)%SKINS.length,
+      respawnAt:0, animPhase:0, input:{keys:{}}, lastShotAt:0,
+    };
+  }
+
+  function hostApplyMovement(dt){
+    for(const st of otherPlayers.values()){
+      decayBuffs(st.buffs, dt);
+      if(!st.alive) continue;
+      const k = st.input.keys || {};
+      const dirX = Math.cos(st.a), dirY = Math.sin(st.a), rgtX = -dirY, rgtY = dirX;
+      let fx=0, fy=0;
+      if(k.w){ fx+=dirX; fy+=dirY; } if(k.s){ fx-=dirX; fy-=dirY; }
+      if(k.d){ fx+=rgtX; fy+=rgtY; } if(k.a){ fx-=rgtX; fy-=rgtY; }
+      const mag = Math.hypot(fx,fy);
+      if(mag > 0.001){
+        const boost = st.buffs.speed > 0 ? 1.55 : 1;
+        const sprinting = k.shift && k.w;
+        const sp = (sprinting ? player.sprint : player.speed) * boost * dt;
+        moveEntity(st, (fx/mag)*sp, (fy/mag)*sp, 0.26);
+        st.animPhase += dt * (sprinting ? 13 : 9);
+      }
+    }
+  }
+
+  function hostStep(id, msg){
+    const st = otherPlayers.get(id);
+    if(!st) return;
+    if(msg.type === 'input'){
+      st.input = msg; st.a = msg.a; st.pitch = msg.pitch; st.weapon = msg.weapon;
+    } else if(msg.type === 'shot'){
+      if(!st.alive) return;
+      const w = WEAPONS[msg.weapon] || WEAPONS.pistol;
+      const minGap = Math.max(0.03, (st.buffs.rapid > 0 ? 0.045 : w.rof) * 0.6);
+      if(now - st.lastShotAt < minGap) return;
+      st.lastShotAt = now;
+      resolveShot(st.x, st.y, msg.a, msg.dmg, st, true);
+    }
+  }
+
+  function playerSnap(p){
+    return { id:p.id, name:p.name, x:p.x, y:p.y, a:p.a, hp:p.hp, alive:p.alive, weapon:p.weapon,
+      kills:p.kills||0, deaths:p.deaths||0, buffs:p.buffs, skin:p.skin, animPhase:p.animPhase||0 };
+  }
+  function buildSnapshot(){
+    return {
+      type:'state', wave, kills, score, spawning, waveTimer,
+      enemies: enemies.map(e => ({ id:e.id, t:e.type.key, x:e.x, y:e.y, hp:e.hp, dead:e.dead,
+        deadTime:e.deadTime, flash:e.flash, painTime:e.painTime, attackAnim:e.attackAnim,
+        animPhase:e.animPhase, alert:e.alert })),
+      pickups: pickups.map(p => ({ x:p.x, y:p.y, kind:p.kind, taken:p.taken })),
+      bolts: bolts.map(b => ({ x:b.x, y:b.y })),
+      players: [ playerSnap(player), ...[...otherPlayers.values()].map(playerSnap) ],
+    };
+  }
+  function applySnapshot(s){
+    wave = s.wave; kills = s.kills; score = s.score; spawning = s.spawning; waveTimer = s.waveTimer;
+    enemies = s.enemies.map(se => ({ id:se.id, type:TYPES[se.t], x:se.x, y:se.y, hp:se.hp, dead:se.dead,
+      deadTime:se.deadTime, flash:se.flash, painTime:se.painTime, attackAnim:se.attackAnim,
+      animPhase:se.animPhase, alert:se.alert }));
+    for(const sp of s.pickups){
+      const p = pickups.find(pp => pp.x===sp.x && pp.y===sp.y && pp.kind===sp.kind);
+      if(p) p.taken = sp.taken;
+    }
+    bolts = s.bolts.map(b => ({ x:b.x, y:b.y, dx:0, dy:0, life:1 }));
+    const seen = new Set();
+    for(const ps of s.players){
+      seen.add(ps.id);
+      if(ps.id === myId){
+        player.hp = ps.hp; player.alive = ps.alive; player.kills = ps.kills; player.deaths = ps.deaths;
+        player.buffs = ps.buffs; player.netX = ps.x; player.netY = ps.y;
+        continue;
+      }
+      let g = otherPlayers.get(ps.id);
+      if(!g){ g = { id:ps.id, x:ps.x, y:ps.y, skin:ps.skin }; otherPlayers.set(ps.id, g); }
+      g.netX = ps.x; g.netY = ps.y; g.a = ps.a; g.hp = ps.hp; g.alive = ps.alive; g.weapon = ps.weapon;
+      g.kills = ps.kills; g.deaths = ps.deaths; g.buffs = ps.buffs; g.name = ps.name; g.skin = ps.skin;
+      g.animPhase = ps.animPhase;
+    }
+    for(const id of [...otherPlayers.keys()]) if(!seen.has(id)) otherPlayers.delete(id);
+  }
+
+  function wireHostConnection(conn){
+    conn.on('open', () => {
+      clientConns.set(conn.peer, conn);
+      otherPlayers.set(conn.peer, makeRemotePlayer(conn.peer, 'Player'));
+    });
+    conn.on('data', msg => {
+      if(msg.type === 'hello'){
+        const st = otherPlayers.get(conn.peer);
+        if(st) st.name = (msg.name || 'Player').slice(0,16);
+        renderLobbyList();
+        Net.emit({ kind:'join', name: st ? st.name : 'Player' });
+        safeSend(conn, { type:'welcome', id: conn.peer, mode: MODE });
+      } else {
+        hostStep(conn.peer, msg);
+      }
+    });
+    conn.on('close', () => {
+      const st = otherPlayers.get(conn.peer);
+      clientConns.delete(conn.peer);
+      otherPlayers.delete(conn.peer);
+      renderLobbyList();
+      if(st) Net.emit({ kind:'leave', name: st.name });
+    });
+  }
+
+  return {
+    get isHost(){ return netMode === 'host'; },
+
+    startHost(mode, name){
+      MODE = mode; netMode = 'host'; myId = 'host';
+      player.id = myId; player.name = name || 'Host';
+      otherPlayers.clear();
+      const code = shortCode();
+      setNetMsg('Opening room…');
+      peer = new Peer('breach-' + code);
+      peer.on('open', () => {
+        roomCode = code;
+        el('lobbyCode').textContent = code;
+        el('lobbyRoomWrap').classList.remove('hide');
+        el('btnStartMatch').classList.remove('hide');
+        setNetMsg('Share this code with your squad.');
+        renderLobbyList();
+      });
+      peer.on('connection', wireHostConnection);
+      peer.on('error', err => setNetMsg('Connection error: ' + ((err && err.type) || err)));
+    },
+
+    joinRoom(code){
+      netMode = 'client'; myId = null;
+      player.name = 'Guest' + (10 + ((Math.random()*90)|0));
+      peer = new Peer();
+      peer.on('open', id => {
+        myId = id; player.id = id;
+        hostConn = peer.connect('breach-' + code.toUpperCase(), { reliable:true });
+        hostConn.on('open', () => {
+          safeSend(hostConn, { type:'hello', name: player.name });
+          showPanel('menuLobby');
+          el('lobbyRoomWrap').classList.add('hide');
+          el('btnStartMatch').classList.add('hide');
+          setNetMsg('Connected — waiting for the host to start…');
+        });
+        hostConn.on('data', msg => {
+          if(msg.type === 'welcome') MODE = msg.mode;
+          else if(msg.type === 'state') applySnapshot(msg);
+          else if(msg.type === 'event') handleNetEvent(msg.evt);
+          else if(msg.type === 'start') beginMatch();
+        });
+        hostConn.on('close', () => setNetMsg('Host disconnected.'));
+      });
+      peer.on('error', err => setNetMsg('Could not connect: ' + ((err && err.type) || err)));
+    },
+
+    beginAsHost(){ broadcast({ type:'start' }); beginMatch(); },
+
+    send(msg){ sendToHost(msg); },
+
+    emit(evt){
+      handleNetEvent(evt);
+      if(netMode === 'host') broadcast({ type:'event', evt });
+    },
+
+    tick(dt){
+      if(netMode === 'host'){
+        hostApplyMovement(dt);
+        netSendTimer -= dt;
+        if(netSendTimer <= 0){ netSendTimer = NET_TICK; broadcast(buildSnapshot()); }
+      } else if(netMode === 'client'){
+        if(player.netX != null){
+          const ex = player.netX-player.x, ey = player.netY-player.y, err = Math.hypot(ex,ey);
+          if(err > 1.5){ player.x = player.netX; player.y = player.netY; }
+          else if(err > 0.02){ player.x += ex*Math.min(1,dt*3); player.y += ey*Math.min(1,dt*3); }
+        }
+        for(const g of otherPlayers.values()){
+          if(g.netX != null){ g.x = lerp(g.x, g.netX, Math.min(1,dt*10)); g.y = lerp(g.y, g.netY, Math.min(1,dt*10)); }
+        }
+        netSendTimer -= dt;
+        if(netSendTimer <= 0){
+          netSendTimer = NET_TICK;
+          sendToHost({ type:'input', keys:{w:!!keys.w,a:!!keys.a,s:!!keys.s,d:!!keys.d,shift:!!keys.shift},
+            a:player.a, pitch:player.pitch, weapon:player.weapon });
+        }
+      }
+    },
+
+    leaveToMenu(){
+      try{ peer && peer.destroy(); }catch(err){}
+      peer = null; hostConn = null; clientConns.clear(); otherPlayers.clear();
+      netMode = 'solo'; MODE = 'campaign'; myId = 'me'; player.id = 'me'; roomCode = null;
+      running = false; paused = false; gameOver = false;
+      document.exitPointerLock?.();
+      el('over').classList.add('hide'); el('pause').classList.add('hide');
+      el('keysPanel').classList.add('hide'); el('btnDeploy').classList.add('hide');
+      el('start').classList.remove('hide');
+      showPanel('menuMain');
+    },
+  };
+})();
+
+function renderLobbyList(){
+  const list = el('lobbyList');
+  if(!list) return;
+  const names = netMode === 'host'
+    ? ['You (host)', ...[...otherPlayers.values()].map(p => p.name)]
+    : [];
+  list.innerHTML = names.length ? names.map(n => `<li>${n}</li>`).join('') : '<li>Waiting for players…</li>';
+}
+function setNetMsg(msg){
+  const a = el('netmsg'), b = el('netmsg2');
+  if(a) a.textContent = msg;
+  if(b) b.textContent = msg;
+}
+function showPanel(id){
+  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby']) el(p).classList.toggle('hide', p !== id);
+}
+function beginMatch(){
+  el('start').classList.add('hide');
+  startGame();
+}
+
+/* -------------------------------- scoreboard ------------------------------- */
+function renderScoreboard(){
+  el('sbTitle').textContent = MODE === 'deathmatch' ? 'Deathmatch' : MODE === 'coop' ? 'Co-op' : 'Solo';
+  const rows = allPlayers().map(p => ({ name: p===player ? (p.name||'You') : (p.name||'Player'),
+    kills:p.kills||0, deaths:p.deaths||0, me:p===player }));
+  rows.sort((a,b) => b.kills - a.kills);
+  el('sbTable').innerHTML =
+    '<tr><td class="name"><b>Player</b></td><td class="num"><b>K</b></td><td class="num"><b>D</b></td></tr>' +
+    rows.map(r => `<tr class="${r.me?'me':''}"><td class="name">${r.name}</td><td class="num">${r.kills}</td><td class="num">${r.deaths}</td></tr>`).join('');
+}
+function updateBuffHud(){
+  const c = el('buffs');
+  let html = '';
+  for(const k of ['speed','damage','rapid','shield']){
+    const t = player.buffs[k];
+    if(t > 0) html += `<div class="buff ${k}"><b>${BUFF_META[k].label}</b><span>${t.toFixed(1)}s</span></div>`;
+  }
+  c.innerHTML = html;
+}
+function renderNameplates(){
+  if(netMode === 'solo' || !otherPlayers.size) return;
+  const dirX = Math.cos(player.a), dirY = Math.sin(player.a), fov = 0.72;
+  const planeX = -dirY*fov, planeY = dirX*fov;
+  const invDet = 1/(planeX*dirY - dirX*planeY);
+  const W = canvas.width, H = canvas.height, scaleX = W/RW, scaleY = H/RH;
+  const horizon = RH*0.5 + player.pitch;
+  ctx2d.save();
+  ctx2d.font = '600 13px "SF Mono", ui-monospace, monospace';
+  ctx2d.textAlign = 'center';
+  for(const op of otherPlayers.values()){
+    if(!op.alive) continue;
+    const sx = op.x-player.x, sy = op.y-player.y;
+    const tX = invDet*(dirY*sx - dirX*sy), tY = invDet*(-planeY*sx + planeX*sy);
+    if(tY <= 0.15) continue;
+    const screenX = (RW/2)*(1+tX/tY);
+    if(screenX < -20 || screenX > RW+20) continue;
+    const sh_ = Math.abs((RH/tY)*0.86);
+    const groundY = horizon + (0.5*RH)/tY;
+    const px = screenX*scaleX, py = (groundY - sh_ - 10)*scaleY;
+    const label = op.name || 'Player';
+    const w = ctx2d.measureText(label).width + 12;
+    ctx2d.fillStyle = 'rgba(4,10,14,.6)';
+    ctx2d.fillRect(px-w/2, py-14, w, 18);
+    ctx2d.fillStyle = '#c9f7ff';
+    ctx2d.fillText(label, px, py);
+  }
+  ctx2d.restore();
+}
+
 /* --------------------------------- input --------------------------------- */
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   keys[k] = true;
   if(k === 'shift') keys['shift'] = true;
+  if(k === 'tab'){
+    e.preventDefault();
+    if(running){ el('scoreboard').classList.add('show'); renderScoreboard(); }
+  }
   if(!running) return;
   if(k === 'r') tryReload();
   if(k === '1') switchWeapon('pistol');
@@ -1287,7 +1960,11 @@ addEventListener('keydown', e => {
   if(k === 'q') switchWeapon(player.weapon === 'pistol' ? 'rifle' : 'pistol');
   if(['w','a','s','d',' '].includes(k)) e.preventDefault();
 });
-addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  keys[k] = false;
+  if(k === 'tab') el('scoreboard').classList.remove('show');
+});
 addEventListener('blur', () => { for(const k in keys) keys[k] = false; mouseDown = false; });
 
 addEventListener('mousedown', e => {
@@ -1315,37 +1992,77 @@ function requestLock(){
   canvas.requestPointerLock?.();
   Sound.resume();
 }
-el('start').addEventListener('click', () => { el('start').classList.add('hide'); startGame(); });
+el('btnDeploy').addEventListener('click', () => beginMatch());
 el('pause').addEventListener('click', () => { el('pause').classList.add('hide'); requestLock(); });
-el('over').addEventListener('click',  () => { el('over').classList.add('hide');  startGame(); });
+el('btnLeaveMatch').addEventListener('click', (e) => { e.stopPropagation(); Net.leaveToMenu(); });
+el('over').addEventListener('click', () => {
+  el('over').classList.add('hide');
+  if(netMode === 'solo') startGame(); else Net.leaveToMenu();
+});
+
+el('btnSolo').addEventListener('click', () => {
+  MODE = 'campaign'; netMode = 'solo';
+  showPanel('');
+  el('keysPanel').classList.remove('hide');
+  el('btnDeploy').classList.remove('hide');
+});
+el('btnMulti').addEventListener('click', () => showPanel('menuMulti'));
+el('btnBackMulti').addEventListener('click', () => showPanel('menuMain'));
+el('btnShowJoin').addEventListener('click', () => showPanel('menuJoin'));
+el('btnBackJoin').addEventListener('click', () => showPanel('menuMulti'));
+el('btnHostCoop').addEventListener('click', () => { showPanel('menuLobby'); Net.startHost('coop'); });
+el('btnHostDM').addEventListener('click', () => { showPanel('menuLobby'); Net.startHost('deathmatch'); });
+el('btnJoinGo').addEventListener('click', () => {
+  const code = el('joinCode').value.trim();
+  if(code.length < 4){ setNetMsg('Enter the 4-letter room code.'); return; }
+  setNetMsg('Connecting…');
+  Net.joinRoom(code);
+});
+el('joinCode').addEventListener('input', () => {
+  el('joinCode').value = el('joinCode').value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+});
+el('btnStartMatch').addEventListener('click', () => Net.beginAsHost());
+el('btnLeaveLobby').addEventListener('click', () => Net.leaveToMenu());
 
 function startGame(){
-  enemies = []; bolts = [];
+  enemies = []; bolts = []; nextEnemyId = 1;
   wave = 0; kills = 0; score = 0; spawning = false; waveTimer = 0; lastAlive = -1;
-  player.x = START[0]; player.y = START[1]; player.a = -Math.PI/2; player.pitch = 0;
+  const spawn = MODE === 'deathmatch' ? SPAWNS[(Math.random()*SPAWNS.length)|0] : START;
+  player.x = spawn[0]; player.y = spawn[1]; player.a = -Math.PI/2; player.pitch = 0;
   player.hp = 100; player.alive = true; player.weapon = 'pistol';
   player.kick = 0; player.flash = 0; player.hurt = 0; player.reloading = 0; player.cooldown = 0;
+  player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0;
   WEAPONS.pistol.ammo = 12; WEAPONS.pistol.reserve = Infinity;
   WEAPONS.rifle.ammo = 30;  WEAPONS.rifle.reserve = 90;
   resetPickups();
   vig.style.opacity = '0';
   gameOver = false; paused = false; running = true;
-  computeFlowField();
+  if(netMode !== 'client') refreshFlowFields();
   updateHUD();
   requestLock();
-  banner('Breach', 'Hostiles inbound');
+  if(MODE === 'deathmatch')      banner('Deathmatch', 'Eliminate everyone else');
+  else if(MODE === 'coop')       banner('Co-op Breach', 'Hold the line together');
+  else                           banner('Breach', 'Hostiles inbound');
 }
 
 function die(){
   player.alive = false;
+  if(MODE === 'campaign'){ triggerGameOver(); return; }
+  vig.style.opacity = '.6';
+  banner('ELIMINATED', MODE === 'deathmatch' ? 'Redeploying…' : 'Down — revive next wave');
+}
+function triggerGameOver(){
+  if(gameOver) return;
   gameOver = true;
-  vig.style.opacity = '.75';
+  Net.emit({ kind:'gameover', wave, kills, score });
+}
+function showGameOverScreen(w, k, s){
   document.exitPointerLock?.();
   setTimeout(() => {
     running = false;
-    el('oWave').textContent  = wave;
-    el('oKills').textContent = kills;
-    el('oScore').textContent = score;
+    el('oWave').textContent  = w;
+    el('oKills').textContent = k;
+    el('oScore').textContent = s;
     el('over').classList.remove('hide');
   }, 900);
 }
