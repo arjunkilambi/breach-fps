@@ -1135,10 +1135,14 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
   // fling/knockback mechanic — AI-driven walking never touches them, which is
   // why the walk clip previously almost never triggered). Smoothed with an EMA
   // so a single laggy frame can't cause a flicker between Idle and Walk.
-  const movedDist = Math.hypot(ent.x-(rec.lastX ?? ent.x), ent.y-(rec.lastY ?? ent.y));
+  const moveDx = ent.x-(rec.lastX ?? ent.x), moveDz = ent.y-(rec.lastY ?? ent.y);
+  const movedDist = Math.hypot(moveDx, moveDz);
   const instSpeed = dt > 0.0001 ? movedDist/dt : 0;
   rec.lastX = ent.x; rec.lastY = ent.y;
   rec.speedEMA = lerp(rec.speedEMA ?? 0, instSpeed, Math.min(1, dt*10));
+  // smoothed travel direction (raw per-frame delta is too noisy to face directly)
+  rec.dirX = lerp(rec.dirX ?? moveDx, moveDx, Math.min(1, dt*8));
+  rec.dirZ = lerp(rec.dirZ ?? moveDz, moveDz, Math.min(1, dt*8));
 
   mesh.position.set(ent.x, mesh.position.y||0, ent.y);
 
@@ -1167,8 +1171,19 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
   }
   rec.wasDead = false;
   mesh.position.y = lerp(mesh.position.y||0, 0, dt*8);
-  const dx = camera.position.x - mesh.position.x, dz = camera.position.z - mesh.position.z;
-  mesh.rotation.y = Math.atan2(dx, dz);                 // yaw only — never touches x/z
+  // face the direction of travel while actually walking (so the gait reads
+  // correctly instead of looking like it's sliding/moonwalking); otherwise
+  // face the player, same as before, so idle/attacking enemies still look at you
+  let desiredYaw;
+  if(rec.speedEMA > 0.3 && Math.hypot(rec.dirX, rec.dirZ) > 0.0001){
+    desiredYaw = Math.atan2(rec.dirX, rec.dirZ);
+  } else {
+    const dx = camera.position.x - mesh.position.x, dz = camera.position.z - mesh.position.z;
+    desiredYaw = Math.atan2(dx, dz);
+  }
+  const prevYaw = mesh.rotation.y || 0;
+  const diff = ((desiredYaw - prevYaw + Math.PI) % TAU + TAU) % TAU - Math.PI;
+  mesh.rotation.y = prevYaw + diff * Math.min(1, dt*10);   // yaw only — never touches x/z
 
   if(u.mixer){
     // GLTF-driven character: crossfade Idle<->Walk by actual movement speed
@@ -3093,7 +3108,7 @@ Object.defineProperty(window, '__breach', { configurable:true, get(){ return {
   purchaseWeapon, purchaseShieldTier, purchaseUpgrade, sendFriendRequest, respondToRequest, openChat,
   sendChatMessage, loadFriendsData, renderArmory, update, render3D, setZoom, resetJoy, el, escapeHtml,
   refreshFlowFields, rebuildMapMeshes, spawnEnemy, makeCharacter, TYPES, SKINS, characterTemplate,
-  nextEnemyId,
+  nextEnemyId, enemyMeshes, playerMeshes,
 }; } });
 }
 if(window.THREE) __startBreach();
