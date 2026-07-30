@@ -1181,6 +1181,9 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     const dx = camera.position.x - mesh.position.x, dz = camera.position.z - mesh.position.z;
     desiredYaw = Math.atan2(dx, dz);
   }
+  // the Soldier model's local forward is -Z (opposite of the old box character's
+  // convention, confirmed empirically) — flip it 180° so it actually faces the way it's walking
+  if(u.mixer) desiredYaw += Math.PI;
   const prevYaw = mesh.rotation.y || 0;
   const diff = ((desiredYaw - prevYaw + Math.PI) % TAU + TAU) % TAU - Math.PI;
   mesh.rotation.y = prevYaw + diff * Math.min(1, dt*10);   // yaw only — never touches x/z
