@@ -1095,7 +1095,29 @@ function makeCharacterBox(colors){
   yawGroup.userData = { legL, legR, armL, armR, torso, head, bodyMat, leanGroup };
   return yawGroup;
 }
-function makeCharacterGLTF(colors){
+// small procedural rifle, hand-scale (not camera-scale like makeWeaponModel),
+// carried by ranged enemies — attached as a child of their hand bone so it
+// automatically follows every animation the skeleton plays
+function makeGunModel(){
+  const g = new THREE.Group();
+  const steel = new THREE.MeshStandardMaterial({ color:0x3a4148, roughness:0.4, metalness:0.6 });
+  const dark  = new THREE.MeshStandardMaterial({ color:0x181c20, roughness:0.6 });
+  const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.05,0.05,0.42), steel); barrel.position.set(0,0.015,-0.28);
+  const body   = new THREE.Mesh(new THREE.BoxGeometry(0.085,0.11,0.24), dark); body.position.set(0,-0.01,0.03);
+  const grip   = new THREE.Mesh(new THREE.BoxGeometry(0.055,0.16,0.055), dark); grip.position.set(0,-0.13,0.13); grip.rotation.x = 0.32;
+  const mag    = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.13,0.05), steel); mag.position.set(0,-0.15,0.03); mag.rotation.x = 0.1;
+  g.add(barrel, body, grip, mag);
+  const flashMesh = new THREE.Mesh(new THREE.SphereGeometry(0.06,8,6),
+    new THREE.MeshBasicMaterial({ color:0xffe0a0, transparent:true, opacity:0 }));
+  flashMesh.position.set(0, 0.015, -0.5);
+  g.add(flashMesh);
+  const flashLight = new THREE.PointLight(0xffcf8a, 0, 3, 2);
+  flashLight.position.copy(flashMesh.position);
+  g.add(flashLight);
+  g.userData = { flashMesh, flashLight };
+  return g;
+}
+function makeCharacterGLTF(colors, armed){
   const yawGroup = new THREE.Group();
   const leanGroup = new THREE.Group();
   yawGroup.add(leanGroup);
@@ -1121,11 +1143,36 @@ function makeCharacterGLTF(colors){
     }
   });
 
-  yawGroup.userData = { mixer, actions, materials, leanGroup, walkWeight:0 };
+  let gun = null;
+  if(armed){
+    const handBone = model.getObjectByName('mixamorigRightHand');
+    if(handBone){
+      gun = makeGunModel();
+      // the Soldier rig's bones carry a large baked-in internal scale (~0.0076
+      // once the enemy's own yawGroup scale is folded in) — counter it so the
+      // gun renders at the same real-world size its geometry was authored at
+      const invScale = new THREE.Vector3(1,1,1).divide(handBone.getWorldScale(new THREE.Vector3()));
+      gun.scale.copy(invScale);
+      // In the Idle/Walk pose the arm hangs at the character's side, so the hand
+      // bone's own local +Y axis already points down through the fingers — build
+      // the gun's orientation directly in that local frame (barrel = local -Z)
+      // so it hangs muzzle-down like a rifle carried at the side, and follows
+      // every arm-swing the walk animation does automatically (empirically
+      // verified via screenshot: reads clearly as a held weapon front-on, which
+      // is the angle players see since idle/attacking enemies always face them).
+      const gunBasis = new THREE.Matrix4().makeBasis(
+        new THREE.Vector3(0,0,-1), new THREE.Vector3(1,0,0), new THREE.Vector3(0,-1,0));
+      gun.quaternion.setFromRotationMatrix(gunBasis);
+      gun.position.set(0, -0.03, 0);
+      handBone.add(gun);
+    }
+  }
+
+  yawGroup.userData = { mixer, actions, materials, leanGroup, walkWeight:0, gun };
   return yawGroup;
 }
-function makeCharacter(colors){
-  return characterTemplate ? makeCharacterGLTF(colors) : makeCharacterBox(colors);
+function makeCharacter(colors, armed){
+  return characterTemplate ? makeCharacterGLTF(colors, armed) : makeCharacterBox(colors);
 }
 // pose + physics-reactive lean + toppling death fall, shared by enemies & players
 function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, dt){
@@ -1201,6 +1248,15 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
       m.emissive?.set(hurting ? 0xff3333 : 0x000000);
       if(m.emissiveIntensity !== undefined) m.emissiveIntensity = hurting ? 0.7 : 0;
     }
+    if(u.gun){
+      rec.gunFlash = Math.max(0, (rec.gunFlash||0) - dt*9);
+      if(attacking && !rec.wasAttacking) rec.gunFlash = 1;
+      rec.wasAttacking = attacking;
+      const { flashMesh, flashLight } = u.gun.userData;
+      flashMesh.material.opacity = rec.gunFlash;
+      flashMesh.scale.setScalar(0.7 + rec.gunFlash*0.9);
+      flashLight.intensity = rec.gunFlash*4;
+    }
   } else {
     const swing = Math.sin(walkPhase*1.6);
     u.legL.rotation.x = swing*0.5; u.legR.rotation.x = -swing*0.5;
@@ -1224,7 +1280,7 @@ function syncEnemyMeshes(dt){
     seen.add(e.id);
     let rec = enemyMeshes.get(e.id);
     if(!rec){
-      const mesh = makeCharacter(e.type.colors);
+      const mesh = makeCharacter(e.type.colors, !!e.type.ranged);
       mesh.scale.setScalar(e.type.scale);
       scene.add(mesh);
       rec = { mesh, fallDir: Math.random()<0.5?-1:1, wasDead:false, deadT:0 };
