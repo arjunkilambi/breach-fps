@@ -16,7 +16,7 @@
     font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
     color:#c9f7ff; user-select:none; cursor:default;
   }
-  #view{display:block;width:100vw;height:100vh;background:#000}
+  #view{display:block;width:100vw;height:100vh;background:#000;touch-action:none}
   #nameOverlay{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none}
   #ui{position:fixed;inset:0;pointer-events:none}
 
@@ -29,6 +29,18 @@
   #cross i:nth-child(4){top:50%;right:0;height:2px;width:8px;margin-top:-1px}
   #cross.hit i{background:#ff5a5a}
   #cross.hit{transform:translate(-50%,-50%) rotate(45deg) scale(1.15)}
+
+  /* ---------- sniper scope overlay ---------- */
+  #scopeOverlay{position:fixed;inset:0;pointer-events:none;display:none;z-index:5}
+  #scopeOverlay.show{display:block}
+  #scopeOverlay .hole{position:absolute;left:50%;top:50%;width:min(70vh,70vw);height:min(70vh,70vw);
+    transform:translate(-50%,-50%);border-radius:50%;box-shadow:0 0 0 9999px #000;
+    border:2px solid rgba(120,220,255,.4)}
+  #scopeOverlay .reticle{position:absolute;left:50%;top:50%;width:min(70vh,70vw);height:min(70vh,70vw);
+    transform:translate(-50%,-50%)}
+  #scopeOverlay .reticle::before,#scopeOverlay .reticle::after{content:'';position:absolute;background:rgba(180,240,255,.85)}
+  #scopeOverlay .reticle::before{left:50%;top:0;bottom:0;width:1px;transform:translateX(-50%)}
+  #scopeOverlay .reticle::after{top:50%;left:0;right:0;height:1px;transform:translateY(-50%)}
 
   /* ---------- bottom hud ---------- */
   .hudbar{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;
@@ -95,6 +107,25 @@
   #voiceBtn.on{color:#8ef5c0;border-color:rgba(142,245,192,.4)}
   #voiceBtn.muted{color:#ff9a6a;border-color:rgba(255,154,106,.4)}
 
+  /* ---------- mobile touch controls (touch devices only) ---------- */
+  #mobileControls{display:none}
+  #mobileControls.hide{display:none !important}
+  @media (pointer:coarse){
+    #mobileControls{display:block}
+  }
+  #joyBase{position:absolute;left:28px;bottom:120px;width:110px;height:110px;border-radius:50%;
+    background:rgba(20,60,80,.35);border:1px solid var(--line);pointer-events:auto;touch-action:none}
+  #joyStick{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;
+    border-radius:50%;background:rgba(142,245,255,.5);border:1px solid rgba(142,245,255,.7)}
+  #fireBtn{position:absolute;right:28px;bottom:130px;width:84px;height:84px;border-radius:50%;
+    background:rgba(255,90,90,.28);border:1px solid rgba(255,120,120,.5);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;letter-spacing:.1em;
+    pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none}
+  #reloadBtn{position:absolute;right:26px;bottom:222px;width:52px;height:52px;border-radius:50%;
+    background:rgba(20,60,80,.5);border:1px solid var(--line);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;letter-spacing:.1em;
+    pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none}
+
   /* ---------- buffs ---------- */
   #buffs{position:absolute;left:0;right:0;bottom:96px;display:flex;justify-content:center;gap:8px;padding:0 22px}
   #buffs .buff{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;
@@ -138,9 +169,19 @@
   .lobbylist li{padding:6px 4px;border-bottom:1px solid var(--line)}
   .lobbylist li.roomrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .lobbylist .joinRoomBtn{padding:6px 14px;font-size:11px}
-  #netmsg,#loginMsg{font-size:12px;color:var(--dim);min-height:16px;letter-spacing:.06em}
-  #loginEmail{pointer-events:auto;font:inherit;font-size:15px;text-align:left;color:#fff;
+  .mapRow span{flex:1}
+  .mapThumb{width:64px;height:46px;border-radius:6px;border:1px solid var(--line);flex-shrink:0;image-rendering:pixelated}
+  .weaponIcon{width:60px;height:26px;border-radius:4px;border:1px solid var(--line);background:rgba(0,0,0,.3);flex-shrink:0}
+  #netmsg,#loginMsg,#friendMsg{font-size:12px;color:var(--dim);min-height:16px;letter-spacing:.06em}
+  #loginEmail,#friendEmail,#chatInput{pointer-events:auto;font:inherit;font-size:15px;text-align:left;color:#fff;
     background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;padding:12px;width:100%}
+  #chatInput{padding:10px;font-size:14px}
+  #chatThread{max-height:280px;min-height:120px;overflow:auto;text-align:left;background:rgba(0,0,0,.25);
+    border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px}
+  .chatBubble{max-width:80%;padding:7px 11px;border-radius:12px;font-size:13px;line-height:1.35;word-break:break-word}
+  .chatBubble.me{align-self:flex-end;background:rgba(80,200,255,.28);border:1px solid rgba(80,200,255,.4)}
+  .chatBubble.them{align-self:flex-start;background:rgba(255,255,255,.08);border:1px solid var(--line)}
+  .friendRow .mbtn.small{padding:6px 12px;font-size:11px}
 </style>
 </head>
 <body>
@@ -153,6 +194,7 @@
   <div id="flash"></div>
 
   <div id="cross"><i></i><i></i><i></i><i></i></div>
+  <div id="scopeOverlay"><div class="hole"></div><div class="reticle"></div></div>
 
   <div class="top">
     <canvas id="minimap" width="180" height="140"></canvas>
@@ -193,6 +235,12 @@
       <table id="sbTable"></table>
     </div>
   </div>
+
+  <div id="mobileControls" class="hide">
+    <div id="joyBase"><div id="joyStick"></div></div>
+    <div id="fireBtn">FIRE</div>
+    <div id="reloadBtn">R</div>
+  </div>
 </div>
 
 <div class="screen" id="start">
@@ -204,7 +252,30 @@
     <div class="mbtn" id="btnSolo">Solo Campaign</div>
     <div class="mbtn" id="btnMulti">Multiplayer</div>
     <div class="mbtn ghost small" id="btnArmory">Armory</div>
+    <div class="mbtn ghost small" id="btnFriends">Friends</div>
     <div class="mbtn ghost small" id="btnAccount">Account</div>
+  </div>
+
+  <div class="panelbox hide" id="menuFriends" style="min-width:360px">
+    <div class="lbl">Add a friend by email</div>
+    <input id="friendEmail" type="email" placeholder="friend@example.com" autocomplete="off" spellcheck="false" />
+    <div class="mbtn" id="btnFriendSend" style="margin-top:10px">Send Friend Request</div>
+    <div id="friendMsg"></div>
+    <div class="lbl" style="margin-top:14px">Incoming Requests</div>
+    <ul class="lobbylist" id="friendRequestsList"><li>No pending requests</li></ul>
+    <div class="lbl" style="margin-top:6px">Friends</div>
+    <ul class="lobbylist" id="friendsList"><li>No friends yet</li></ul>
+    <div class="mbtn ghost small" id="btnBackFriends">Back</div>
+  </div>
+
+  <div class="panelbox hide" id="menuChat" style="min-width:360px">
+    <div class="lbl" id="chatWithLbl">Chat</div>
+    <div id="chatThread"></div>
+    <div class="mrow" style="margin-top:8px">
+      <input id="chatInput" type="text" placeholder="Message…" autocomplete="off" spellcheck="false" maxlength="500" />
+      <div class="mbtn small" id="btnChatSend">Send</div>
+    </div>
+    <div class="mbtn ghost small" id="btnBackChat" style="margin-top:10px">Back</div>
   </div>
 
   <div class="panelbox hide" id="menuArmory" style="min-width:360px">
@@ -292,7 +363,21 @@
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script type="importmap">
+{ "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+  import * as THREE from 'three';
+  import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+  import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
+  window.THREE = THREE;
+  window.GLTFLoader = GLTFLoader;
+  window.skeletonClone = skeletonClone;
+  window.dispatchEvent(new Event('THREE_READY'));
+</script>
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 <div class="screen hide" id="pause">
@@ -315,6 +400,7 @@
 
 <script>
 "use strict";
+function __startBreach(){
 /* ============================================================================
    BREACH — a dependency-free raycasting FPS with NPC combatants.
    Everything (textures, sprites, sound) is generated procedurally at runtime.
@@ -582,6 +668,31 @@ function selectMap(idx){
 }
 selectMap(0);
 
+/* ---- static top-down thumbnails for the map picker (built once, cached) --- */
+function renderMapThumbnail(m){
+  const savedGrid = grid, savedW = MAPW, savedH = MAPH;
+  MAPW = m.w; MAPH = m.h; grid = new Uint8Array(MAPW*MAPH);
+  m.build();
+  const builtGrid = grid, builtW = MAPW, builtH = MAPH;
+  grid = savedGrid; MAPW = savedW; MAPH = savedH;
+
+  const cv = document.createElement('canvas');
+  cv.width = 100; cv.height = 72;
+  const g = cv.getContext('2d');
+  const cell = Math.min(cv.width/builtW, cv.height/builtH);
+  const ox = (cv.width - cell*builtW)/2, oy = (cv.height - cell*builtH)/2;
+  g.fillStyle = 'rgba(6,12,16,.9)'; g.fillRect(0,0,cv.width,cv.height);
+  for(let y=0;y<builtH;y++) for(let x=0;x<builtW;x++){
+    const t = builtGrid[y*builtW+x]; if(!t) continue;
+    g.fillStyle = t===WALL.TECH ? 'rgba(90,220,255,.6)'
+                 : t===WALL.METAL ? 'rgba(150,175,200,.5)'
+                 : 'rgba(120,150,170,.4)';
+    g.fillRect(ox+x*cell, oy+y*cell, cell, cell);
+  }
+  return cv.toDataURL();
+}
+const MAP_THUMBS = MAPS.map(renderMapThumbnail);
+
 /* -------------------------------- power-ups ------------------------------- */
 const BUFF_DUR  = { speed:14, damage:12, rapid:12, shield:10, fling:16 };
 const BUFF_META = {
@@ -841,7 +952,7 @@ let lastLobbyBroadcast = 0;
 /* ------------------------------ resolution ------------------------------- */
 function resize(){
   const w = window.innerWidth, h = window.innerHeight;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
   renderer.setSize(w, h);
   camera.aspect = w/h;
   camera.updateProjectionMatrix();
@@ -946,7 +1057,8 @@ function rebuildMapMeshes(){
   scene.add(ceilMesh);
 }
 
-/* ---- blocky low-poly characters (players + enemies share this factory) --- */
+/* ---- characters (players + enemies): real rigged GLTF model, with a boxy
+   procedural fallback if the model hasn't loaded yet or fails to fetch ------ */
 function limbGeo(w,h,d){ const g = new THREE.BoxGeometry(w,h,d); g.translate(0,-h/2,0); return g; }
 const LEG_GEO = limbGeo(0.13,0.38,0.15), ARM_GEO = limbGeo(0.10,0.30,0.10);
 const TORSO_GEO = new THREE.BoxGeometry(0.34,0.40,0.20);
@@ -954,10 +1066,13 @@ const BELT_GEO  = new THREE.BoxGeometry(0.35,0.05,0.21);
 const HEAD_GEO  = new THREE.BoxGeometry(0.22,0.22,0.22);
 const EYE_GEO   = new THREE.BoxGeometry(0.15,0.045,0.02);
 
-function makeCharacter(colors){
-  // Two nested groups so facing (yaw, on the outer group) can never fight with
-  // lean/death-topple (x/z, on the inner group) — Euler decomposition after
-  // lookAt() is not unique, so mixing all three axes on one object is unsafe.
+let characterTemplate = null, characterClips = null;
+new GLTFLoader().loadAsync('https://threejs.org/examples/models/gltf/Soldier.glb').then(gltf => {
+  characterTemplate = gltf.scene;
+  characterClips = gltf.animations;
+}).catch(err => console.warn('Character model failed to load — using the boxy fallback.', err));
+
+function makeCharacterBox(colors){
   const yawGroup = new THREE.Group();
   const leanGroup = new THREE.Group();
   yawGroup.add(leanGroup);
@@ -980,13 +1095,45 @@ function makeCharacter(colors){
   yawGroup.userData = { legL, legR, armL, armR, torso, head, bodyMat, leanGroup };
   return yawGroup;
 }
+function makeCharacterGLTF(colors){
+  const yawGroup = new THREE.Group();
+  const leanGroup = new THREE.Group();
+  yawGroup.add(leanGroup);
+
+  const model = window.skeletonClone(characterTemplate);
+  leanGroup.add(model);
+
+  const mixer = new THREE.AnimationMixer(model);
+  const actions = {};
+  for(const clip of characterClips){
+    if(clip.name === 'Idle' || clip.name === 'Walk') actions[clip.name] = mixer.clipAction(clip);
+  }
+  actions.Idle?.play(); actions.Walk?.play();
+
+  const materials = [];
+  const tint = new THREE.Color(colors.body);
+  model.traverse(child => {
+    if(child.isMesh && child.material){
+      const mat = child.material.clone();
+      mat.color?.multiply(tint);
+      child.material = mat;
+      materials.push(mat);
+    }
+  });
+
+  yawGroup.userData = { mixer, actions, materials, leanGroup, walkWeight:0 };
+  return yawGroup;
+}
+function makeCharacter(colors){
+  return characterTemplate ? makeCharacterGLTF(colors) : makeCharacterBox(colors);
+}
 // pose + physics-reactive lean + toppling death fall, shared by enemies & players
 function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, dt){
   const mesh = rec.mesh, lean = mesh.userData.leanGroup;
   mesh.position.set(ent.x, mesh.position.y||0, ent.y);
 
   if(isDead){
-    if(!rec.wasDead){ rec.wasDead = true; rec.deadT = 0; }
+    if(!rec.wasDead){ rec.wasDead = true; rec.deadT = 0; mesh.userData.mixer?.stopAllAction(); }
     rec.deadT += dt;
     const t = Math.min(1, rec.deadT/0.7), ease = 1-(1-t)*(1-t);
     lean.rotation.z = rec.fallDir * ease * 1.35;
@@ -999,19 +1146,35 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
   mesh.rotation.y = Math.atan2(dx, dz);                 // yaw only — never touches x/z
 
   const u = mesh.userData;
-  const swing = Math.sin(walkPhase*1.6);
-  u.legL.rotation.x = swing*0.5; u.legR.rotation.x = -swing*0.5;
-  const raise = attacking ? 1 : 0;
-  u.armL.rotation.x = lerp(-swing*0.35, -1.8, raise);
-  u.armR.rotation.x = lerp( swing*0.35, -1.8, raise);
-
   const spd = Math.hypot(ent.vx||0, ent.vy||0);
-  const targetLean = spd > 0.5 ? -Math.min(0.55, spd*0.035) : 0;
-  lean.rotation.x = lerp(lean.rotation.x||0, targetLean, dt*8);
-  lean.rotation.z = lerp(lean.rotation.z||0, 0, dt*8);   // ease back upright after a death-fall reuse
 
-  u.bodyMat.emissive.set(hurting ? 0xff3333 : 0x000000);
-  u.bodyMat.emissiveIntensity = hurting ? 0.7 : 0;
+  if(u.mixer){
+    // GLTF-driven character: crossfade Idle<->Walk by speed instead of hand-rotating limbs
+    const targetWalk = spd > 0.15 ? 1 : 0;
+    u.walkWeight = lerp(u.walkWeight, targetWalk, dt*6);
+    u.actions.Idle?.setEffectiveWeight(1 - u.walkWeight);
+    u.actions.Walk?.setEffectiveWeight(u.walkWeight);
+    u.mixer.update(dt);
+    lean.rotation.x = lerp(lean.rotation.x||0, 0, dt*8);
+    lean.rotation.z = lerp(lean.rotation.z||0, 0, dt*8);
+    for(const m of u.materials){
+      m.emissive?.set(hurting ? 0xff3333 : 0x000000);
+      if(m.emissiveIntensity !== undefined) m.emissiveIntensity = hurting ? 0.7 : 0;
+    }
+  } else {
+    const swing = Math.sin(walkPhase*1.6);
+    u.legL.rotation.x = swing*0.5; u.legR.rotation.x = -swing*0.5;
+    const raise = attacking ? 1 : 0;
+    u.armL.rotation.x = lerp(-swing*0.35, -1.8, raise);
+    u.armR.rotation.x = lerp( swing*0.35, -1.8, raise);
+
+    const targetLean = spd > 0.5 ? -Math.min(0.55, spd*0.035) : 0;
+    lean.rotation.x = lerp(lean.rotation.x||0, targetLean, dt*8);
+    lean.rotation.z = lerp(lean.rotation.z||0, 0, dt*8);   // ease back upright after a death-fall reuse
+
+    u.bodyMat.emissive.set(hurting ? 0xff3333 : 0x000000);
+    u.bodyMat.emissiveIntensity = hurting ? 0.7 : 0;
+  }
 }
 
 const enemyMeshes = new Map();     // enemy.id -> { mesh, fallDir, wasDead, deadT }
@@ -1107,7 +1270,7 @@ const weaponModel = makeWeaponModel();
 camera.add(weaponModel);
 
 function updateWeaponView(){
-  const w = WEAPONS[player.weapon], heavy = player.weapon === 'rifle';
+  const w = WEAPONS[player.weapon], heavy = w.heavy;
   const bobX = Math.sin(player.bob)*0.012, bobY = Math.abs(Math.cos(player.bob))*0.01;
   const kick = player.kick*0.0035;
   const rl = player.reloading > 0 ? Math.sin((1-player.reloading/w.reload)*Math.PI)*0.14 : 0;
@@ -1616,16 +1779,23 @@ function update(dt){
   let fx = 0, fy = 0;
   const dirX = Math.cos(player.a), dirY = Math.sin(player.a);
   const rgtX = -dirY, rgtY = dirX;
+  const keyboardActive = keys['w'] || keys['a'] || keys['s'] || keys['d'];
   if(keys['w']) { fx += dirX; fy += dirY; }
   if(keys['s']) { fx -= dirX; fy -= dirY; }
   if(keys['d']) { fx += rgtX; fy += rgtY; }
   if(keys['a']) { fx -= rgtX; fy -= rgtY; }
+  let joyMag = 0;
+  if(joyActive){
+    joyMag = clamp(Math.hypot(joyVec.x, joyVec.y), 0, 1);
+    if(joyMag > 0.05){ fx += dirX*joyVec.y + rgtX*joyVec.x; fy += dirY*joyVec.y + rgtY*joyVec.x; }
+  }
 
   const mag = Math.hypot(fx,fy);
   const sprinting = keys['shift'] && mag > 0 && keys['w'];
   const speedBoost = player.buffs.speed > 0 ? 1.55 : 1;
   if(mag > 0.001 && player.alive){
-    const sp = (sprinting ? player.sprint : player.speed) * speedBoost * dt;
+    const analogScale = (!keyboardActive && joyMag > 0.05) ? joyMag : 1;
+    const sp = (sprinting ? player.sprint : player.speed) * speedBoost * analogScale * dt;
     moveEntity(player, (fx/mag)*sp, (fy/mag)*sp, 0.26);
     player.bob += dt * (sprinting ? 13 : 9);
     player.animPhase = (player.animPhase||0) + dt * (sprinting ? 13 : 9);
@@ -2190,6 +2360,7 @@ const Net = (() => {
       netMode = 'solo'; MODE = 'campaign'; myId = 'me'; player.id = 'me'; roomCode = null;
       running = false; paused = false; gameOver = false;
       document.exitPointerLock?.();
+      el('mobileControls').classList.add('hide'); resetJoy();
       el('over').classList.add('hide'); el('pause').classList.add('hide');
       el('keysPanel').classList.add('hide'); el('btnDeploy').classList.add('hide');
       el('start').classList.remove('hide');
@@ -2218,13 +2389,14 @@ function setNetMsg(msg){
   if(c) c.textContent = msg;
 }
 function showPanel(id){
-  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse','menuMapPick','menuLogin','menuArmory']) el(p).classList.toggle('hide', p !== id);
+  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse','menuMapPick','menuLogin','menuArmory','menuFriends','menuChat']) el(p).classList.toggle('hide', p !== id);
 }
 let pendingHostMode = null;   // null = picking a map for solo; else 'coop'/'deathmatch'
 function showMapPicker(hostMode){
   pendingHostMode = hostMode;
-  el('mapPickList').innerHTML = MAPS.map((m,i) => `<li class="roomrow">
-      <span>${escapeHtml(m.name)}</span>
+  el('mapPickList').innerHTML = MAPS.map((m,i) => `<li class="roomrow mapRow">
+      <img class="mapThumb" src="${MAP_THUMBS[i]}" alt="" />
+      <span>${escapeHtml(m.name)}${m.large ? ' <small>(large)</small>' : ''}</span>
       <span class="mbtn small pickMapBtn" data-i="${i}">Select</span>
     </li>`).join('');
   showPanel('menuMapPick');
@@ -2371,6 +2543,9 @@ function setZoom(on){
   zoomed = on;
   camera.fov = on ? 32 : 78;
   camera.updateProjectionMatrix();
+  el('scopeOverlay').classList.toggle('show', on);
+  weaponModel.visible = !on;
+  el('cross').classList.toggle('hide', on);
 }
 addEventListener('blur', () => { for(const k in keys) keys[k] = false; mouseDown = false; setZoom(false); });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -2390,6 +2565,64 @@ addEventListener('mousemove', e => {
   if(player.a > Math.PI) player.a -= TAU; else if(player.a < -Math.PI) player.a += TAU;
   player.pitch = clamp(player.pitch - e.movementY * 0.0022, -1.2, 1.2);
 });
+
+/* ------------------------- mobile touch controls -------------------------- */
+// Virtual joystick drives movement (same speed/collision code as WASD); a drag
+// anywhere else on screen looks around (mouse-look equivalent); on-screen
+// buttons stand in for click-to-fire and R-to-reload. Desktop is untouched —
+// WASD/mouse keep working exactly as before, this is purely additive.
+let joyVec = { x:0, y:0 }, joyActive = false;
+let joyTouchId = null, fireTouchId = null, lookTouchId = null;
+let joyOrigin = { x:0, y:0 }, lookLast = { x:0, y:0 };
+const JOY_RADIUS = 48;
+function inRect(elm, x, y){
+  const r = elm.getBoundingClientRect();
+  return x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
+}
+function resetJoy(){
+  joyActive = false; joyVec.x = 0; joyVec.y = 0;
+  el('joyStick').style.transform = 'translate(0,0)';
+}
+document.addEventListener('touchstart', e => {
+  for(const t of e.changedTouches){
+    if(joyTouchId===null && inRect(el('joyBase'), t.clientX, t.clientY)){
+      joyTouchId = t.identifier; joyActive = true;
+      joyOrigin.x = t.clientX; joyOrigin.y = t.clientY;
+    } else if(fireTouchId===null && inRect(el('fireBtn'), t.clientX, t.clientY)){
+      fireTouchId = t.identifier; mouseDown = true; player.firedThisClick = false;
+    } else if(inRect(el('reloadBtn'), t.clientX, t.clientY)){
+      tryReload();
+    } else if(lookTouchId===null && running){
+      lookTouchId = t.identifier; lookLast.x = t.clientX; lookLast.y = t.clientY;
+    }
+  }
+}, { passive:true });
+document.addEventListener('touchmove', e => {
+  for(const t of e.changedTouches){
+    if(t.identifier === joyTouchId){
+      let dx = t.clientX - joyOrigin.x, dy = t.clientY - joyOrigin.y;
+      const d = Math.hypot(dx,dy);
+      if(d > JOY_RADIUS){ dx = dx/d*JOY_RADIUS; dy = dy/d*JOY_RADIUS; }
+      joyVec.x = dx/JOY_RADIUS; joyVec.y = -dy/JOY_RADIUS;
+      el('joyStick').style.transform = `translate(${dx}px,${dy}px)`;
+    } else if(t.identifier === lookTouchId){
+      const dx = t.clientX - lookLast.x, dy = t.clientY - lookLast.y;
+      lookLast.x = t.clientX; lookLast.y = t.clientY;
+      player.a += dx * 0.0045;
+      if(player.a > Math.PI) player.a -= TAU; else if(player.a < -Math.PI) player.a += TAU;
+      player.pitch = clamp(player.pitch - dy * 0.0045, -1.2, 1.2);
+    }
+  }
+}, { passive:true });
+function endTouch(e){
+  for(const t of e.changedTouches){
+    if(t.identifier === joyTouchId){ joyTouchId = null; resetJoy(); }
+    if(t.identifier === fireTouchId){ fireTouchId = null; mouseDown = false; player.firedThisClick = false; }
+    if(t.identifier === lookTouchId) lookTouchId = null;
+  }
+}
+document.addEventListener('touchend', endTouch, { passive:true });
+document.addEventListener('touchcancel', endTouch, { passive:true });
 
 document.addEventListener('pointerlockchange', () => {
   if(document.pointerLockElement === canvas){
@@ -2457,6 +2690,7 @@ async function loadProfile(){
   account.ownedWeapons = new Set([...DEFAULT_OWNED_WEAPONS, ...(weapons||[]).map(w=>w.weapon_key)]);
   account.ownedUpgrades = new Map((upgrades||[]).map(u=>[u.upgrade_key,u.tier]));
   renderAccountStatus(); renderLoginPanel(); refreshCoinHud();
+  subscribeFriendRequests();
 }
 async function initAccount(){
   if(!supa){ renderAccountStatus(); return; }
@@ -2467,7 +2701,11 @@ async function initAccount(){
     const wasUser = account.user?.id;
     account.user = session?.user || null;
     if(account.user){ if(account.user.id !== wasUser) await loadProfile(); }
-    else { resetAccountState(); renderAccountStatus(); renderLoginPanel(); refreshCoinHud(); }
+    else {
+      resetAccountState(); renderAccountStatus(); renderLoginPanel(); refreshCoinHud();
+      if(frChannel){ supa.removeChannel(frChannel); frChannel = null; }
+      if(chatChannel){ supa.removeChannel(chatChannel); chatChannel = null; }
+    }
   });
 }
 initAccount();
@@ -2488,6 +2726,37 @@ el('btnLoginSend').addEventListener('click', async () => {
 el('btnSignOut').addEventListener('click', async () => { if(supa) await supa.auth.signOut(); showPanel('menuMain'); });
 
 /* -------------------------------- armory / shop -------------------------------- */
+function renderWeaponIcon(key){
+  const cv = document.createElement('canvas');
+  cv.width = 60; cv.height = 26;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#8ef5ff';
+  const cy = 13;
+  const bar = (x,w,h=4) => g.fillRect(x, cy-h/2, w, h);
+  const low = (x,w,h) => g.fillRect(x, cy+2, w, h);
+  const stock = (x,w) => g.fillRect(x, cy-2, w, 4);
+  switch(key){
+    case 'smg':
+      bar(6, 28, 5); stock(38, 12); low(16, 6, 10);
+      break;
+    case 'shotgun':
+      bar(4, 32, 7); low(32, 9, 4); low(42, 6, 10); stock(46, 9);
+      break;
+    case 'sniper':
+      bar(2, 42, 3); g.fillRect(18, cy-8, 13, 5); low(32, 6, 9); stock(45, 11);
+      break;
+    case 'lmg':
+      bar(2, 38, 6); stock(42, 13); low(20, 6, 10);
+      g.beginPath(); g.arc(26, cy+8, 5, 0, TAU); g.fill();
+      g.strokeStyle = '#8ef5ff'; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(6,cy+3); g.lineTo(2,cy+10); g.moveTo(10,cy+3); g.lineTo(14,cy+10); g.stroke();
+      break;
+    default:
+      bar(16, 20, 5); low(22, 6, 10);
+  }
+  return cv.toDataURL();
+}
+const WEAPON_ICONS = Object.fromEntries(WEAPON_ORDER.map(k => [k, renderWeaponIcon(k)]));
 const SHOP_WEAPONS = WEAPON_ORDER.filter(k => WEAPONS[k].cost > 0);
 const SHIELD_TIERS = [
   { tier:1, name:'Aegis Cell I',   cost:300, desc:'+25 shield charge' },
@@ -2503,7 +2772,8 @@ function renderArmory(){
   el('armoryCoins').textContent = account.coins;
   el('armoryWeaponsList').innerHTML = SHOP_WEAPONS.map(key => {
     const w = WEAPONS[key], owned = account.ownedWeapons.has(key);
-    return `<li class="roomrow"><span>${escapeHtml(w.name)} <small>(${w.cost} coins)</small></span>
+    return `<li class="roomrow"><img class="weaponIcon" src="${WEAPON_ICONS[key]}" alt="" />
+      <span>${escapeHtml(w.name)} <small>(${w.cost} coins)</small></span>
       ${owned ? '<span class="mbtn small" style="pointer-events:none;opacity:.6">Owned</span>'
               : `<span class="mbtn small buyWeaponBtn" data-key="${key}">Buy</span>`}</li>`;
   }).join('');
@@ -2563,6 +2833,142 @@ el('armoryUpgradesList').addEventListener('click', e => {
   const btn = e.target.closest('.buyUpgradeBtn'); if(!btn) return; purchaseUpgrade(btn.dataset.key, +btn.dataset.cost);
 });
 
+/* -------------------------------- friends / chat -------------------------------- */
+let friendState = { requests:[], friends:[] };
+let activeChat = null;      // { id, email }
+let chatChannel = null;
+let frChannel = null;
+const renderedMsgIds = new Set();
+
+function friendRowsHtml(list, kind){
+  if(!list.length) return kind==='requests' ? '<li>No pending requests</li>' : '<li>No friends yet</li>';
+  return list.map(item => kind==='requests'
+    ? `<li class="roomrow friendRow"><span>${escapeHtml(item.email)}</span>
+        <span class="mbtn small acceptFriendBtn" data-id="${item.id}">Accept</span>
+        <span class="mbtn small ghost declineFriendBtn" data-id="${item.id}">Decline</span></li>`
+    : `<li class="roomrow friendRow"><span>${escapeHtml(item.email)}</span>
+        <span class="mbtn small chatFriendBtn" data-id="${item.id}" data-email="${escapeHtml(item.email)}">Chat</span></li>`
+  ).join('');
+}
+function renderFriendsPanel(){
+  el('friendRequestsList').innerHTML = friendRowsHtml(friendState.requests, 'requests');
+  el('friendsList').innerHTML = friendRowsHtml(friendState.friends, 'friends');
+}
+async function loadFriendsData(){
+  if(!supa || !account.user) return;
+  const uid = account.user.id;
+  const [{data:incoming}, {data:accepted}] = await Promise.all([
+    supa.from('friend_requests').select('id, sender_id').eq('receiver_id', uid).eq('status', 'pending'),
+    supa.from('friend_requests').select('id, sender_id, receiver_id').eq('status', 'accepted')
+      .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`),
+  ]);
+  const incomingIds = (incoming||[]).map(r => r.sender_id);
+  const friendIds = [...new Set((accepted||[]).map(r => r.sender_id === uid ? r.receiver_id : r.sender_id))];
+  const allIds = [...new Set([...incomingIds, ...friendIds])];
+  let emailById = {};
+  if(allIds.length){
+    const { data:profs } = await supa.from('profiles').select('id,email').in('id', allIds);
+    emailById = Object.fromEntries((profs||[]).map(p => [p.id, p.email]));
+  }
+  friendState.requests = (incoming||[]).map(r => ({ id:r.id, email: emailById[r.sender_id] || 'unknown' }));
+  friendState.friends = friendIds.map(fid => ({ id:fid, email: emailById[fid] || 'unknown' }));
+  renderFriendsPanel();
+}
+async function sendFriendRequest(email){
+  if(!supa || !account.user){ el('friendMsg').textContent = 'Sign in first.'; return; }
+  if(email.toLowerCase() === account.user.email.toLowerCase()){ el('friendMsg').textContent = "That's you!"; return; }
+  el('friendMsg').textContent = 'Sending…';
+  const { data:targetId, error:findErr } = await supa.rpc('find_user_by_email', { target_email: email });
+  if(findErr || !targetId){ el('friendMsg').textContent = 'No player found with that email.'; return; }
+  const uid = account.user.id;
+  const { data:reverse } = await supa.from('friend_requests').select('id,status')
+    .eq('sender_id', targetId).eq('receiver_id', uid).maybeSingle();
+  if(reverse?.status === 'accepted'){ el('friendMsg').textContent = 'Already friends!'; return; }
+  if(reverse?.status === 'pending'){
+    await supa.from('friend_requests').update({ status:'accepted' }).eq('id', reverse.id);
+    el('friendMsg').textContent = 'They already asked you — friends now!';
+    el('friendEmail').value = '';
+    loadFriendsData();
+    return;
+  }
+  const { error } = await supa.from('friend_requests').insert({ sender_id: uid, receiver_id: targetId });
+  if(error){ el('friendMsg').textContent = error.code === '23505' ? 'Request already exists.' : 'Could not send request.'; return; }
+  el('friendMsg').textContent = 'Friend request sent!';
+  el('friendEmail').value = '';
+}
+async function respondToRequest(id, accept){
+  await supa.from('friend_requests').update({ status: accept ? 'accepted' : 'declined' }).eq('id', id);
+  loadFriendsData();
+}
+function subscribeFriendRequests(){
+  if(!supa || !account.user) return;
+  if(frChannel) supa.removeChannel(frChannel);
+  frChannel = supa.channel('friend-requests-' + account.user.id)
+    .on('postgres_changes', { event:'*', schema:'public', table:'friend_requests' }, () => {
+      if(!el('menuFriends').classList.contains('hide')) loadFriendsData();
+    })
+    .subscribe();
+}
+function renderChatMessage(msg){
+  if(renderedMsgIds.has(msg.id)) return;
+  renderedMsgIds.add(msg.id);
+  const div = document.createElement('div');
+  div.className = 'chatBubble ' + (msg.sender_id === account.user.id ? 'me' : 'them');
+  div.textContent = msg.content;
+  el('chatThread').appendChild(div);
+  el('chatThread').scrollTop = el('chatThread').scrollHeight;
+}
+async function openChat(friendId, friendEmail){
+  activeChat = { id: friendId, email: friendEmail };
+  el('chatWithLbl').textContent = 'Chat with ' + friendEmail;
+  el('chatThread').innerHTML = '';
+  renderedMsgIds.clear();
+  showPanel('menuChat');
+  const uid = account.user.id;
+  const { data:msgs } = await supa.from('messages').select('*')
+    .or(`and(sender_id.eq.${uid},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${uid})`)
+    .order('created_at', { ascending:true });
+  (msgs||[]).forEach(renderChatMessage);
+  if(chatChannel) supa.removeChannel(chatChannel);
+  chatChannel = supa.channel('chat-' + [uid,friendId].sort().join('-'))
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages' }, payload => {
+      const m = payload.new;
+      const isThisConvo = (m.sender_id===uid && m.receiver_id===friendId) || (m.sender_id===friendId && m.receiver_id===uid);
+      if(isThisConvo) renderChatMessage(m);
+    })
+    .subscribe();
+}
+async function sendChatMessage(){
+  const text = el('chatInput').value.trim();
+  if(!text || !activeChat) return;
+  el('chatInput').value = '';
+  const { error } = await supa.from('messages').insert({ sender_id: account.user.id, receiver_id: activeChat.id, content: text });
+  if(error) renderChatMessage({ id:'err'+Date.now(), sender_id:'system', content:'(message failed to send)' });
+}
+el('btnFriends').addEventListener('click', () => { showPanel('menuFriends'); loadFriendsData(); });
+el('btnBackFriends').addEventListener('click', () => showPanel('menuMain'));
+el('btnFriendSend').addEventListener('click', () => {
+  const email = el('friendEmail').value.trim();
+  if(!email || !email.includes('@')){ el('friendMsg').textContent = 'Enter a valid email.'; return; }
+  sendFriendRequest(email);
+});
+el('friendRequestsList').addEventListener('click', e => {
+  const acc = e.target.closest('.acceptFriendBtn'); if(acc){ respondToRequest(acc.dataset.id, true); return; }
+  const dec = e.target.closest('.declineFriendBtn'); if(dec){ respondToRequest(dec.dataset.id, false); return; }
+});
+el('friendsList').addEventListener('click', e => {
+  const btn = e.target.closest('.chatFriendBtn'); if(!btn) return;
+  openChat(btn.dataset.id, btn.dataset.email);
+});
+el('btnChatSend').addEventListener('click', sendChatMessage);
+el('chatInput').addEventListener('keydown', e => { if(e.key === 'Enter') sendChatMessage(); });
+el('btnBackChat').addEventListener('click', () => {
+  if(chatChannel){ supa.removeChannel(chatChannel); chatChannel = null; }
+  activeChat = null;
+  showPanel('menuFriends');
+  loadFriendsData();
+});
+
 /* --------------------------- start / pause / death ----------------------- */
 function requestLock(){
   canvas.requestPointerLock?.();
@@ -2618,6 +3024,7 @@ function startGame(){
   resetPickups();
   vig.style.opacity = '0';
   gameOver = false; paused = false; running = true;
+  el('mobileControls').classList.remove('hide');
   if(netMode !== 'client') refreshFlowFields();
   updateHUD();
   updateVoiceUI();
@@ -2643,6 +3050,7 @@ function showGameOverScreen(w, k, s){
   document.exitPointerLock?.();
   setTimeout(() => {
     running = false;
+    el('mobileControls').classList.add('hide'); resetJoy();
     el('oWave').textContent  = w;
     el('oKills').textContent = k;
     el('oScore').textContent = s;
@@ -2652,6 +3060,22 @@ function showGameOverScreen(w, k, s){
 
 updateHUD();
 drawMinimap();
+
+window.__setNetMode = m => { netMode = m; };
+Object.defineProperty(window, '__breach', { configurable:true, get(){ return {
+  player, enemies, bolts, pickups, otherPlayers, account, supa, WEAPONS, WEAPON_ORDER, MAPS, mapIndex,
+  grid, MAPW, MAPH, running, paused, gameOver, netMode, MODE, wave, kills, score, myId, zoomed,
+  joyActive, joyVec, keys, mouseDown, camera, scene, renderer, weaponModel, wallGroup, floorMesh,
+  friendState, activeChat, at, solid, selectMap, nextWave, startGame, showPanel, showMapPicker,
+  switchWeapon, tryReload, damageEnemy, damagePlayer, handleNetEvent, awardCoins, flushPendingCoins,
+  purchaseWeapon, purchaseShieldTier, purchaseUpgrade, sendFriendRequest, respondToRequest, openChat,
+  sendChatMessage, loadFriendsData, renderArmory, update, render3D, setZoom, resetJoy, el, escapeHtml,
+  refreshFlowFields, rebuildMapMeshes, spawnEnemy, makeCharacter, TYPES, SKINS, characterTemplate,
+  nextEnemyId,
+}; } });
+}
+if(window.THREE) __startBreach();
+else addEventListener('THREE_READY', __startBreach);
 </script>
 </body>
 </html>
