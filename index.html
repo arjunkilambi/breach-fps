@@ -1129,14 +1129,39 @@ function makeCharacter(colors){
 }
 // pose + physics-reactive lean + toppling death fall, shared by enemies & players
 function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, dt){
-  const mesh = rec.mesh, lean = mesh.userData.leanGroup;
+  const mesh = rec.mesh, lean = mesh.userData.leanGroup, u = mesh.userData;
+
+  // Real per-frame displacement, not ent.vx/vy (those are only ever set by the
+  // fling/knockback mechanic — AI-driven walking never touches them, which is
+  // why the walk clip previously almost never triggered). Smoothed with an EMA
+  // so a single laggy frame can't cause a flicker between Idle and Walk.
+  const movedDist = Math.hypot(ent.x-(rec.lastX ?? ent.x), ent.y-(rec.lastY ?? ent.y));
+  const instSpeed = dt > 0.0001 ? movedDist/dt : 0;
+  rec.lastX = ent.x; rec.lastY = ent.y;
+  rec.speedEMA = lerp(rec.speedEMA ?? 0, instSpeed, Math.min(1, dt*10));
+
   mesh.position.set(ent.x, mesh.position.y||0, ent.y);
 
   if(isDead){
-    if(!rec.wasDead){ rec.wasDead = true; rec.deadT = 0; mesh.userData.mixer?.stopAllAction(); }
+    if(!rec.wasDead){
+      rec.wasDead = true; rec.deadT = 0;
+      if(u.mixer){
+        // settle to a neutral standing pose before freezing, instead of
+        // stopping mid-stride — makes the topple read as a real collapse
+        u.actions.Idle?.setEffectiveWeight(1);
+        u.actions.Walk?.setEffectiveWeight(0);
+        u.mixer.update(0);
+        u.mixer.stopAllAction();
+      }
+    }
     rec.deadT += dt;
     const t = Math.min(1, rec.deadT/0.7), ease = 1-(1-t)*(1-t);
-    lean.rotation.z = rec.fallDir * ease * 1.35;
+    if(u.mixer){
+      lean.rotation.x = -ease * 1.3;                    // falls backward, away from whoever shot them
+      lean.rotation.z = rec.fallDir * ease * 0.35;       // slight sideways asymmetry so it's not robotic
+    } else {
+      lean.rotation.z = rec.fallDir * ease * 1.35;
+    }
     mesh.position.y = -0.05 - ease*0.22;
     return;
   }
@@ -1145,13 +1170,10 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
   const dx = camera.position.x - mesh.position.x, dz = camera.position.z - mesh.position.z;
   mesh.rotation.y = Math.atan2(dx, dz);                 // yaw only — never touches x/z
 
-  const u = mesh.userData;
-  const spd = Math.hypot(ent.vx||0, ent.vy||0);
-
   if(u.mixer){
-    // GLTF-driven character: crossfade Idle<->Walk by speed instead of hand-rotating limbs
-    const targetWalk = spd > 0.15 ? 1 : 0;
-    u.walkWeight = lerp(u.walkWeight, targetWalk, dt*6);
+    // GLTF-driven character: crossfade Idle<->Walk by actual movement speed
+    const targetWalk = rec.speedEMA > 0.3 ? 1 : 0;
+    u.walkWeight = lerp(u.walkWeight, targetWalk, dt*8);
     u.actions.Idle?.setEffectiveWeight(1 - u.walkWeight);
     u.actions.Walk?.setEffectiveWeight(u.walkWeight);
     u.mixer.update(dt);
@@ -1168,7 +1190,7 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     u.armL.rotation.x = lerp(-swing*0.35, -1.8, raise);
     u.armR.rotation.x = lerp( swing*0.35, -1.8, raise);
 
-    const targetLean = spd > 0.5 ? -Math.min(0.55, spd*0.035) : 0;
+    const targetLean = rec.speedEMA > 0.5 ? -Math.min(0.55, rec.speedEMA*0.035) : 0;
     lean.rotation.x = lerp(lean.rotation.x||0, targetLean, dt*8);
     lean.rotation.z = lerp(lean.rotation.z||0, 0, dt*8);   // ease back upright after a death-fall reuse
 
