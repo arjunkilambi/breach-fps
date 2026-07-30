@@ -41,10 +41,11 @@ export default async function handler(req, res) {
 
     const mode = body.mode === 'deathmatch' ? 'deathmatch' : 'coop';
     const hostName = String(body.hostName || 'Host').slice(0, 16);
+    const mapName = String(body.mapName || 'Sector 7').slice(0, 24);
     const players = Math.max(1, Math.min(16, Number(body.players) || 1));
     const maxPlayers = Math.max(players, Math.min(16, Number(body.maxPlayers) || 8));
 
-    const entry = { code, mode, hostName, players, maxPlayers, updatedAt: Date.now() };
+    const entry = { code, mode, hostName, mapName, players, maxPlayers, updatedAt: Date.now() };
     await redis.set(PREFIX + code, JSON.stringify(entry), { ex: ROOM_TTL });
     res.status(200).json({ ok: true });
     return;

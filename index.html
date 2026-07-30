@@ -16,7 +16,8 @@
     font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
     color:#c9f7ff; user-select:none; cursor:default;
   }
-  #view{display:block;width:100vw;height:100vh;image-rendering:pixelated;background:#000}
+  #view{display:block;width:100vw;height:100vh;background:#000}
+  #nameOverlay{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none}
   #ui{position:fixed;inset:0;pointer-events:none}
 
   /* ---------- crosshair ---------- */
@@ -103,6 +104,7 @@
   #buffs .buff.damage{color:#ff9a6a}
   #buffs .buff.rapid{color:#ffe27a}
   #buffs .buff.shield{color:#7dd8ff}
+  #buffs .buff.fling{color:#c9a8ff}
 
   /* ---------- scoreboard ---------- */
   #scoreboard{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
@@ -136,11 +138,14 @@
   .lobbylist li{padding:6px 4px;border-bottom:1px solid var(--line)}
   .lobbylist li.roomrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .lobbylist .joinRoomBtn{padding:6px 14px;font-size:11px}
-  #netmsg{font-size:12px;color:var(--dim);min-height:16px;letter-spacing:.06em}
+  #netmsg,#loginMsg{font-size:12px;color:var(--dim);min-height:16px;letter-spacing:.06em}
+  #loginEmail{pointer-events:auto;font:inherit;font-size:15px;text-align:left;color:#fff;
+    background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;padding:12px;width:100%}
 </style>
 </head>
 <body>
 <canvas id="view"></canvas>
+<canvas id="nameOverlay"></canvas>
 
 <div id="ui">
   <div id="scan"></div>
@@ -172,6 +177,10 @@
       <div class="lbl">Hostiles</div>
       <div class="val" id="left">0</div>
     </div>
+    <div class="cell" style="text-align:center">
+      <div class="lbl">Coins</div>
+      <div class="val" id="hudCoins">0</div>
+    </div>
     <div class="cell" style="text-align:right">
       <div class="lbl" id="wpn">Pistol</div>
       <div class="val"><span id="mag">12</span><small> / <span id="res">∞</span></small></div>
@@ -191,8 +200,41 @@
   <h2>Sector 7 · Hostile NPCs Detected</h2>
 
   <div class="panelbox" id="menuMain">
+    <div class="lbl" id="acctStatus">Checking session…</div>
     <div class="mbtn" id="btnSolo">Solo Campaign</div>
     <div class="mbtn" id="btnMulti">Multiplayer</div>
+    <div class="mbtn ghost small" id="btnArmory">Armory</div>
+    <div class="mbtn ghost small" id="btnAccount">Account</div>
+  </div>
+
+  <div class="panelbox hide" id="menuArmory" style="min-width:360px">
+    <div class="lbl">Armory — Coins: <b id="armoryCoins">0</b></div>
+    <div class="lbl" style="margin-top:6px">Weapons</div>
+    <ul class="lobbylist" id="armoryWeaponsList"></ul>
+    <div class="lbl" style="margin-top:6px">Shield</div>
+    <ul class="lobbylist" id="armoryShieldList"></ul>
+    <div class="lbl" style="margin-top:6px">Power-ups</div>
+    <ul class="lobbylist" id="armoryUpgradesList"></ul>
+    <div id="armoryMsg"></div>
+    <div class="mbtn ghost small" id="btnBackArmory">Back</div>
+  </div>
+
+  <div class="panelbox hide" id="menuLogin">
+    <div class="lbl">Sign in with email</div>
+    <div id="loginFormWrap">
+      <input id="loginEmail" type="email" placeholder="you@example.com" autocomplete="email" spellcheck="false" />
+      <div class="mbtn" id="btnLoginSend" style="margin-top:10px">Send Magic Link</div>
+    </div>
+    <div id="loginSentWrap" class="hide">
+      <div class="lbl">Check your email — click the link to sign in.</div>
+    </div>
+    <div id="loginAccountWrap" class="hide">
+      <div class="lbl" id="loginEmailShown"></div>
+      <div class="lbl">Coins: <b id="loginCoins">0</b></div>
+      <div class="mbtn" id="btnSignOut">Sign Out</div>
+    </div>
+    <div id="loginMsg"></div>
+    <div class="mbtn ghost small" id="btnBackLogin">Back</div>
   </div>
 
   <div class="panelbox hide" id="menuMulti">
@@ -210,6 +252,12 @@
     <div class="mbtn ghost small" id="btnBackBrowse">Back</div>
   </div>
 
+  <div class="panelbox hide" id="menuMapPick">
+    <div class="lbl">Choose Map</div>
+    <ul class="lobbylist" id="mapPickList"></ul>
+    <div class="mbtn ghost small" id="btnBackMapPick">Back</div>
+  </div>
+
   <div class="panelbox hide" id="menuJoin">
     <input id="joinCode" maxlength="5" placeholder="ROOM CODE" autocomplete="off" spellcheck="false" />
     <div class="mbtn" id="btnJoinGo">Connect</div>
@@ -222,6 +270,7 @@
       <div class="lbl">Room Code</div>
       <div class="roomcode" id="lobbyCode">----</div>
     </div>
+    <div class="lbl" id="lobbyMapLabel" style="text-align:center"></div>
     <ul class="lobbylist" id="lobbyList"></ul>
     <div id="netmsg2"></div>
     <div class="mbtn hide" id="btnStartMatch">Start Match</div>
@@ -234,7 +283,8 @@
     <b>Click</b><span>Fire</span>
     <b>Shift</b><span>Sprint</span>
     <b>R</b><span>Reload</span>
-    <b>1 / 2 / Q</b><span>Switch weapon</span>
+    <b>1-6 / Q</b><span>Switch weapon</span>
+    <b>F</b><span>Shove (Slingshot buff)</span>
     <b>Tab</b><span>Scoreboard</span>
     <b>Esc</b><span>Pause / release cursor</span>
   </div>
@@ -242,6 +292,8 @@
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 <div class="screen hide" id="pause">
   <h1 style="font-size:44px">PAUSED</h1>
@@ -276,9 +328,9 @@ const pick  = arr => arr[(Math.random()*arr.length)|0];
 const TAU   = Math.PI*2;
 
 /* --------------------------------- map ---------------------------------- */
-const MAPW = 32, MAPH = 24;
+let MAPW = 32, MAPH = 24;
 const WALL = { NONE:0, BRICK:1, STONE:2, METAL:3, TECH:4 };
-const grid = new Uint8Array(MAPW*MAPH);
+let grid = new Uint8Array(MAPW*MAPH);
 const at   = (x,y)=> (x<0||y<0||x>=MAPW||y>=MAPH) ? WALL.BRICK : grid[y*MAPW+x];
 const solid= (x,y)=> at(x|0,y|0) !== WALL.NONE;
 
@@ -311,33 +363,245 @@ function buildMap(){
   fill(13,1,1,3,WALL.STONE);
   fill(18,20,1,3,WALL.STONE);
 }
-buildMap();
-
-const SPAWNS  = [[6.5,5.5],[25.5,5.5],[6.5,18.5],[25.5,18.5],[16.5,12.5],
+const SPAWNS_1  = [[6.5,5.5],[25.5,5.5],[6.5,18.5],[25.5,18.5],[16.5,12.5],
                  [16.5,2.5],[2.5,12.5],[29.5,12.5],[16.5,21.5]];
-const PICKUPS = [[4.5,4.5,'health'],[27.5,4.5,'ammo'],[4.5,19.5,'ammo'],
+const PICKUPS_1 = [[4.5,4.5,'health'],[27.5,4.5,'ammo'],[4.5,19.5,'ammo'],
                  [27.5,19.5,'health'],[16.5,12.5,'ammo'],[16.5,6.5,'health'],
-                 [14.5,4.5,'speed'],[18.5,19.5,'damage'],[8.5,13.5,'rapid'],[23.5,13.5,'shield']];
-const START   = [10.5, 12.5];   // open lane west of the vault, long sightline north
+                 [14.5,4.5,'speed'],[18.5,19.5,'damage'],[8.5,13.5,'rapid'],[23.5,13.5,'shield'],
+                 [16.5,9.5,'fling']];
+
+// 2 — Ring Circuit: symmetric nested rings around a cross-shaped core
+function buildMap2(){
+  grid.fill(WALL.NONE);
+  outline(0,0,MAPW,MAPH,WALL.BRICK);
+  outline(4,3,24,18,WALL.METAL);
+  carve([15,3],[16,3],[15,20],[16,20],[4,11],[4,12],[27,11],[27,12]);
+  outline(10,7,12,10,WALL.STONE);
+  carve([15,7],[16,7],[15,16],[16,16],[10,11],[10,12],[21,11],[21,12]);
+  fill(14,10,4,4,WALL.TECH);
+  carve([15,11],[16,11],[15,12],[16,12]);
+  fill(6,5,2,2,WALL.TECH);
+  fill(24,5,2,2,WALL.TECH);
+  fill(6,17,2,2,WALL.TECH);
+  fill(24,17,2,2,WALL.TECH);
+}
+const SPAWNS_2 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
+                   [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
+const PICKUPS_2 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
+                    [23.5,22.5,'ammo'],[19.5,9.5,'ammo'],[1.5,10.5,'speed'],
+                    [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[9.5,9.5,'fling']];
+
+// 3 — The Maze: three staggered wall partitions, wide gaps, tight cover stubs
+function buildMap3(){
+  grid.fill(WALL.NONE);
+  outline(0,0,MAPW,MAPH,WALL.BRICK);
+  fill(2,6,12,1,WALL.METAL);  fill(18,6,12,1,WALL.METAL);
+  fill(2,12,10,1,WALL.METAL); fill(16,12,14,1,WALL.METAL);
+  fill(2,18,14,1,WALL.METAL); fill(20,18,10,1,WALL.METAL);
+  fill(9,2,1,3,WALL.STONE);
+  fill(22,9,1,3,WALL.STONE);
+  fill(9,15,1,3,WALL.STONE);
+  fill(4,9,2,2,WALL.TECH);
+  fill(26,15,2,2,WALL.TECH);
+}
+const SPAWNS_3 = [[1.5,22.5],[30.5,1.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
+                   [1.5,10.5],[30.5,13.5],[12.5,19.5],[10.5,10.5]];
+const PICKUPS_3 = [[1.5,22.5,'health'],[30.5,1.5,'health'],[8.5,1.5,'ammo'],
+                    [23.5,22.5,'ammo'],[19.5,9.5,'ammo'],[1.5,10.5,'speed'],
+                    [30.5,13.5,'damage'],[12.5,19.5,'rapid'],[10.5,10.5,'shield'],[17.5,1.5,'fling']];
+
+// 4 — Open Plaza: large open floor, symmetric cover pairs, central metal ring
+function buildMap4(){
+  grid.fill(WALL.NONE);
+  outline(0,0,MAPW,MAPH,WALL.BRICK);
+  fill(7,5,2,2,WALL.STONE);
+  fill(23,5,2,2,WALL.STONE);
+  fill(7,17,2,2,WALL.STONE);
+  fill(23,17,2,2,WALL.STONE);
+  fill(15,2,2,2,WALL.TECH);
+  fill(15,20,2,2,WALL.TECH);
+  outline(13,9,6,6,WALL.METAL);
+  carve([15,9],[16,9],[15,14],[16,14],[13,11],[13,12],[18,11],[18,12]);
+}
+const SPAWNS_4 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
+                   [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
+const PICKUPS_4 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
+                    [23.5,22.5,'ammo'],[19.5,9.5,'ammo'],[1.5,10.5,'speed'],
+                    [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,9.5,'fling']];
+
+// 5 — The Foundry: five parallel warehouse aisles with a cross-corridor
+function buildMap5(){
+  grid.fill(WALL.NONE);
+  outline(0,0,MAPW,MAPH,WALL.BRICK);
+  for(let col=0; col<5; col++){
+    const x = 4 + col*5;
+    fill(x,3,1,7,WALL.METAL);
+    fill(x,14,1,7,WALL.METAL);
+  }
+  fill(14,0,4,3,WALL.STONE); carve([15,2],[16,2]);
+  fill(14,21,4,3,WALL.STONE); carve([15,21],[16,21]);
+  fill(9,11,2,1,WALL.TECH);
+  fill(21,11,2,1,WALL.TECH);
+}
+const SPAWNS_5 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[12.5,14.5],
+                   [1.5,10.5],[23.5,10.5],[18.5,1.5],[30.5,16.5]];
+const PICKUPS_5 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
+                    [23.5,22.5,'ammo'],[12.5,14.5,'ammo'],[1.5,10.5,'speed'],
+                    [23.5,10.5,'damage'],[18.5,1.5,'rapid'],[30.5,16.5,'shield'],[10.5,22.5,'fling']];
+
+// 6 — Crossfire: four asymmetric rooms opening onto a shared center
+function buildMap6(){
+  grid.fill(WALL.NONE);
+  outline(0,0,MAPW,MAPH,WALL.BRICK);
+  outline(2,2,10,8,WALL.STONE);  carve([11,5],[11,6]);
+  outline(20,2,10,6,WALL.METAL); carve([20,4],[20,5]);
+  outline(2,15,9,7,WALL.METAL);  carve([10,17],[10,18]);
+  outline(21,14,9,8,WALL.STONE); carve([21,17],[21,18]);
+  fill(14,10,4,4,WALL.TECH);
+  carve([15,11],[16,11],[15,12],[16,12]);
+}
+const SPAWNS_6 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
+                   [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
+const PICKUPS_6 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
+                    [23.5,22.5,'ammo'],[19.5,9.5,'ammo'],[1.5,10.5,'speed'],
+                    [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,10.5,'fling']];
+
+// 7 — The Pit: ring corridor around two symmetric inner chambers
+function buildMap7(){
+  grid.fill(WALL.NONE);
+  outline(0,0,MAPW,MAPH,WALL.BRICK);
+  outline(9,6,14,12,WALL.TECH);
+  carve([15,6],[16,6],[15,17],[16,17],[9,11],[9,12],[22,11],[22,12]);
+  fill(4,3,2,2,WALL.STONE);
+  fill(26,3,2,2,WALL.STONE);
+  fill(4,19,2,2,WALL.STONE);
+  fill(26,19,2,2,WALL.STONE);
+}
+const SPAWNS_7 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
+                   [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
+const PICKUPS_7 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
+                    [23.5,22.5,'ammo'],[19.5,9.5,'ammo'],[1.5,10.5,'speed'],
+                    [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,9.5,'fling']];
+
+// 8 — The Wastes: a huge open wasteland, four corner compounds, central ruin
+const MAPW_8 = 60, MAPH_8 = 44;
+function buildMap8(){
+  grid.fill(WALL.NONE);
+  outline(0,0,60,44,WALL.BRICK);
+  outline(4,4,14,10,WALL.STONE);   carve([10,13],[11,13]);
+  outline(42,4,14,10,WALL.STONE);  carve([48,13],[49,13]);
+  outline(4,30,14,10,WALL.STONE);  carve([10,30],[11,30]);
+  outline(42,30,14,10,WALL.STONE); carve([48,30],[49,30]);
+  outline(24,16,12,12,WALL.METAL);
+  carve([29,16],[30,16],[29,27],[30,27],[24,21],[24,22],[35,21],[35,22]);
+  fill(18,8,2,2,WALL.TECH);  fill(40,8,2,2,WALL.TECH);
+  fill(18,34,2,2,WALL.TECH); fill(40,34,2,2,WALL.TECH);
+  fill(2,20,2,4,WALL.STONE); fill(56,20,2,4,WALL.STONE);
+}
+const SPAWNS_8 = [[2.5,2.5],[57.5,2.5],[2.5,41.5],[57.5,41.5],[29.5,21.5],
+                   [20.5,2.5],[39.5,41.5],[6.5,21.5],[53.5,21.5]];
+const PICKUPS_8 = [[2.5,2.5,'health'],[57.5,2.5,'ammo'],[2.5,41.5,'ammo'],
+                    [57.5,41.5,'health'],[29.5,21.5,'ammo'],[20.5,8.5,'speed'],
+                    [39.5,34.5,'damage'],[20.5,34.5,'rapid'],[39.5,8.5,'shield'],[29.5,29.5,'fling']];
+
+// 9 — Skyline: a city-block grid of buildings with streets between them
+const MAPW_9 = 56, MAPH_9 = 48;
+function buildMap9(){
+  grid.fill(WALL.NONE);
+  outline(0,0,56,48,WALL.BRICK);
+  for(let by=0; by<4; by++){
+    for(let bx=0; bx<5; bx++){
+      const x = 4 + bx*10, y = 4 + by*10;
+      outline(x,y,7,7,WALL.METAL);
+      const side = (bx+by)%4;
+      if(side===0)      carve([x+3,y]);
+      else if(side===1) carve([x+6,y+3]);
+      else if(side===2) carve([x+3,y+6]);
+      else               carve([x,y+3]);
+    }
+  }
+}
+const SPAWNS_9 = [[12.5,12.5],[42.5,12.5],[12.5,42.5],[42.5,42.5],[27.5,27.5],
+                   [2.5,2.5],[53.5,2.5],[2.5,45.5],[53.5,45.5]];
+const PICKUPS_9 = [[12.5,12.5,'health'],[42.5,12.5,'ammo'],[12.5,42.5,'ammo'],
+                    [42.5,42.5,'health'],[27.5,27.5,'ammo'],[22.5,12.5,'speed'],
+                    [32.5,42.5,'damage'],[12.5,22.5,'rapid'],[42.5,22.5,'shield'],[22.5,42.5,'fling']];
+
+/* ---- map scale-up: existing 32x24 layouts are block-expanded onto a much
+   bigger grid (walls, spawns and pickups all scaled by the same integer
+   factor), so "big maps" is achieved without hand-redesigning each layout. */
+function scaleSpawns(arr, f){ return arr.map(([x,y]) => [x*f, y*f]); }
+function scalePickups(arr, f){ return arr.map(([x,y,k]) => [x*f, y*f, k]); }
+function buildScaledMap(baseBuild, baseW, baseH, factor){
+  return function(){
+    const smallGrid = new Uint8Array(baseW*baseH);
+    const savedGrid = grid, savedW = MAPW, savedH = MAPH;
+    grid = smallGrid; MAPW = baseW; MAPH = baseH;
+    baseBuild();
+    grid = savedGrid; MAPW = savedW; MAPH = savedH;
+    grid.fill(WALL.NONE);
+    for(let y=0;y<baseH;y++) for(let x=0;x<baseW;x++){
+      const v = smallGrid[y*baseW+x];
+      if(v === WALL.NONE) continue;
+      for(let dy=0; dy<factor; dy++) for(let dx=0; dx<factor; dx++){
+        grid[(y*factor+dy)*MAPW + (x*factor+dx)] = v;
+      }
+    }
+  };
+}
+function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor){
+  return {
+    name, build: buildScaledMap(build, w0, h0, factor),
+    w: w0*factor, h: h0*factor,
+    spawns: scaleSpawns(spawns, factor),
+    pickups: scalePickups(pickups, factor),
+    start: [start[0]*factor, start[1]*factor],
+    large: factor > 1,
+  };
+}
+const SCALE = 2;   // existing maps double in size — 32x24 -> 64x48
+const MAPS = [
+  scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE),
+  scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE),
+  scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE),
+  scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE),
+  scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE),
+  scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE),
+  scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE),
+  { name:'The Wastes', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], large:true },
+  { name:'Skyline',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], large:true },
+];
+let mapIndex = 0;
+let SPAWNS = MAPS[0].spawns, PICKUPS = MAPS[0].pickups, START = MAPS[0].start;
+function selectMap(idx){
+  mapIndex = clamp(idx, 0, MAPS.length-1);
+  const m = MAPS[mapIndex];
+  MAPW = m.w; MAPH = m.h; grid = new Uint8Array(MAPW*MAPH);
+  m.build();
+  SPAWNS = m.spawns; PICKUPS = m.pickups; START = m.start;
+}
+selectMap(0);
 
 /* -------------------------------- power-ups ------------------------------- */
-const BUFF_DUR  = { speed:14, damage:12, rapid:12, shield:10 };
+const BUFF_DUR  = { speed:14, damage:12, rapid:12, shield:10, fling:16 };
 const BUFF_META = {
   speed : { label:'Overdrive',  color:'#8ef5c0' },
   damage: { label:'Overcharge', color:'#ff9a6a' },
   rapid : { label:'Frenzy',     color:'#ffe27a' },
   shield: { label:'Aegis',      color:'#7dd8ff' },
+  fling : { label:'Slingshot',  color:'#c9a8ff' },
 };
-function freshBuffs(){ return { speed:0, damage:0, rapid:0, shield:0 }; }
+function freshBuffs(){ return { speed:0, damage:0, rapid:0, shield:0, fling:0 }; }
 
 /* ------------------------------- textures -------------------------------- */
 const TS = 64;                                  // texture size
 const textures = [];                            // index === WALL id
 
 function makeTex(paint){
+  // returns the canvas itself (not pixel data) — Three.js wraps it directly as a CanvasTexture
   const c = document.createElement('canvas'); c.width = c.height = TS;
   const g = c.getContext('2d'); paint(g);
-  return g.getImageData(0,0,TS,TS).data;
+  return c;
 }
 function noise(g, amount, alpha){
   for(let i=0;i<amount;i++){
@@ -434,177 +698,24 @@ function buildTextures(){
 }
 buildTextures();
 
-/* ------------------------------- NPC sprites ----------------------------- */
-/* Each combatant type gets a small procedurally drawn frame set:
-   walk×4, attack, pain, death×4.                                            */
-const SW = 56, SH = 72;
-
-function makeSprite(draw){
-  const c=document.createElement('canvas'); c.width=SW; c.height=SH;
-  const g=c.getContext('2d'); draw(g);
-  return { w:SW, h:SH, data:g.getImageData(0,0,SW,SH).data };
-}
-
-function drawTrooper(g, cfg, pose){
-  const { body, trim, head, eye } = cfg;
-  const { swing=0, arms=0, lean=0, squash=1, sink=0, spin=0 } = pose;
-  g.save();
-  g.translate(SW/2, SH-4+sink);
-  g.rotate(spin);
-  g.scale(1, squash);
-  g.translate(0, -(SH-8));
-  g.translate(SW*0, 0);
-  const cx = 0, ground = SH-8;
-
-  // shadow
-  g.fillStyle='rgba(0,0,0,.35)';
-  g.beginPath(); g.ellipse(cx, ground+3, 15, 4, 0,0,TAU); g.fill();
-
-  // legs
-  const legY = ground-24;
-  for(const s of [-1,1]){
-    const off = Math.sin(swing)*6*s;
-    g.fillStyle = s<0 ? shade(body,-24) : shade(body,-14);
-    g.fillRect(cx + s*7 - 5 + off*0.4, legY, 10, 24 + off*0.3);
-    g.fillStyle = shade(body,-40);
-    g.fillRect(cx + s*7 - 6 + off*0.4, ground-5, 12, 5);      // boot
-  }
-
-  // torso
-  g.fillStyle = body;
-  roundRect(g, cx-13+lean, ground-52, 26, 30, 5);
-  g.fillStyle = trim;
-  g.fillRect(cx-13+lean, ground-38, 26, 4);                   // belt line
-  g.fillStyle = shade(body,18);
-  roundRect(g, cx-13+lean, ground-52, 26, 8, 4);              // chest highlight
-
-  // shoulders
-  for(const s of [-1,1]){
-    g.fillStyle = shade(body,s<0?-18:6);
-    roundRect(g, cx + s*17 - 6 + lean, ground-52, 12, 12, 4);
-  }
-
-  // arms — `arms` 0 = down, 1 = raised toward viewer
-  for(const s of [-1,1]){
-    const ax = cx + s*17 + lean, ay = ground-42;
-    const len = lerp(20, 11, arms), dx = lerp(0, -s*7, arms);
-    g.fillStyle = shade(body,-8);
-    g.fillRect(ax-4+dx*0.5, ay, 8, len);
-    g.fillStyle = shade(trim,-10);
-    g.fillRect(ax-4+dx, ay+len-4, 8, 5);                      // glove
-  }
-
-  // weapon when arms are up
-  if(arms > .5){
-    g.fillStyle='#20262c';
-    roundRect(g, cx-7+lean, ground-46, 14, 9, 2);
-    g.fillStyle='#12161a';
-    g.beginPath(); g.arc(cx+lean, ground-42, 3.4, 0, TAU); g.fill();
-    g.fillStyle = shade(eye, 0);
-    g.beginPath(); g.arc(cx+lean, ground-42, 1.4, 0, TAU); g.fill();
-  }
-
-  // head + visor
-  g.fillStyle = head;
-  roundRect(g, cx-9+lean*1.4, ground-70, 18, 18, 6);
-  g.fillStyle = shade(head,-30);
-  g.fillRect(cx-9+lean*1.4, ground-56, 18, 4);                // jaw guard
-  g.fillStyle = eye;
-  g.fillRect(cx-7+lean*1.4, ground-65, 14, 5);
-  g.fillStyle = 'rgba(255,255,255,.55)';
-  g.fillRect(cx-6+lean*1.4, ground-65, 5, 2);
-  g.restore();
-}
-function roundRect(g,x,y,w,h,r){
+function roundRect(g,x,y,w,h,r){                   // still used by the ceiling texture above
   g.beginPath();
   g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
   g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); g.fill();
 }
-function shade(hex, amt){
-  const n = parseInt(hex.slice(1),16);
-  const r = clamp(((n>>16)&255)+amt,0,255), gg = clamp(((n>>8)&255)+amt,0,255), b = clamp((n&255)+amt,0,255);
-  return `rgb(${r|0},${gg|0},${b|0})`;
-}
 
-function buildFrames(cfg){
-  const f = {};
-  f.walk = [0,1,2,3].map(i => makeSprite(g => drawTrooper(g,cfg,{ swing:i*Math.PI/2, arms:.15, lean:Math.sin(i*Math.PI/2)*1.2 })));
-  f.attack = makeSprite(g => drawTrooper(g,cfg,{ swing:0, arms:1, lean:0 }));
-  f.pain   = makeSprite(g => { g.globalAlpha=1; drawTrooper(g,cfg,{ swing:.4, arms:.3, lean:-3 }); });
-  f.die    = [0,1,2,3].map(i => makeSprite(g => drawTrooper(g,cfg,{
-      swing:0, arms:.1, lean:-i*2, squash:1-i*0.22, sink:i*2, spin:i*0.16 })));
-  return f;
-}
-
+/* -------------------------------- NPC types -------------------------------- */
+/* Colors feed the 3D blocky-humanoid factory in the render section below —
+   there's no 2D sprite sheet anymore, everything is real Three.js geometry.  */
 const TYPES = {
   grunt : { name:'Grunt',  hp:60,  speed:2.35, dmg:8,  range:1.25, cool:1.05, score:100, radius:.38, scale:.80,
-            frames:buildFrames({ body:'#4f6b3d', trim:'#2c3a22', head:'#5d7a49', eye:'#7dff9b' }) },
+            colors:{ body:0x4f6b3d, trim:0x2c3a22, head:0x5d7a49, eye:0x7dff9b } },
   gunner: { name:'Gunner', hp:45,  speed:1.75, dmg:11, range:9.0,  cool:1.5,  score:150, radius:.36, scale:.76, ranged:true,
-            frames:buildFrames({ body:'#3d5570', trim:'#22303f', head:'#4a6482', eye:'#6fd8ff' }) },
+            colors:{ body:0x3d5570, trim:0x22303f, head:0x4a6482, eye:0x6fd8ff } },
   brute : { name:'Brute',  hp:170, speed:1.55, dmg:20, range:1.6,  cool:1.55, score:300, radius:.52, scale:1.02,
-            frames:buildFrames({ body:'#6b2f2f', trim:'#3a1a1a', head:'#7d3a3a', eye:'#ff7a5c' }) },
+            colors:{ body:0x6b2f2f, trim:0x3a1a1a, head:0x7d3a3a, eye:0xff7a5c } },
 };
 for(const k in TYPES) TYPES[k].key = k;   // lets a network snapshot reference a type by name
-
-/* pickup + projectile sprites */
-function makeIcon(draw){
-  const c=document.createElement('canvas'); c.width=c.height=32;
-  const g=c.getContext('2d'); draw(g);
-  return { w:32, h:32, data:g.getImageData(0,0,32,32).data };
-}
-const ICONS = {
-  health: makeIcon(g=>{
-    g.fillStyle='rgba(255,60,60,.25)'; roundRect(g,3,7,26,20,4);
-    g.fillStyle='#d8e6ee'; roundRect(g,5,9,22,16,3);
-    g.fillStyle='#e33'; g.fillRect(14,12,4,10); g.fillRect(11,15,10,4);
-  }),
-  ammo: makeIcon(g=>{
-    g.fillStyle='#3a2f18'; roundRect(g,4,10,24,16,3);
-    g.fillStyle='#c9a227'; roundRect(g,6,12,20,12,2);
-    g.fillStyle='#5a4a20'; for(let i=0;i<4;i++) g.fillRect(8+i*5,14,3,8);
-    g.fillStyle='#ffd76a'; g.fillRect(6,12,20,2);
-  }),
-  bolt: makeIcon(g=>{
-    const grd=g.createRadialGradient(16,16,1,16,16,14);
-    grd.addColorStop(0,'rgba(255,255,255,1)'); grd.addColorStop(.35,'rgba(120,220,255,.95)');
-    grd.addColorStop(1,'rgba(60,140,255,0)');
-    g.fillStyle=grd; g.beginPath(); g.arc(16,16,14,0,TAU); g.fill();
-  }),
-  speed: makeIcon(g=>{
-    g.fillStyle='rgba(142,245,192,.22)'; g.beginPath(); g.arc(16,16,15,0,TAU); g.fill();
-    g.fillStyle='#8ef5c0';
-    for(const off of [-6,2]){
-      g.beginPath();
-      g.moveTo(9+off,7); g.lineTo(19+off,7); g.lineTo(13+off,15); g.lineTo(20+off,15); g.lineTo(8+off,27); g.lineTo(12+off,17); g.lineTo(6+off,17);
-      g.closePath(); g.fill();
-    }
-  }),
-  damage: makeIcon(g=>{
-    g.fillStyle='rgba(255,120,80,.22)'; g.beginPath(); g.arc(16,16,15,0,TAU); g.fill();
-    g.fillStyle='#ff8a5c';
-    g.beginPath();
-    g.moveTo(16,5); g.lineTo(24,12); g.lineTo(20,12); g.lineTo(27,20); g.lineTo(17,20); g.lineTo(20,28);
-    g.lineTo(7,17); g.lineTo(13,17); g.lineTo(6,10); g.lineTo(12,10); g.closePath(); g.fill();
-  }),
-  rapid: makeIcon(g=>{
-    g.fillStyle='rgba(255,225,120,.22)'; g.beginPath(); g.arc(16,16,15,0,TAU); g.fill();
-    g.fillStyle='#ffe27a';
-    for(let i=0;i<3;i++){ g.beginPath(); g.arc(9+i*7,16,2.6,0,TAU); g.fill(); }
-    g.strokeStyle='#ffe27a'; g.lineWidth=2.4; g.beginPath();
-    g.moveTo(6,24); g.lineTo(26,24); g.stroke();
-  }),
-  shield: makeIcon(g=>{
-    g.fillStyle='rgba(125,216,255,.22)'; g.beginPath(); g.arc(16,16,15,0,TAU); g.fill();
-    g.fillStyle='#7dd8ff';
-    g.beginPath();
-    g.moveTo(16,5); g.lineTo(25,9); g.lineTo(25,16); g.quadraticCurveTo(25,24,16,28);
-    g.quadraticCurveTo(7,24,7,16); g.lineTo(7,9); g.closePath(); g.fill();
-    g.fillStyle='#0c2430';
-    g.beginPath();
-    g.moveTo(16,9); g.lineTo(21,12); g.lineTo(21,17); g.quadraticCurveTo(21,21,16,24);
-    g.quadraticCurveTo(11,21,11,17); g.lineTo(11,12); g.closePath(); g.fill();
-  }),
-};
 
 /* --------------------------------- audio --------------------------------- */
 const Sound = (()=>{
@@ -649,6 +760,7 @@ const Sound = (()=>{
     pickup(){ blip(660,.07,'sine',.18); setTimeout(()=>blip(990,.1,'sine',.18),70); },
     buff(){ [520,720,980].forEach((f,i)=> setTimeout(()=>blip(f,.13,'sine',.18), i*60)); },
     shieldBlock(){ blip(180,.12,'square',.18,60); burst(.15,700,1.4,.2); },
+    shove(){ blip(140,.14,'square',.24,-70); burst(.14,320,1,.22); },
     wave(){ [330,440,550].forEach((f,i)=> setTimeout(()=>blip(f,.4,'triangle',.16), i*110)); },
     step(){ burst(.05,320,.6,.05); },
     spot(){ blip(200,.14,'sawtooth',.1,140); },
@@ -658,23 +770,45 @@ const Sound = (()=>{
 
 /* --------------------------------- state --------------------------------- */
 const canvas = document.getElementById('view');
-const ctx2d  = canvas.getContext('2d', { alpha:false });
-let RW = 480, RH = 270, frameBuf = null, buf32 = null, backCanvas = null, backCtx = null;
-const zbuf = new Float32Array(2048);
+const nameOverlay = document.getElementById('nameOverlay');
+const ctx2d = nameOverlay.getContext('2d');           // nameplates only — the WebGL canvas owns #view
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = false;                   // keep it light — this is a browser tab, not a AAA engine
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05080a);
+const camera = new THREE.PerspectiveCamera(78, 1, 0.05, 60);
+camera.rotation.order = 'YXZ';
+scene.add(camera);
 
 const WEAPONS = {
-  pistol: { name:'Pistol', dmg:24, rof:.20, mag:12, ammo:12, reserve:Infinity, reload:1.05,
-            spread:.006, kick:5.5, heavy:false },
-  rifle : { name:'Rifle',  dmg:17, rof:.085, mag:30, ammo:30, reserve:90, reload:1.55,
-            spread:.022, kick:3.2, heavy:true },
+  pistol : { name:'Pistol',  dmg:24, rof:.20,  mag:12, ammo:12, reserve:Infinity, reload:1.05,
+             spread:.006, kick:5.5,  heavy:false, auto:false, cost:0 },
+  rifle  : { name:'Rifle',   dmg:17, rof:.085, mag:30, ammo:30, reserve:90,  reload:1.55,
+             spread:.022, kick:3.2,  heavy:true,  auto:true,  cost:0 },
+  smg    : { name:'SMG',     dmg:11, rof:.06,  mag:35, ammo:35, reserve:140, reload:1.3,
+             spread:.03,  kick:2.2,  heavy:false, auto:true,  cost:250 },
+  shotgun: { name:'Shotgun', dmg:9,  rof:.75,  mag:6,  ammo:6,  reserve:24,  reload:2.2,
+             spread:.09,  kick:9,    heavy:true,  auto:false, cost:400, pellets:8 },
+  sniper : { name:'Sniper',  dmg:95, rof:1.1,  mag:5,  ammo:5,  reserve:20,  reload:2.6,
+             spread:.001, kick:14,   heavy:true,  auto:false, cost:650, zoom:true },
+  lmg    : { name:'LMG',     dmg:15, rof:.11,  mag:75, ammo:75, reserve:225, reload:3.2,
+             spread:.028, kick:3.6,  heavy:true,  auto:true,  cost:800 },
 };
+const WEAPON_ORDER = ['pistol','rifle','smg','shotgun','sniper','lmg'];
+for(const key in WEAPONS) WEAPONS[key].maxReserve = WEAPONS[key].reserve;
 
+const BASE_SPEED = 3.3, BASE_SPRINT = 5.1;
+const SHIELD_TIER_CHARGE = 25, SHIELD_TIER_FAST_RECHARGE = 8, SHIELD_BASE_RECHARGE = 4;
 const player = {
   x:START[0], y:START[1], a:-Math.PI/2, pitch:0,
-  hp:100, alive:true, speed:3.3, sprint:5.1,
+  hp:100, alive:true, speed:BASE_SPEED, sprint:BASE_SPRINT,
   bob:0, kick:0, flash:0, hurt:0, weapon:'pistol',
   reloading:0, cooldown:0, stepTimer:0,
   buffs: freshBuffs(), kills:0, deaths:0, name:'You', skin:0, id:'me',
+  vx:0, vy:0, shoveCooldown:0,
+  shieldCharge:0, maxShieldCharge:0, shieldRegenRate:4,
 };
 let enemies = [], bolts = [], pickups = [];
 let wave = 0, kills = 0, score = 0, waveTimer = 0, spawning = false;
@@ -698,7 +832,6 @@ const SKINS = [
   { body:'#8a5fbf', trim:'#432c63', head:'#9a6fcf', eye:'#ffe27a' },
   { body:'#3fb0a0', trim:'#1f5c53', head:'#4fc2b0', eye:'#ff7a5c' },
 ];
-const skinFrames = SKINS.map(cfg => buildFrames(cfg));
 let nextSkin = 0;
 
 const NET_TICK = 1/16;                  // host broadcast / client input rate
@@ -708,15 +841,11 @@ let lastLobbyBroadcast = 0;
 /* ------------------------------ resolution ------------------------------- */
 function resize(){
   const w = window.innerWidth, h = window.innerHeight;
-  canvas.width = w; canvas.height = h;
-  RH = 400;                                        // internal render height
-  RW = Math.min(1200, Math.max(240, Math.round(RH * (w/h))));
-  backCanvas = document.createElement('canvas');
-  backCanvas.width = RW; backCanvas.height = RH;
-  backCtx = backCanvas.getContext('2d');
-  frameBuf = backCtx.createImageData(RW, RH);
-  buf32 = new Uint32Array(frameBuf.data.buffer);
-  ctx2d.imageSmoothingEnabled = false;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1.5));
+  renderer.setSize(w, h);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+  nameOverlay.width = w; nameOverlay.height = h;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -746,278 +875,265 @@ function lineOfSight(ax,ay,bx,by){
 }
 
 /* --------------------------------- render -------------------------------- */
-const VIEW = 24;                                   // fog cutoff (world units)
-const AMBIENT = 0.16;                              // never fully black — keeps NPCs readable
+/* A real Three.js 3D scene. Walls/floor/ceiling reuse the same procedurally
+   painted canvases as before (now wrapped as CanvasTexture instead of being
+   raycast pixel-by-pixel). Characters are blocky low-poly humanoids animated
+   by rotating their limb meshes each frame — no sprite sheets involved.
+   Gameplay (movement, collision, hitscan, AI line-of-sight) is untouched;
+   only how the world gets drawn changed.                                    */
+const VIEW = 34;                                    // far clip / fog distance (world units) — long enough for the sniper and big maps
+const WALL_H = 1.3, EYE_H = 0.62;
 
-// distance → brightness, with a floor so distant hostiles stay visible
-function fogShade(d){
-  const t = clamp(1 - d/VIEW, 0, 1);
-  return AMBIENT + (1-AMBIENT) * t * t;
+scene.fog = new THREE.Fog(0x05080a, 3, VIEW);
+scene.add(new THREE.AmbientLight(0x9fd0e8, 0.55));
+scene.add(new THREE.HemisphereLight(0xbfe8ff, 0x05080a, 0.35));
+const headlamp = new THREE.PointLight(0xcfeeff, 0.85, 9, 2); camera.add(headlamp);
+const muzzleLight = new THREE.PointLight(0xffcf8a, 0, 6, 2); camera.add(muzzleLight);
+
+function makeCanvasTex(canvasEl, rx=1, ry=1){
+  const t = new THREE.CanvasTexture(canvasEl);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  t.magFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const wallMats = {
+  [WALL.BRICK]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BRICK]), roughness:0.95 }),
+  [WALL.STONE]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.STONE]), roughness:0.9 }),
+  [WALL.METAL]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.METAL]), roughness:0.5, metalness:0.4 }),
+  [WALL.TECH] : new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.TECH]), roughness:0.7,
+                  emissive:0x3fc8ff, emissiveIntensity:0.35 }),
+};
+const floorMat = new THREE.MeshStandardMaterial({ roughness:1 });
+const ceilMat  = new THREE.MeshStandardMaterial({ roughness:1, side:THREE.BackSide });
+const wallGeo = new THREE.BoxGeometry(1, WALL_H, 1);
+
+function refreshFloorCeilTex(){
+  if(floorMat.map) floorMat.map.dispose();
+  if(ceilMat.map)  ceilMat.map.dispose();
+  floorMat.map = makeCanvasTex(textures[5], MAPW, MAPH);
+  ceilMat.map  = makeCanvasTex(textures[6], MAPW, MAPH);
 }
 
-function renderWorld(){
-  const dirX = Math.cos(player.a), dirY = Math.sin(player.a);
-  const fov = 0.72;
-  const planeX = -dirY*fov, planeY = dirX*fov;
-  const horizon = (RH*0.5 + player.pitch)|0;
-  const light = 1 + player.flash*0.55;               // muzzle flash lights the room
+let wallGroup = null, floorMesh = null, ceilMesh = null;
+function rebuildMapMeshes(){
+  if(wallGroup) scene.remove(wallGroup);
+  if(floorMesh) scene.remove(floorMesh);
+  if(ceilMesh)  scene.remove(ceilMesh);
+  refreshFloorCeilTex();
 
-  // ---- floor + ceiling casting (one pass; the ceiling mirrors the floor) ----
-  const floorTex = textures[5], ceilTex = textures[6];
-  const rdx0 = dirX - planeX, rdy0 = dirY - planeY;
-  const rdx1 = dirX + planeX, rdy1 = dirY + planeY;
-  const pMax = Math.max(RH - horizon, horizon);
-  for(let p=1; p<=pMax; p++){
-    const yF = horizon + p, yC = horizon - p;
-    const onF = yF >= 0 && yF < RH, onC = yC >= 0 && yC < RH;
-    if(!onF && !onC) continue;
-
-    const rowDist = (0.5*RH)/p;
-    const stepX = rowDist*(rdx1-rdx0)/RW, stepY = rowDist*(rdy1-rdy0)/RW;
-    let fx = player.x + rowDist*rdx0, fy = player.y + rowDist*rdy0;
-    const shF = (fogShade(rowDist)*light*256)|0;
-    const shC = (fogShade(rowDist)*light*0.85*256)|0;
-    const oF = yF*RW, oC = yC*RW;
-
-    for(let x=0;x<RW;x++){
-      const tx = ((fx*TS)|0) & (TS-1), ty = ((fy*TS)|0) & (TS-1);
-      const idx = ((ty<<6)+tx)<<2;
-      if(onF){
-        let r=(floorTex[idx]*shF)>>8, g=(floorTex[idx+1]*shF)>>8, b=(floorTex[idx+2]*shF)>>8;
-        if(r>255)r=255; if(g>255)g=255; if(b>255)b=255;   // the flash boost can exceed full white
-        buf32[oF+x] = (255<<24)|(b<<16)|(g<<8)|r;
-      }
-      if(onC){
-        let r=(ceilTex[idx]*shC)>>8, g=(ceilTex[idx+1]*shC)>>8, b=(ceilTex[idx+2]*shC)>>8;
-        if(r>255)r=255; if(g>255)g=255; if(b>255)b=255;
-        buf32[oC+x] = (255<<24)|(b<<16)|(g<<8)|r;
-      }
-      fx += stepX; fy += stepY;
-    }
+  const counts = {};
+  for(let y=0;y<MAPH;y++) for(let x=0;x<MAPW;x++){ const t=at(x,y); if(t) counts[t]=(counts[t]||0)+1; }
+  const inst = {}, cursor = {};
+  for(const k in counts){ inst[k] = new THREE.InstancedMesh(wallGeo, wallMats[k], counts[k]); cursor[k]=0; }
+  const m = new THREE.Matrix4();
+  for(let y=0;y<MAPH;y++) for(let x=0;x<MAPW;x++){
+    const t = at(x,y); if(!t) continue;
+    m.setPosition(x+0.5, WALL_H/2, y+0.5);
+    inst[t].setMatrixAt(cursor[t]++, m);
   }
+  wallGroup = new THREE.Group();
+  for(const k in inst) wallGroup.add(inst[k]);
+  scene.add(wallGroup);
 
-  // ---- walls ----
-  for(let x=0; x<RW; x++){
-    const cameraX = 2*x/RW - 1;
-    const rdx = dirX + planeX*cameraX, rdy = dirY + planeY*cameraX;
-    const hit = castRay(player.x, player.y, rdx, rdy, VIEW*1.4);
-    zbuf[x] = hit.dist;
-    if(!hit.tile) continue;
+  floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(MAPW, MAPH), floorMat);
+  floorMesh.rotation.x = -Math.PI/2; floorMesh.position.set(MAPW/2, 0, MAPH/2);
+  scene.add(floorMesh);
 
-    // perpendicular distance avoids fisheye
-    const perp = hit.side===0
-      ? (hit.mapX - player.x + (rdx<0?1:0))/rdx
-      : (hit.mapY - player.y + (rdy<0?1:0))/rdy;
-    const d = Math.max(perp, 0.02);
-    zbuf[x] = d;
+  ceilMesh = new THREE.Mesh(new THREE.PlaneGeometry(MAPW, MAPH), ceilMat);
+  ceilMesh.rotation.x = Math.PI/2; ceilMesh.position.set(MAPW/2, WALL_H, MAPH/2);
+  scene.add(ceilMesh);
+}
 
-    const lineH = (RH/d)|0;
-    let y0 = horizon - (lineH>>1), y1 = y0 + lineH;
-    const drawStart = Math.max(y0,0), drawEnd = Math.min(y1,RH);
+/* ---- blocky low-poly characters (players + enemies share this factory) --- */
+function limbGeo(w,h,d){ const g = new THREE.BoxGeometry(w,h,d); g.translate(0,-h/2,0); return g; }
+const LEG_GEO = limbGeo(0.13,0.38,0.15), ARM_GEO = limbGeo(0.10,0.30,0.10);
+const TORSO_GEO = new THREE.BoxGeometry(0.34,0.40,0.20);
+const BELT_GEO  = new THREE.BoxGeometry(0.35,0.05,0.21);
+const HEAD_GEO  = new THREE.BoxGeometry(0.22,0.22,0.22);
+const EYE_GEO   = new THREE.BoxGeometry(0.15,0.045,0.02);
 
-    let wallX = hit.side===0 ? player.y + d*rdy : player.x + d*rdx;
-    wallX -= Math.floor(wallX);
-    let texX = (wallX*TS)|0;
-    if(hit.side===0 && rdx>0) texX = TS-texX-1;
-    if(hit.side===1 && rdy<0) texX = TS-texX-1;
-    texX = clamp(texX,0,TS-1);
+function makeCharacter(colors){
+  // Two nested groups so facing (yaw, on the outer group) can never fight with
+  // lean/death-topple (x/z, on the inner group) — Euler decomposition after
+  // lookAt() is not unique, so mixing all three axes on one object is unsafe.
+  const yawGroup = new THREE.Group();
+  const leanGroup = new THREE.Group();
+  yawGroup.add(leanGroup);
 
-    let shade = fogShade(d) * (hit.side===1 ? 0.72 : 1) * light;
-    if(hit.tile === WALL.TECH) shade = Math.max(shade, 0.42);   // emissive columns
-    const sh = (shade*256)|0;
+  const bodyMat = new THREE.MeshStandardMaterial({ color: colors.body, roughness:0.75 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: colors.trim, roughness:0.85 });
+  const headMat = new THREE.MeshStandardMaterial({ color: colors.head, roughness:0.6 });
+  const eyeMat  = new THREE.MeshStandardMaterial({ color: colors.eye, emissive: colors.eye, emissiveIntensity:0.85 });
 
-    const tex = textures[hit.tile];
-    const texStep = TS/lineH;
-    let texPos = (drawStart - horizon + (lineH>>1))*texStep;
-    for(let y=drawStart; y<drawEnd; y++){
-      const ty = clamp(texPos|0, 0, TS-1); texPos += texStep;
-      const idx = ((ty<<6)+texX)<<2;
-      let r=(tex[idx]*sh)>>8, g=(tex[idx+1]*sh)>>8, b=(tex[idx+2]*sh)>>8;
-      if(r>255)r=255; if(g>255)g=255; if(b>255)b=255;
-      buf32[y*RW+x] = (255<<24)|(b<<16)|(g<<8)|r;
-    }
+  const legL = new THREE.Mesh(LEG_GEO, trimMat); legL.position.set(-0.09, 0.38, 0);
+  const legR = new THREE.Mesh(LEG_GEO, trimMat); legR.position.set( 0.09, 0.38, 0);
+  const torso = new THREE.Mesh(TORSO_GEO, bodyMat); torso.position.set(0, 0.58, 0);
+  const belt  = new THREE.Mesh(BELT_GEO, trimMat); belt.position.set(0, 0.40, 0);
+  const armL = new THREE.Mesh(ARM_GEO, bodyMat); armL.position.set(-0.24, 0.74, 0);
+  const armR = new THREE.Mesh(ARM_GEO, bodyMat); armR.position.set( 0.24, 0.74, 0);
+  const head = new THREE.Mesh(HEAD_GEO, headMat); head.position.set(0, 0.89, 0);
+  const eyes = new THREE.Mesh(EYE_GEO, eyeMat); eyes.position.set(0, 0.90, 0.115);
+
+  leanGroup.add(legL, legR, torso, belt, armL, armR, head, eyes);
+  yawGroup.userData = { legL, legR, armL, armR, torso, head, bodyMat, leanGroup };
+  return yawGroup;
+}
+// pose + physics-reactive lean + toppling death fall, shared by enemies & players
+function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, dt){
+  const mesh = rec.mesh, lean = mesh.userData.leanGroup;
+  mesh.position.set(ent.x, mesh.position.y||0, ent.y);
+
+  if(isDead){
+    if(!rec.wasDead){ rec.wasDead = true; rec.deadT = 0; }
+    rec.deadT += dt;
+    const t = Math.min(1, rec.deadT/0.7), ease = 1-(1-t)*(1-t);
+    lean.rotation.z = rec.fallDir * ease * 1.35;
+    mesh.position.y = -0.05 - ease*0.22;
+    return;
   }
+  rec.wasDead = false;
+  mesh.position.y = lerp(mesh.position.y||0, 0, dt*8);
+  const dx = camera.position.x - mesh.position.x, dz = camera.position.z - mesh.position.z;
+  mesh.rotation.y = Math.atan2(dx, dz);                 // yaw only — never touches x/z
 
-  // ---- sprites (painter's algorithm + z-buffer per column) ----
-  const drawables = [];
-  for(const e of enemies)  drawables.push({ x:e.x, y:e.y, spr:enemyFrame(e), scale:e.type.scale,
-                                            lift:0, tint:e.flash>0?e.flash:0, dead:e.dead });
-  for(const p of pickups)  if(!p.taken) drawables.push({ x:p.x, y:p.y, spr:ICONS[p.kind], scale:.55,
-                                            lift:Math.sin(now*2.5+p.x)*0.06+0.12, glow:.35 });
-  for(const b of bolts)    drawables.push({ x:b.x, y:b.y, spr:ICONS.bolt, scale:.3, lift:.05, glow:1 });
+  const u = mesh.userData;
+  const swing = Math.sin(walkPhase*1.6);
+  u.legL.rotation.x = swing*0.5; u.legR.rotation.x = -swing*0.5;
+  const raise = attacking ? 1 : 0;
+  u.armL.rotation.x = lerp(-swing*0.35, -1.8, raise);
+  u.armR.rotation.x = lerp( swing*0.35, -1.8, raise);
+
+  const spd = Math.hypot(ent.vx||0, ent.vy||0);
+  const targetLean = spd > 0.5 ? -Math.min(0.55, spd*0.035) : 0;
+  lean.rotation.x = lerp(lean.rotation.x||0, targetLean, dt*8);
+  lean.rotation.z = lerp(lean.rotation.z||0, 0, dt*8);   // ease back upright after a death-fall reuse
+
+  u.bodyMat.emissive.set(hurting ? 0xff3333 : 0x000000);
+  u.bodyMat.emissiveIntensity = hurting ? 0.7 : 0;
+}
+
+const enemyMeshes = new Map();     // enemy.id -> { mesh, fallDir, wasDead, deadT }
+function syncEnemyMeshes(dt){
+  const seen = new Set();
+  for(const e of enemies){
+    seen.add(e.id);
+    let rec = enemyMeshes.get(e.id);
+    if(!rec){
+      const mesh = makeCharacter(e.type.colors);
+      mesh.scale.setScalar(e.type.scale);
+      scene.add(mesh);
+      rec = { mesh, fallDir: Math.random()<0.5?-1:1, wasDead:false, deadT:0 };
+      enemyMeshes.set(e.id, rec);
+    }
+    updateCharacterVisual(rec, e, e.dead, e.animPhase||0, e.attackAnim>0, e.painTime>0, dt);
+  }
+  for(const [id,rec] of enemyMeshes) if(!seen.has(id)){ scene.remove(rec.mesh); enemyMeshes.delete(id); }
+}
+const playerMeshes = new Map();    // otherPlayers id -> { mesh, fallDir, wasDead, deadT }
+function syncPlayerMeshes(dt){
+  const seen = new Set();
   if(netMode !== 'solo'){
-    for(const op of otherPlayers.values()){
-      if(!op.alive) continue;
-      const frames = skinFrames[op.skin % skinFrames.length];
-      const spr = frames.walk[((op.animPhase||0)|0) % 4];
-      drawables.push({ x:op.x, y:op.y, spr, scale:.86, lift:0, tint:0 });
-    }
-  }
-
-  const invDet = 1/(planeX*dirY - dirX*planeY);
-  for(const s of drawables){
-    s.d = (s.x-player.x)**2 + (s.y-player.y)**2;
-  }
-  drawables.sort((a,b)=> b.d - a.d);
-
-  for(const s of drawables){
-    const spr = s.spr; if(!spr) continue;
-    const sx = s.x - player.x, sy = s.y - player.y;
-    const tX = invDet * (dirY*sx - dirX*sy);
-    const tY = invDet * (-planeY*sx + planeX*sy);
-    if(tY <= 0.12) continue;
-
-    const screenX = ((RW/2) * (1 + tX/tY))|0;
-    const sh_ = Math.abs((RH/tY) * s.scale)|0;              // on-screen height
-    const sw_ = Math.max(1, ((sh_ * spr.w) / spr.h)|0);     // keep the frame's aspect
-    if(sh_ < 2) continue;
-    const vOff = ((s.lift||0) * RH / tY)|0;
-    const groundY = horizon + ((0.5*RH)/tY)|0;   // feet sit on the floor plane
-    const y1 = groundY - vOff, y0 = y1 - sh_;
-    const x0 = screenX - (sw_>>1), x1 = x0 + sw_;
-
-    let shade = fogShade(tY) * light;
-    if(s.glow) shade = Math.max(shade, s.glow);
-    const sh = (shade*256)|0;
-    const tint = s.tint||0;
-    const sxStep = spr.w/sw_, syStep = spr.h/sh_;
-
-    for(let x=Math.max(x0,0); x<Math.min(x1,RW); x++){
-      if(tY >= zbuf[x]) continue;
-      const tx = ((x-x0)*sxStep)|0;
-      if(tx<0||tx>=spr.w) continue;
-      for(let y=Math.max(y0,0); y<Math.min(y1,RH); y++){
-        const ty = ((y-y0)*syStep)|0;
-        if(ty<0||ty>=spr.h) continue;
-        const i = ((ty*spr.w)+tx)<<2;
-        const a = spr.data[i+3];
-        if(a < 16) continue;
-        let r=(spr.data[i]*sh)>>8, g=(spr.data[i+1]*sh)>>8, b=(spr.data[i+2]*sh)>>8;
-        if(tint){ r = r+(255-r)*tint|0; g = g+(120-g)*tint*0.4|0; b = b+(120-b)*tint*0.4|0; }
-        const o = y*RW+x;
-        if(a < 240){                                   // blend soft edges
-          const dst = buf32[o];
-          const dr = dst&255, dg = (dst>>8)&255, db = (dst>>16)&255;
-          const t = a/255;
-          r = dr+(r-dr)*t|0; g = dg+(g-dg)*t|0; b = db+(b-db)*t|0;
-        }
-        buf32[o] = (255<<24)|(clamp(b,0,255)<<16)|(clamp(g,0,255)<<8)|clamp(r,0,255);
+    for(const [id, op] of otherPlayers){
+      seen.add(id);
+      let rec = playerMeshes.get(id);
+      if(!rec){
+        const mesh = makeCharacter(SKINS[op.skin % SKINS.length]);
+        scene.add(mesh);
+        rec = { mesh, fallDir: Math.random()<0.5?-1:1, wasDead:false, deadT:0 };
+        playerMeshes.set(id, rec);
       }
+      updateCharacterVisual(rec, op, !op.alive, op.animPhase||0, false, false, dt);
     }
   }
-
-  backCtx.putImageData(frameBuf, 0, 0);
-  ctx2d.drawImage(backCanvas, 0, 0, canvas.width, canvas.height);
+  for(const [id,rec] of playerMeshes) if(!seen.has(id)){ scene.remove(rec.mesh); playerMeshes.delete(id); }
 }
 
-function enemyFrame(e){
-  const F = e.type.frames;
-  if(e.dead){
-    const i = Math.min(3, (e.deadTime/0.11)|0);
-    return F.die[i];
+/* ---- pickups (static per-map pool, just toggled/animated) + bolts -------- */
+const pickupGeo = new THREE.OctahedronGeometry(0.17, 0);
+function pickupMat(color){ return new THREE.MeshStandardMaterial({ color, emissive:color, emissiveIntensity:0.65, roughness:0.35 }); }
+const pickupMats = {
+  health: pickupMat('#ff5a5a'), ammo: pickupMat('#ffd479'),
+  speed: pickupMat(BUFF_META.speed.color), damage: pickupMat(BUFF_META.damage.color),
+  rapid: pickupMat(BUFF_META.rapid.color), shield: pickupMat(BUFF_META.shield.color),
+  fling: pickupMat(BUFF_META.fling.color),
+};
+let pickupMeshes = [];
+function rebuildPickupMeshes(){
+  for(const m of pickupMeshes) scene.remove(m);
+  pickupMeshes = pickups.map(p => {
+    const mesh = new THREE.Mesh(pickupGeo, pickupMats[p.kind]);
+    mesh.position.set(p.x, 0.4, p.y);
+    scene.add(mesh);
+    return mesh;
+  });
+}
+function syncPickupMeshes(){
+  for(let i=0;i<pickups.length;i++){
+    const p = pickups[i], mesh = pickupMeshes[i]; if(!mesh) continue;
+    mesh.visible = !p.taken;
+    if(!p.taken){ mesh.position.y = 0.35 + Math.sin(now*2.5+p.x)*0.05; mesh.rotation.y += 0.02; mesh.rotation.x += 0.012; }
   }
-  if(e.painTime > 0) return F.pain;
-  if(e.attackAnim > 0) return F.attack;
-  return F.walk[(e.animPhase|0) % 4];
+}
+const boltGeo = new THREE.SphereGeometry(0.07, 8, 6);
+const boltMat = new THREE.MeshBasicMaterial({ color:0x9fe8ff });
+let boltMeshPool = [];
+function syncBoltMeshes(){
+  while(boltMeshPool.length < bolts.length){ const m = new THREE.Mesh(boltGeo, boltMat); scene.add(m); boltMeshPool.push(m); }
+  for(let i=0;i<boltMeshPool.length;i++){
+    const m = boltMeshPool[i];
+    m.visible = i < bolts.length;
+    if(m.visible) m.position.set(bolts[i].x, 0.55, bolts[i].y);
+  }
 }
 
-/* --------------------------- weapon / HUD overlay ------------------------- */
-/* The weapon is modelled in a local space where (0,0) is the muzzle tip and
-   +y runs back toward the shooter, then dropped into the lower-right of the
-   screen. Bob, recoil kick and the reload dip all move that one anchor.      */
-function renderWeapon(){
-  const W = canvas.width, H = canvas.height;
-  const g = ctx2d;
-  const spec = WEAPONS[player.weapon];
-  const heavy = player.weapon === 'rifle';
+/* ---- first-person weapon viewmodel ---------------------------------------- */
+function makeWeaponModel(){
+  const g = new THREE.Group();
+  const steel = new THREE.MeshStandardMaterial({ color:0x2a3138, roughness:0.4, metalness:0.55 });
+  const dark  = new THREE.MeshStandardMaterial({ color:0x14181c, roughness:0.6 });
+  const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.05,0.05,0.4), steel); barrel.position.set(0,0.01,-0.24);
+  const body   = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.10,0.24), dark); body.position.set(0,-0.02,0.02);
+  const sight  = new THREE.Mesh(new THREE.BoxGeometry(0.015,0.03,0.02), dark); sight.position.set(0,0.06,-0.4);
+  const grip   = new THREE.Mesh(new THREE.BoxGeometry(0.055,0.14,0.055), dark); grip.position.set(0,-0.12,0.13); grip.rotation.x = 0.35;
+  const mag    = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.12,0.05), steel); mag.position.set(0,-0.14,0.02); mag.rotation.x = 0.1;
+  g.add(barrel, body, sight, grip, mag);
+  const flash = new THREE.PointLight(0xffcf8a, 0, 3, 2); flash.position.set(0,0.01,-0.5); g.add(flash);
+  g.userData = { flash };
+  return g;
+}
+const weaponModel = makeWeaponModel();
+camera.add(weaponModel);
 
-  const bobX = Math.sin(player.bob)*9, bobY = Math.abs(Math.cos(player.bob))*7;
-  const kick = player.kick;
-  const rl   = player.reloading > 0 ? Math.sin((1-player.reloading/spec.reload)*Math.PI)*120 : 0;
-  const s    = Math.min(W,H)/900 * (heavy ? 1.05 : 0.92);
+function updateWeaponView(){
+  const w = WEAPONS[player.weapon], heavy = player.weapon === 'rifle';
+  const bobX = Math.sin(player.bob)*0.012, bobY = Math.abs(Math.cos(player.bob))*0.01;
+  const kick = player.kick*0.0035;
+  const rl = player.reloading > 0 ? Math.sin((1-player.reloading/w.reload)*Math.PI)*0.14 : 0;
+  weaponModel.position.set(0.19+bobX, -0.20+bobY+kick*0.4-rl*0.35, -0.30+kick*0.1);
+  weaponModel.rotation.x = -kick*0.06 - rl*0.3;
+  weaponModel.rotation.z = 0.03;
+  weaponModel.scale.setScalar(heavy ? 1.12 : 0.92);
+  weaponModel.userData.flash.intensity = player.flash > 0.12 ? player.flash*3.2 : 0;
+  muzzleLight.intensity = player.flash > 0.12 ? player.flash*1.6 : 0;
+}
 
-  g.save();
-  g.translate(W*0.70 + bobX, H*0.62 + bobY + kick*3.0 + rl*s);
-  g.scale(s, s);
-  g.rotate(0.17 + kick*0.006);
+/* ---- camera + full-scene sync, called once per frame instead of the old
+   renderWorld()/renderWeapon() pair ------------------------------------------ */
+function render3D(dt){
+  camera.position.set(player.x, EYE_H + Math.sin(player.bob)*0.012, player.y);
+  camera.rotation.y = -player.a - Math.PI/2;
+  camera.rotation.x = player.pitch;
+  headlamp.intensity = 0.85 + player.flash*0.4;
 
-  const steel = '#242a31', steelHi = '#39424c', dark = '#171b20', glove = '#46604d';
+  syncEnemyMeshes(dt);
+  syncPlayerMeshes(dt);
+  syncPickupMeshes();
+  syncBoltMeshes();
+  updateWeaponView();
 
-  // ---- muzzle flash -------------------------------------------------------
-  if(player.flash > 0.12){
-    const f = player.flash, r = 70*f + 26;
-    const grd = g.createRadialGradient(0,0,2,0,0,r);
-    grd.addColorStop(0,   `rgba(255,255,235,${0.95*f})`);
-    grd.addColorStop(0.35,`rgba(255,196,96,${0.65*f})`);
-    grd.addColorStop(1,   'rgba(255,120,40,0)');
-    g.fillStyle = grd; g.beginPath(); g.arc(0,0,r,0,TAU); g.fill();
-    g.fillStyle = `rgba(255,240,200,${0.9*f})`;
-    g.beginPath();                                       // four-point star
-    for(let i=0;i<8;i++){
-      const a = i*Math.PI/4, rr = (i%2 ? 12 : 46) * (0.6+f*0.6);
-      g[i?'lineTo':'moveTo'](Math.cos(a)*rr, Math.sin(a)*rr);
-    }
-    g.closePath(); g.fill();
-  }
-
-  // ---- barrel / handguard -------------------------------------------------
-  const bw = heavy ? 26 : 20;                    // barrel half-width
-  g.fillStyle = dark;   roundRect(g, -bw, 0, bw*2, heavy?150:110, 6);
-  g.fillStyle = steel;  roundRect(g, -bw-9, heavy?70:52, bw*2+18, heavy?120:96, 8);
-  g.fillStyle = dark;                                    // cooling vents
-  for(let i=0;i<3;i++) g.fillRect(-bw-3, (heavy?86:66)+i*22, bw*2+6, 7);
-  g.fillStyle = steelHi; g.fillRect(-bw-9, heavy?70:52, 7, heavy?120:96);
-
-  // front sight
-  g.fillStyle = dark; roundRect(g, -7, -6, 14, 26, 3);
-
-  // ---- receiver -----------------------------------------------------------
-  g.fillStyle = steel;
-  roundRect(g, -bw-16, heavy?178:146, bw*2+40, heavy?150:130, 10);
-  g.fillStyle = steelHi;
-  g.fillRect(-bw-16, heavy?186:154, bw*2+40, 8);
-  g.fillStyle = dark;                                    // ejection port
-  roundRect(g, bw+2, heavy?206:174, 16, 40, 3);
-  g.fillStyle = '#7de8ff';                               // charge indicator
-  g.fillRect(-bw-6, heavy?214:182, 10, 4);
-  g.globalAlpha = 0.35 + player.flash*0.5;
-  g.fillRect(-bw-6, heavy?214:182, 10, 4);
-  g.globalAlpha = 1;
-
-  // ---- magazine -----------------------------------------------------------
-  g.save();
-  g.translate(-4, heavy?300:262); g.rotate(0.12);
-  g.fillStyle = '#1b2026'; roundRect(g, -22, 0, 44, heavy?130:88, 7);
-  g.fillStyle = '#0f1317'; roundRect(g, -22, 0, 10, heavy?130:88, 7);
-  g.restore();
-
-  // ---- grip + stock, running off the bottom of the screen -----------------
-  g.save();
-  g.translate(bw+10, heavy?300:262); g.rotate(0.34);
-  g.fillStyle = steel; roundRect(g, -20, 0, 42, 190, 10);
-  g.restore();
-
-  // ---- hands --------------------------------------------------------------
-  g.fillStyle = glove;                                   // support hand on the handguard
-  roundRect(g, -bw-26, heavy?110:86, bw*2+30, 66, 16);
-  g.fillStyle = shade(glove,-16);
-  for(let i=0;i<3;i++) g.fillRect(-bw-24, (heavy?122:98)+i*17, bw*2+26, 4);
-
-  g.fillStyle = shade(glove,10);                         // trigger hand on the grip
-  roundRect(g, bw-6, heavy?318:280, 62, 62, 16);
-  g.fillStyle = shade(glove,-20);
-  for(let i=0;i<3;i++) g.fillRect(bw-4, (heavy?330:292)+i*16, 58, 4);
-
-  // forearms disappearing off-screen
-  g.fillStyle = '#33463a';
-  g.beginPath();
-  g.moveTo(-bw-28, heavy?168:144); g.lineTo(-bw-96, H); g.lineTo(-bw+30, H); g.lineTo(-bw+6, heavy?168:144);
-  g.closePath(); g.fill();
-  g.beginPath();
-  g.moveTo(bw+56, heavy?372:334); g.lineTo(bw+150, H); g.lineTo(bw+10, H); g.lineTo(bw-4, heavy?372:334);
-  g.closePath(); g.fill();
-
-  g.restore();
+  renderer.render(scene, camera);
 }
 
 /* --------------------------------- combat -------------------------------- */
@@ -1025,7 +1141,7 @@ function renderWeapon(){
 // deathmatch, every other living player. `authoritative` performs the actual
 // damage; otherwise it only reports what WOULD be hit (used for a client's
 // optimistic hit-marker while the host resolves the real outcome).
-function resolveShot(px, py, ang, dmg, shooter, authoritative){
+function resolveShot(px, py, ang, dmg, shooter, authoritative, fling){
   const dx = Math.cos(ang), dy = Math.sin(ang);
   const wallHit = castRay(px, py, dx, dy, VIEW*1.4).dist;
   let best = null, bestT = wallHit, bestKind = null;
@@ -1037,7 +1153,7 @@ function resolveShot(px, py, ang, dmg, shooter, authoritative){
     const perp = Math.hypot(ex - dx*t, ey - dy*t);
     if(perp <= e.type.radius + 0.05){ best = e; bestT = t; bestKind = 'enemy'; }
   }
-  if(MODE === 'deathmatch'){
+  if(MODE === 'deathmatch' || fling){
     for(const op of allPlayers()){
       if(op === shooter || !op.alive) continue;
       const ex = op.x-px, ey = op.y-py;
@@ -1049,7 +1165,8 @@ function resolveShot(px, py, ang, dmg, shooter, authoritative){
   }
   if(!best) return null;
   if(authoritative){
-    if(bestKind === 'enemy') damageEnemy(best, dmg, shooter);
+    if(fling) applyFling(best, px, py, 9);
+    else if(bestKind === 'enemy') damageEnemy(best, dmg, shooter);
     else damageOtherPlayer(best, dmg, shooter);
   }
   return bestKind;
@@ -1067,12 +1184,19 @@ function fire(){
   Sound.shoot(w.heavy);
 
   const spread = w.spread * (1 + player.kick*0.06);
-  const ang = player.a + rand(spread,-spread);
   const dmg = w.dmg * (player.buffs.damage > 0 ? 2 : 1);
-
+  const flinging = player.buffs.fling > 0;
   const authoritative = netMode !== 'client';
-  const hitKind = resolveShot(player.x, player.y, ang, dmg, player, authoritative);
-  if(hitKind) hitMarker();
+  const pellets = w.pellets || 1;
+
+  let anyHit = false;
+  for(let i=0;i<pellets;i++){
+    const ang = player.a + rand(spread,-spread);
+    const hitKind = resolveShot(player.x, player.y, ang, dmg, player, authoritative, flinging);
+    if(hitKind) anyHit = true;
+    if(!authoritative) Net.send({ type:'shot', a: ang, dmg, fling: flinging });
+  }
+  if(anyHit) hitMarker();
 
   if(authoritative){
     // gunfire is loud — nearby hostiles investigate the noise
@@ -1083,8 +1207,6 @@ function fire(){
         e.lastSeen = { x:player.x, y:player.y };
       }
     }
-  } else {
-    Net.send({ type:'shot', a: ang, dmg });
   }
   updateHUD();
 }
@@ -1099,7 +1221,7 @@ function damageEnemy(e, dmg, shooter){
   if(e.hp <= 0){
     e.dead = true; e.deadTime = 0;
     kills++; score += e.type.score;
-    Net.emit({ kind:'kill', name: e.type.name });
+    Net.emit({ kind:'kill', name: e.type.name, shooterId: src.id, coins: Math.round(e.type.score/10) });
     updateHUD();
   } else {
     Net.emit({ kind:'hit' });
@@ -1109,6 +1231,12 @@ function damageEnemy(e, dmg, shooter){
 function damagePlayer(dmg, shooter){
   if(!player.alive) return;
   if(player.buffs.shield > 0){ Net.emit({ kind:'shieldblock', targetId: player.id }); return; }
+  if(player.shieldCharge > 0){
+    const absorbed = Math.min(player.shieldCharge, dmg);
+    player.shieldCharge -= absorbed;
+    dmg -= absorbed;
+    if(dmg <= 0){ Net.emit({ kind:'shieldblock', targetId: player.id }); updateHUD(); return; }
+  }
   player.hp -= dmg;
   player.hurt = 1;
   Sound.hurt();
@@ -1150,7 +1278,7 @@ function damageOtherPlayer(target, dmg, shooter){
 function respawnDM(p){
   const s = SPAWNS[(Math.random()*SPAWNS.length)|0];
   p.x = s[0]; p.y = s[1]; p.hp = 100; p.alive = true; p.respawnAt = 0;
-  p.buffs = freshBuffs();
+  p.buffs = freshBuffs(); p.vx = 0; p.vy = 0;
   if(p === player){ vig.style.opacity = '0'; banner('Redeployed'); }
 }
 
@@ -1167,7 +1295,7 @@ function allPlayers(){
 function tryReload(){
   const w = WEAPONS[player.weapon];
   if(player.reloading > 0 || w.ammo >= w.mag || w.reserve <= 0) return;
-  player.reloading = w.reload;
+  player.reloading = w.reload * (account.ownedUpgrades.has('reload') ? 0.85 : 1);
   Sound.reload();
 }
 function finishReload(){
@@ -1180,9 +1308,11 @@ function finishReload(){
 }
 function switchWeapon(name){
   if(name === player.weapon || player.reloading > 0) return;
+  if(!account.ownedWeapons.has(name)) return;
   player.weapon = name;
   player.cooldown = Math.max(player.cooldown, 0.25);
   Sound.reload();
+  if(!WEAPONS[name].zoom) setZoom(false);
   updateHUD();
 }
 
@@ -1234,14 +1364,67 @@ function flowFieldFor(target){
 
 function moveEntity(e, dx, dy, radius){
   // axis-separated collision keeps entities sliding along walls
+  let blocked = false;
   const nx = e.x + dx;
   if(!solid(nx + Math.sign(dx)*radius, e.y) &&
      !solid(nx + Math.sign(dx)*radius, e.y - radius*0.7) &&
      !solid(nx + Math.sign(dx)*radius, e.y + radius*0.7)) e.x = nx;
+  else if(dx) blocked = true;
   const ny = e.y + dy;
   if(!solid(e.x, ny + Math.sign(dy)*radius) &&
      !solid(e.x - radius*0.7, ny + Math.sign(dy)*radius) &&
      !solid(e.x + radius*0.7, ny + Math.sign(dy)*radius)) e.y = ny;
+  else if(dy) blocked = true;
+  return blocked;
+}
+
+/* ------------------------------ fling power-up ---------------------------- */
+// Knockback velocity (vx/vy) decays exponentially and rides on top of normal
+// movement — works for players AND enemies, so a fling can punt either.
+function integrateKnockback(e, dt, radius){
+  const spd2 = e.vx*e.vx + e.vy*e.vy;
+  if(spd2 < 0.0025){ e.vx = 0; e.vy = 0; return; }
+  const hitWall = moveEntity(e, e.vx*dt, e.vy*dt, radius);
+  if(hitWall && spd2 > 9) Sound.shove();               // slammed into something at speed
+  const decay = Math.exp(-dt*3.2);
+  e.vx *= decay; e.vy *= decay;
+}
+function applyFling(ent, fromX, fromY, force){
+  const dx = ent.x-fromX, dy = ent.y-fromY, d = Math.hypot(dx,dy) || 1;
+  ent.vx += (dx/d)*force; ent.vy += (dy/d)*force;
+  ent.flungAt = now;
+  if(ent.buffs) Net.emit({ kind:'fling', targetId: ent.id, vx: ent.vx, vy: ent.vy });
+}
+// Melee-range shove: nearest living target within `range`, roughly in front.
+function resolveFling(px, py, dirX, dirY, range, force, shooter, authoritative){
+  let best = null, bestD = range;
+  for(const e of enemies){
+    if(e.dead) continue;
+    const d = Math.hypot(e.x-px, e.y-py);
+    if(d >= bestD) continue;
+    const fx = (e.x-px)/(d||1), fy = (e.y-py)/(d||1);
+    if(fx*dirX + fy*dirY > 0.3){ best = e; bestD = d; }
+  }
+  for(const op of allPlayers()){
+    if(op === shooter || !op.alive) continue;
+    const d = Math.hypot(op.x-px, op.y-py);
+    if(d >= bestD) continue;
+    const fx = (op.x-px)/(d||1), fy = (op.y-py)/(d||1);
+    if(fx*dirX + fy*dirY > 0.3){ best = op; bestD = d; }
+  }
+  if(!best) return false;
+  if(authoritative) applyFling(best, px, py, force);
+  return true;
+}
+function attemptShove(){
+  if(!player.alive || player.buffs.fling <= 0 || player.shoveCooldown > 0) return;
+  player.shoveCooldown = 0.6;
+  const dirX = Math.cos(player.a), dirY = Math.sin(player.a);
+  if(netMode !== 'client'){
+    if(resolveFling(player.x, player.y, dirX, dirY, 1.5, 13, player, true)) Sound.shove();
+  } else {
+    Net.send({ type:'shove' });
+  }
 }
 
 function nearestLivingPlayer(e){
@@ -1369,17 +1552,18 @@ function flowStep(e, target){
 
 /* -------------------------------- waves ---------------------------------- */
 function nextWave(){
+  flushPendingCoins();
   wave++;
   // co-op checkpoint: anyone who died mid-wave rejoins the fight
   if(MODE === 'coop'){
     for(const p of allPlayers()){
       if(p.alive) continue;
       const s = SPAWNS[(Math.random()*SPAWNS.length)|0];
-      p.x = s[0]; p.y = s[1]; p.hp = 100; p.alive = true; p.buffs = freshBuffs();
+      p.x = s[0]; p.y = s[1]; p.hp = 100; p.alive = true; p.buffs = freshBuffs(); p.vx = 0; p.vy = 0;
       if(p === player) vig.style.opacity = '0';
     }
   }
-  const count = 3 + Math.floor(wave*1.6);
+  const count = Math.round((3 + Math.floor(wave*1.6)) * (MAPS[mapIndex].large ? 1.6 : 1));
   const alivePlayers = livingPlayers();
   const far = SPAWNS.filter(s => alivePlayers.every(p => Math.hypot(s[0]-p.x, s[1]-p.y) > 6));
   const pool = far.length ? far : SPAWNS;
@@ -1400,6 +1584,7 @@ function nextWave(){
 
 function resetPickups(){
   pickups = PICKUPS.map(([x,y,kind]) => ({ x, y, kind, taken:false, respawnAt:0 }));
+  rebuildPickupMeshes();
 }
 
 function decayBuffs(b, dt){
@@ -1449,18 +1634,26 @@ function update(dt){
   } else {
     player.bob = lerp(player.bob, Math.round(player.bob/Math.PI)*Math.PI, dt*6);
   }
+  integrateKnockback(player, dt, 0.26);
 
   // ---------- weapon ----------
   player.cooldown = Math.max(0, player.cooldown - dt);
   player.kick     = Math.max(0, player.kick - dt*46);
   player.flash    = Math.max(0, player.flash - dt*9);
+  player.shoveCooldown = Math.max(0, player.shoveCooldown - dt);
   decayBuffs(player.buffs, dt);
+  if(player.maxShieldCharge > 0 && player.shieldCharge < player.maxShieldCharge){
+    player.shieldCharge = Math.min(player.maxShieldCharge, player.shieldCharge + player.shieldRegenRate*dt);
+  }
+  if(account.ownedUpgrades.has('regen') && player.alive && player.hp > 0 && player.hp < 100){
+    player.hp = Math.min(100, player.hp + dt);
+  }
   if(player.reloading > 0){
     player.reloading -= dt;
     if(player.reloading <= 0){ player.reloading = 0; finishReload(); }
   }
   if(mouseDown && player.alive){
-    if(player.weapon === 'rifle' || !player.firedThisClick){ fire(); player.firedThisClick = true; }
+    if(WEAPONS[player.weapon].auto || !player.firedThisClick){ fire(); player.firedThisClick = true; }
   }
 
   // ---------- enemies (host/solo simulate; clients just render the snapshot) ----------
@@ -1545,8 +1738,7 @@ function frame(t){
   last = t;
   if(!running || paused) return;
   update(dt);
-  renderWorld();
-  renderWeapon();
+  render3D(dt);
   renderNameplates();
   drawMinimap();
   if(el('scoreboard').classList.contains('show')) renderScoreboard();
@@ -1604,6 +1796,7 @@ function updateHUD(){
   el('hpcell').classList.toggle('low', player.hp <= 35);
   el('wave').textContent = wave;
   el('left').textContent = enemies.filter(e=>!e.dead).length;
+  el('hudCoins').textContent = account.coins;
   el('wpn').textContent  = w.name;
   el('mag').textContent  = w.ammo;
   el('mag').classList.toggle('empty', w.ammo === 0);
@@ -1648,6 +1841,7 @@ function handleNetEvent(evt){
     case 'kill':
       feed(`${evt.name} eliminated`, '#8ef5c0');
       Sound.kill();
+      if(evt.shooterId === myId && evt.coins) awardCoins(evt.coins);
       break;
     case 'pickup':
       feed(evt.text, evt.color);
@@ -1673,6 +1867,10 @@ function handleNetEvent(evt){
       break;
     case 'join': feed(`${evt.name} connected`, '#8ef5ff'); break;
     case 'leave': feed(`${evt.name} disconnected`, '#7d99a3'); break;
+    case 'fling':
+      Sound.shove();
+      if(evt.targetId === myId){ player.vx = evt.vx; player.vy = evt.vy; }  // instant local feel; host stays authoritative
+      break;
   }
 }
 
@@ -1694,13 +1892,14 @@ const Net = (() => {
     return {
       id, name, x:s[0], y:s[1], a:0, pitch:0, hp:100, alive:true, weapon:'pistol',
       kills:0, deaths:0, buffs:freshBuffs(), skin:(nextSkin++)%SKINS.length,
-      respawnAt:0, animPhase:0, input:{keys:{}}, lastShotAt:0,
+      respawnAt:0, animPhase:0, input:{keys:{}}, lastShotAt:0, vx:0, vy:0, shoveCooldown:0,
     };
   }
 
   function hostApplyMovement(dt){
     for(const st of otherPlayers.values()){
       decayBuffs(st.buffs, dt);
+      integrateKnockback(st, dt, 0.26);
       if(!st.alive) continue;
       const k = st.input.keys || {};
       const dirX = Math.cos(st.a), dirY = Math.sin(st.a), rgtX = -dirY, rgtY = dirX;
@@ -1729,7 +1928,13 @@ const Net = (() => {
       const minGap = Math.max(0.03, (st.buffs.rapid > 0 ? 0.045 : w.rof) * 0.6);
       if(now - st.lastShotAt < minGap) return;
       st.lastShotAt = now;
-      resolveShot(st.x, st.y, msg.a, msg.dmg, st, true);
+      resolveShot(st.x, st.y, msg.a, msg.dmg, st, true, msg.fling);
+    } else if(msg.type === 'shove'){
+      if(!st.alive || st.buffs.fling <= 0) return;
+      if(now - (st.lastShoveAt||0) < 0.5) return;
+      st.lastShoveAt = now;
+      const dirX = Math.cos(st.a), dirY = Math.sin(st.a);
+      resolveFling(st.x, st.y, dirX, dirY, 1.5, 13, st, true);
     }
   }
 
@@ -1782,7 +1987,8 @@ const Net = (() => {
     const beat = () => {
       fetch(LOBBY_API, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code, mode, hostName: player.name, players: 1+otherPlayers.size, maxPlayers: 8 }),
+        body: JSON.stringify({ code, mode, hostName: player.name, players: 1+otherPlayers.size, maxPlayers: 8,
+          mapName: MAPS[mapIndex].name }),
       }).catch(()=>{});
     };
     beat();
@@ -1805,7 +2011,7 @@ const Net = (() => {
         if(st) st.name = (msg.name || 'Player').slice(0,16);
         renderLobbyList();
         Net.emit({ kind:'join', name: st ? st.name : 'Player' });
-        safeSend(conn, { type:'welcome', id: conn.peer, mode: MODE });
+        safeSend(conn, { type:'welcome', id: conn.peer, mode: MODE, mapIndex });
       } else {
         hostStep(conn.peer, msg);
       }
@@ -1907,6 +2113,7 @@ const Net = (() => {
         el('lobbyCode').textContent = code;
         el('lobbyRoomWrap').classList.remove('hide');
         el('btnStartMatch').classList.remove('hide');
+        el('lobbyMapLabel').textContent = 'Map: ' + MAPS[mapIndex].name;
         setNetMsg('Share this code with your squad — or it\'s already listed under Browse Games.');
         renderLobbyList();
         startLobbyHeartbeat(code, mode);
@@ -1931,7 +2138,7 @@ const Net = (() => {
           setNetMsg('Connected — waiting for the host to start…');
         });
         hostConn.on('data', msg => {
-          if(msg.type === 'welcome') MODE = msg.mode;
+          if(msg.type === 'welcome'){ MODE = msg.mode; mapIndex = msg.mapIndex; el('lobbyMapLabel').textContent = 'Map: ' + MAPS[mapIndex].name; }
           else if(msg.type === 'state') applySnapshot(msg);
           else if(msg.type === 'event') handleNetEvent(msg.evt);
           else if(msg.type === 'start') beginMatch();
@@ -2011,8 +2218,32 @@ function setNetMsg(msg){
   if(c) c.textContent = msg;
 }
 function showPanel(id){
-  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse']) el(p).classList.toggle('hide', p !== id);
+  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse','menuMapPick','menuLogin','menuArmory']) el(p).classList.toggle('hide', p !== id);
 }
+let pendingHostMode = null;   // null = picking a map for solo; else 'coop'/'deathmatch'
+function showMapPicker(hostMode){
+  pendingHostMode = hostMode;
+  el('mapPickList').innerHTML = MAPS.map((m,i) => `<li class="roomrow">
+      <span>${escapeHtml(m.name)}</span>
+      <span class="mbtn small pickMapBtn" data-i="${i}">Select</span>
+    </li>`).join('');
+  showPanel('menuMapPick');
+}
+el('mapPickList').addEventListener('click', e => {
+  const btn = e.target.closest('.pickMapBtn');
+  if(!btn) return;
+  mapIndex = +btn.dataset.i;
+  if(pendingHostMode){
+    showPanel('menuLobby');
+    Net.startHost(pendingHostMode);
+  } else {
+    MODE = 'campaign'; netMode = 'solo';
+    showPanel('');
+    el('keysPanel').classList.remove('hide');
+    el('btnDeploy').classList.remove('hide');
+  }
+});
+el('btnBackMapPick').addEventListener('click', () => showPanel(pendingHostMode ? 'menuMulti' : 'menuMain'));
 function beginMatch(){
   el('start').classList.add('hide');
   startGame();
@@ -2037,7 +2268,7 @@ async function fetchAndRenderRooms(){
     const rooms = data.rooms || [];
     if(!rooms.length){ list.innerHTML = '<li>No open games right now — host one!</li>'; return; }
     list.innerHTML = rooms.map(rm => `<li class="roomrow">
-        <span>${escapeHtml(rm.hostName)}'s ${rm.mode === 'deathmatch' ? 'Deathmatch' : 'Co-op'}
+        <span>${escapeHtml(rm.hostName)}'s ${rm.mode === 'deathmatch' ? 'Deathmatch' : 'Co-op'} · ${escapeHtml(rm.mapName || 'Sector 7')}
         <small>(${Math.min(rm.players,rm.maxPlayers)}/${rm.maxPlayers})</small></span>
         <span class="mbtn small joinRoomBtn" data-code="${escapeHtml(rm.code)}">Join</span>
       </li>`).join('');
@@ -2066,7 +2297,7 @@ function renderScoreboard(){
 function updateBuffHud(){
   const c = el('buffs');
   let html = '';
-  for(const k of ['speed','damage','rapid','shield']){
+  for(const k of ['speed','damage','rapid','shield','fling']){
     const t = player.buffs[k];
     if(t > 0) html += `<div class="buff ${k}"><b>${BUFF_META[k].label}</b><span>${t.toFixed(1)}s</span></div>`;
   }
@@ -2085,26 +2316,20 @@ function updateVoiceUI(){
 }
 el('voiceBtn').addEventListener('click', () => Net.toggleVoice());
 
+const _nameVec = new THREE.Vector3();
 function renderNameplates(){
+  ctx2d.clearRect(0, 0, nameOverlay.width, nameOverlay.height);
   if(netMode === 'solo' || !otherPlayers.size) return;
-  const dirX = Math.cos(player.a), dirY = Math.sin(player.a), fov = 0.72;
-  const planeX = -dirY*fov, planeY = dirX*fov;
-  const invDet = 1/(planeX*dirY - dirX*planeY);
-  const W = canvas.width, H = canvas.height, scaleX = W/RW, scaleY = H/RH;
-  const horizon = RH*0.5 + player.pitch;
-  ctx2d.save();
+  const W = nameOverlay.width, H = nameOverlay.height;
   ctx2d.font = '600 13px "SF Mono", ui-monospace, monospace';
   ctx2d.textAlign = 'center';
   for(const op of otherPlayers.values()){
     if(!op.alive) continue;
-    const sx = op.x-player.x, sy = op.y-player.y;
-    const tX = invDet*(dirY*sx - dirX*sy), tY = invDet*(-planeY*sx + planeX*sy);
-    if(tY <= 0.15) continue;
-    const screenX = (RW/2)*(1+tX/tY);
-    if(screenX < -20 || screenX > RW+20) continue;
-    const sh_ = Math.abs((RH/tY)*0.86);
-    const groundY = horizon + (0.5*RH)/tY;
-    const px = screenX*scaleX, py = (groundY - sh_ - 10)*scaleY;
+    _nameVec.set(op.x, EYE_H + 0.5, op.y);
+    _nameVec.project(camera);
+    if(_nameVec.z > 1) continue;                     // behind the camera
+    const px = (_nameVec.x*0.5+0.5)*W, py = (1-(_nameVec.y*0.5+0.5))*H;
+    if(px < -40 || px > W+40 || py < -20 || py > H+20) continue;
     const label = op.name || 'Player';
     const w = ctx2d.measureText(label).width + 12;
     ctx2d.fillStyle = 'rgba(4,10,14,.6)';
@@ -2112,7 +2337,6 @@ function renderNameplates(){
     ctx2d.fillStyle = '#c9f7ff';
     ctx2d.fillText(label, px, py);
   }
-  ctx2d.restore();
 }
 
 /* --------------------------------- input --------------------------------- */
@@ -2126,10 +2350,14 @@ addEventListener('keydown', e => {
   }
   if(!running) return;
   if(k === 'r') tryReload();
-  if(k === '1') switchWeapon('pistol');
-  if(k === '2') switchWeapon('rifle');
-  if(k === 'q') switchWeapon(player.weapon === 'pistol' ? 'rifle' : 'pistol');
+  if(k >= '1' && k <= '9' && (+k - 1) < WEAPON_ORDER.length) switchWeapon(WEAPON_ORDER[+k-1]);
+  if(k === 'q'){
+    const owned = WEAPON_ORDER.filter(w => account.ownedWeapons.has(w));
+    const i = owned.indexOf(player.weapon);
+    if(owned.length > 1) switchWeapon(owned[(i+1) % owned.length]);
+  }
   if(k === 'v' && netMode !== 'solo') Net.toggleVoice();
+  if(k === 'f') attemptShove();
   if(['w','a','s','d',' '].includes(k)) e.preventDefault();
 });
 addEventListener('keyup', e => {
@@ -2137,18 +2365,30 @@ addEventListener('keyup', e => {
   keys[k] = false;
   if(k === 'tab') el('scoreboard').classList.remove('show');
 });
-addEventListener('blur', () => { for(const k in keys) keys[k] = false; mouseDown = false; });
+let zoomed = false;
+function setZoom(on){
+  if(zoomed === on) return;
+  zoomed = on;
+  camera.fov = on ? 32 : 78;
+  camera.updateProjectionMatrix();
+}
+addEventListener('blur', () => { for(const k in keys) keys[k] = false; mouseDown = false; setZoom(false); });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 addEventListener('mousedown', e => {
   if(e.button === 0){ mouseDown = true; player.firedThisClick = false; }
+  if(e.button === 2 && running && WEAPONS[player.weapon].zoom) setZoom(true);
 });
-addEventListener('mouseup', e => { if(e.button === 0){ mouseDown = false; player.firedThisClick = false; } });
+addEventListener('mouseup', e => {
+  if(e.button === 0){ mouseDown = false; player.firedThisClick = false; }
+  if(e.button === 2) setZoom(false);
+});
 
 addEventListener('mousemove', e => {
   if(document.pointerLockElement !== canvas) return;
   player.a += e.movementX * 0.0022;
   if(player.a > Math.PI) player.a -= TAU; else if(player.a < -Math.PI) player.a += TAU;
-  player.pitch = clamp(player.pitch - e.movementY * 0.9, -RH*0.45, RH*0.45);
+  player.pitch = clamp(player.pitch - e.movementY * 0.0022, -1.2, 1.2);
 });
 
 document.addEventListener('pointerlockchange', () => {
@@ -2156,7 +2396,171 @@ document.addEventListener('pointerlockchange', () => {
     paused = false; el('pause').classList.add('hide');
   } else if(running && !gameOver){
     paused = true; el('pause').classList.remove('hide');
+    setZoom(false);
   }
+});
+
+/* -------------------------------- account / auth -------------------------------- */
+const SUPABASE_URL = 'https://nvhxlrxqzrwhrhqwcurp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_rwgWfjbg_AFsheYPlYme5g_ldlDpHJC';
+const supa = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+const DEFAULT_OWNED_WEAPONS = ['pistol','rifle'];
+let account = { user:null, coins:0, ownedWeapons:new Set(DEFAULT_OWNED_WEAPONS), ownedUpgrades:new Map(), pendingCoins:0 };
+
+function renderAccountStatus(){
+  const s = el('acctStatus');
+  if(!s) return;
+  s.textContent = !supa ? 'Account system unavailable'
+    : account.user ? `Signed in as ${account.user.email} · ${account.coins} coins`
+    : 'Not signed in — sign in to keep coins & unlocks';
+}
+function renderLoginPanel(){
+  const formWrap = el('loginFormWrap'), sentWrap = el('loginSentWrap'), acctWrap = el('loginAccountWrap');
+  if(account.user){
+    formWrap.classList.add('hide'); sentWrap.classList.add('hide'); acctWrap.classList.remove('hide');
+    el('loginEmailShown').textContent = account.user.email;
+    el('loginCoins').textContent = account.coins;
+  } else {
+    acctWrap.classList.add('hide'); sentWrap.classList.add('hide'); formWrap.classList.remove('hide');
+  }
+}
+function resetAccountState(){
+  account.user = null; account.coins = 0; account.pendingCoins = 0;
+  account.ownedWeapons = new Set(DEFAULT_OWNED_WEAPONS); account.ownedUpgrades = new Map();
+}
+function refreshCoinHud(){
+  const c = el('hudCoins');
+  if(c) c.textContent = account.coins;
+}
+function awardCoins(n){
+  account.coins += n;
+  account.pendingCoins += n;
+  renderAccountStatus(); renderLoginPanel(); refreshCoinHud();
+}
+async function flushPendingCoins(){
+  if(!supa || !account.user || !account.pendingCoins) return;
+  const amountSynced = account.pendingCoins;
+  const target = account.coins;
+  const { error } = await supa.from('profiles').update({ coins: target }).eq('id', account.user.id);
+  if(!error) account.pendingCoins -= amountSynced;
+}
+async function loadProfile(){
+  if(!supa || !account.user) return;
+  const uid = account.user.id;
+  const [{data:profile}, {data:weapons}, {data:upgrades}] = await Promise.all([
+    supa.from('profiles').select('coins').eq('id', uid).maybeSingle(),
+    supa.from('owned_weapons').select('weapon_key').eq('user_id', uid),
+    supa.from('owned_upgrades').select('upgrade_key,tier').eq('user_id', uid),
+  ]);
+  account.coins = profile?.coins ?? 0;
+  account.ownedWeapons = new Set([...DEFAULT_OWNED_WEAPONS, ...(weapons||[]).map(w=>w.weapon_key)]);
+  account.ownedUpgrades = new Map((upgrades||[]).map(u=>[u.upgrade_key,u.tier]));
+  renderAccountStatus(); renderLoginPanel(); refreshCoinHud();
+}
+async function initAccount(){
+  if(!supa){ renderAccountStatus(); return; }
+  const { data:{ session } } = await supa.auth.getSession();
+  account.user = session?.user || null;
+  if(account.user) await loadProfile(); else { renderAccountStatus(); renderLoginPanel(); }
+  supa.auth.onAuthStateChange(async (_event, session) => {
+    const wasUser = account.user?.id;
+    account.user = session?.user || null;
+    if(account.user){ if(account.user.id !== wasUser) await loadProfile(); }
+    else { resetAccountState(); renderAccountStatus(); renderLoginPanel(); refreshCoinHud(); }
+  });
+}
+initAccount();
+
+el('btnAccount').addEventListener('click', () => { showPanel('menuLogin'); renderLoginPanel(); });
+el('btnBackLogin').addEventListener('click', () => showPanel('menuMain'));
+el('btnLoginSend').addEventListener('click', async () => {
+  if(!supa){ el('loginMsg').textContent = 'Account system unavailable.'; return; }
+  const email = el('loginEmail').value.trim();
+  if(!email || !email.includes('@')){ el('loginMsg').textContent = 'Enter a valid email.'; return; }
+  el('loginMsg').textContent = 'Sending…';
+  const { error } = await supa.auth.signInWithOtp({ email, options:{ emailRedirectTo: location.href.split('#')[0] } });
+  el('loginMsg').textContent = '';
+  if(error){ el('loginMsg').textContent = 'Error: ' + error.message; return; }
+  el('loginFormWrap').classList.add('hide');
+  el('loginSentWrap').classList.remove('hide');
+});
+el('btnSignOut').addEventListener('click', async () => { if(supa) await supa.auth.signOut(); showPanel('menuMain'); });
+
+/* -------------------------------- armory / shop -------------------------------- */
+const SHOP_WEAPONS = WEAPON_ORDER.filter(k => WEAPONS[k].cost > 0);
+const SHIELD_TIERS = [
+  { tier:1, name:'Aegis Cell I',   cost:300, desc:'+25 shield charge' },
+  { tier:2, name:'Aegis Cell II',  cost:500, desc:'+25 more shield charge (50 total)' },
+  { tier:3, name:'Aegis Cell III', cost:750, desc:'Faster shield recharge' },
+];
+const POWERUPS = [
+  { key:'speed',  name:'Fleet Feet',  cost:400, desc:'+10% move & sprint speed' },
+  { key:'reload', name:'Quick Hands', cost:450, desc:'-15% reload time' },
+  { key:'regen',  name:'Nanite Regen', cost:500, desc:'Slow passive health regen' },
+];
+function renderArmory(){
+  el('armoryCoins').textContent = account.coins;
+  el('armoryWeaponsList').innerHTML = SHOP_WEAPONS.map(key => {
+    const w = WEAPONS[key], owned = account.ownedWeapons.has(key);
+    return `<li class="roomrow"><span>${escapeHtml(w.name)} <small>(${w.cost} coins)</small></span>
+      ${owned ? '<span class="mbtn small" style="pointer-events:none;opacity:.6">Owned</span>'
+              : `<span class="mbtn small buyWeaponBtn" data-key="${key}">Buy</span>`}</li>`;
+  }).join('');
+  const shieldTier = account.ownedUpgrades.get('shield') || 0;
+  el('armoryShieldList').innerHTML = SHIELD_TIERS.map(t => {
+    const owned = shieldTier >= t.tier, buyable = shieldTier === t.tier - 1;
+    return `<li class="roomrow"><span>${escapeHtml(t.name)} <small>${escapeHtml(t.desc)} · ${t.cost} coins</small></span>
+      ${owned ? '<span class="mbtn small" style="pointer-events:none;opacity:.6">Owned</span>'
+              : buyable ? `<span class="mbtn small buyShieldBtn" data-tier="${t.tier}" data-cost="${t.cost}">Buy</span>`
+              : '<span class="mbtn small" style="pointer-events:none;opacity:.35">Locked</span>'}</li>`;
+  }).join('');
+  el('armoryUpgradesList').innerHTML = POWERUPS.map(p => {
+    const owned = account.ownedUpgrades.has(p.key);
+    return `<li class="roomrow"><span>${escapeHtml(p.name)} <small>${escapeHtml(p.desc)} · ${p.cost} coins</small></span>
+      ${owned ? '<span class="mbtn small" style="pointer-events:none;opacity:.6">Owned</span>'
+              : `<span class="mbtn small buyUpgradeBtn" data-key="${p.key}" data-cost="${p.cost}">Buy</span>`}</li>`;
+  }).join('');
+}
+async function purchaseWeapon(key){
+  const w = WEAPONS[key];
+  if(!account.user){ el('armoryMsg').textContent = 'Sign in first.'; return; }
+  if(account.ownedWeapons.has(key) || account.coins < w.cost) return;
+  account.coins -= w.cost; account.ownedWeapons.add(key);
+  refreshCoinHud(); renderAccountStatus(); renderArmory();
+  const { error } = await supa.from('owned_weapons').insert({ user_id: account.user.id, weapon_key: key });
+  if(!error) await supa.from('profiles').update({ coins: account.coins }).eq('id', account.user.id);
+  else { account.coins += w.cost; account.ownedWeapons.delete(key); refreshCoinHud(); renderArmory(); el('armoryMsg').textContent = 'Purchase failed.'; }
+}
+async function purchaseShieldTier(tier, cost){
+  if(!account.user){ el('armoryMsg').textContent = 'Sign in first.'; return; }
+  const current = account.ownedUpgrades.get('shield') || 0;
+  if(current !== tier-1 || account.coins < cost) return;
+  account.coins -= cost; account.ownedUpgrades.set('shield', tier);
+  refreshCoinHud(); renderAccountStatus(); renderArmory();
+  const { error } = await supa.from('owned_upgrades').upsert({ user_id: account.user.id, upgrade_key:'shield', tier });
+  if(!error) await supa.from('profiles').update({ coins: account.coins }).eq('id', account.user.id);
+  else { account.coins += cost; account.ownedUpgrades.set('shield', current); refreshCoinHud(); renderArmory(); el('armoryMsg').textContent = 'Purchase failed.'; }
+}
+async function purchaseUpgrade(key, cost){
+  if(!account.user){ el('armoryMsg').textContent = 'Sign in first.'; return; }
+  if(account.ownedUpgrades.has(key) || account.coins < cost) return;
+  account.coins -= cost; account.ownedUpgrades.set(key, 1);
+  refreshCoinHud(); renderAccountStatus(); renderArmory();
+  const { error } = await supa.from('owned_upgrades').upsert({ user_id: account.user.id, upgrade_key:key, tier:1 });
+  if(!error) await supa.from('profiles').update({ coins: account.coins }).eq('id', account.user.id);
+  else { account.coins += cost; account.ownedUpgrades.delete(key); refreshCoinHud(); renderArmory(); el('armoryMsg').textContent = 'Purchase failed.'; }
+}
+el('btnArmory').addEventListener('click', () => { showPanel('menuArmory'); renderArmory(); });
+el('btnBackArmory').addEventListener('click', () => showPanel('menuMain'));
+el('armoryWeaponsList').addEventListener('click', e => {
+  const btn = e.target.closest('.buyWeaponBtn'); if(!btn) return; purchaseWeapon(btn.dataset.key);
+});
+el('armoryShieldList').addEventListener('click', e => {
+  const btn = e.target.closest('.buyShieldBtn'); if(!btn) return; purchaseShieldTier(+btn.dataset.tier, +btn.dataset.cost);
+});
+el('armoryUpgradesList').addEventListener('click', e => {
+  const btn = e.target.closest('.buyUpgradeBtn'); if(!btn) return; purchaseUpgrade(btn.dataset.key, +btn.dataset.cost);
 });
 
 /* --------------------------- start / pause / death ----------------------- */
@@ -2172,20 +2576,15 @@ el('over').addEventListener('click', () => {
   if(netMode === 'solo') startGame(); else Net.leaveToMenu();
 });
 
-el('btnSolo').addEventListener('click', () => {
-  MODE = 'campaign'; netMode = 'solo';
-  showPanel('');
-  el('keysPanel').classList.remove('hide');
-  el('btnDeploy').classList.remove('hide');
-});
+el('btnSolo').addEventListener('click', () => showMapPicker(null));
 el('btnMulti').addEventListener('click', () => showPanel('menuMulti'));
 el('btnBackMulti').addEventListener('click', () => showPanel('menuMain'));
 el('btnShowJoin').addEventListener('click', () => showPanel('menuJoin'));
 el('btnBackJoin').addEventListener('click', () => showPanel('menuMulti'));
 el('btnBrowse').addEventListener('click', () => { showPanel('menuBrowse'); startBrowsing(); });
 el('btnBackBrowse').addEventListener('click', () => { stopBrowsing(); showPanel('menuMulti'); });
-el('btnHostCoop').addEventListener('click', () => { showPanel('menuLobby'); Net.startHost('coop'); });
-el('btnHostDM').addEventListener('click', () => { showPanel('menuLobby'); Net.startHost('deathmatch'); });
+el('btnHostCoop').addEventListener('click', () => showMapPicker('coop'));
+el('btnHostDM').addEventListener('click', () => showMapPicker('deathmatch'));
 el('btnJoinGo').addEventListener('click', () => {
   const code = el('joinCode').value.trim();
   if(code.length < 4){ setNetMsg('Enter the 4-letter room code.'); return; }
@@ -2199,15 +2598,23 @@ el('btnStartMatch').addEventListener('click', () => Net.beginAsHost());
 el('btnLeaveLobby').addEventListener('click', () => Net.leaveToMenu());
 
 function startGame(){
+  selectMap(mapIndex);
+  rebuildMapMeshes();
   enemies = []; bolts = []; nextEnemyId = 1;
   wave = 0; kills = 0; score = 0; spawning = false; waveTimer = 0; lastAlive = -1;
   const spawn = MODE === 'deathmatch' ? SPAWNS[(Math.random()*SPAWNS.length)|0] : START;
   player.x = spawn[0]; player.y = spawn[1]; player.a = -Math.PI/2; player.pitch = 0;
   player.hp = 100; player.alive = true; player.weapon = 'pistol';
   player.kick = 0; player.flash = 0; player.hurt = 0; player.reloading = 0; player.cooldown = 0;
+  player.vx = 0; player.vy = 0; player.shoveCooldown = 0;
   player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0;
-  WEAPONS.pistol.ammo = 12; WEAPONS.pistol.reserve = Infinity;
-  WEAPONS.rifle.ammo = 30;  WEAPONS.rifle.reserve = 90;
+  for(const key in WEAPONS){ WEAPONS[key].ammo = WEAPONS[key].mag; WEAPONS[key].reserve = WEAPONS[key].maxReserve; }
+  const shieldTier = account.ownedUpgrades.get('shield') || 0;
+  player.maxShieldCharge = shieldTier * SHIELD_TIER_CHARGE;
+  player.shieldRegenRate = shieldTier >= 3 ? SHIELD_TIER_FAST_RECHARGE : SHIELD_BASE_RECHARGE;
+  player.shieldCharge = player.maxShieldCharge;
+  const speedMult = account.ownedUpgrades.has('speed') ? 1.1 : 1;
+  player.speed = BASE_SPEED * speedMult; player.sprint = BASE_SPRINT * speedMult;
   resetPickups();
   vig.style.opacity = '0';
   gameOver = false; paused = false; running = true;
@@ -2232,6 +2639,7 @@ function triggerGameOver(){
   Net.emit({ kind:'gameover', wave, kills, score });
 }
 function showGameOverScreen(w, k, s){
+  flushPendingCoins();
   document.exitPointerLock?.();
   setTimeout(() => {
     running = false;
