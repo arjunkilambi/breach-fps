@@ -1906,11 +1906,12 @@ function update(dt){
   let fx = 0, fy = 0;
   const dirX = Math.cos(player.a), dirY = Math.sin(player.a);
   const rgtX = -dirY, rgtY = dirX;
-  const keyboardActive = keys['w'] || keys['a'] || keys['s'] || keys['d'];
-  if(keys['w']) { fx += dirX; fy += dirY; }
-  if(keys['s']) { fx -= dirX; fy -= dirY; }
-  if(keys['d']) { fx += rgtX; fy += rgtY; }
-  if(keys['a']) { fx -= rgtX; fy -= rgtY; }
+  const keyboardActive = keys['w'] || keys['a'] || keys['s'] || keys['d'] ||
+    keys['arrowup'] || keys['arrowleft'] || keys['arrowdown'] || keys['arrowright'];
+  if(keys['w'] || keys['arrowup']) { fx += dirX; fy += dirY; }
+  if(keys['s'] || keys['arrowdown']) { fx -= dirX; fy -= dirY; }
+  if(keys['d'] || keys['arrowright']) { fx += rgtX; fy += rgtY; }
+  if(keys['a'] || keys['arrowleft']) { fx -= rgtX; fy -= rgtY; }
   let joyMag = 0;
   if(joyActive){
     joyMag = clamp(Math.hypot(joyVec.x, joyVec.y), 0, 1);
@@ -1918,7 +1919,7 @@ function update(dt){
   }
 
   const mag = Math.hypot(fx,fy);
-  const sprinting = keys['shift'] && mag > 0 && keys['w'];
+  const sprinting = keys['shift'] && mag > 0 && (keys['w'] || keys['arrowup']);
   const speedBoost = player.buffs.speed > 0 ? 1.55 : 1;
   if(mag > 0.001 && player.alive){
     const analogScale = (!keyboardActive && joyMag > 0.05) ? joyMag : 1;
@@ -2666,7 +2667,7 @@ addEventListener('keydown', e => {
   if(k === 'v' && netMode !== 'solo') Net.toggleVoice();
   if(k === 'f') attemptShove();
   if(k === 'h') useMedkit();
-  if(['w','a','s','d',' '].includes(k)) e.preventDefault();
+  if(['w','a','s','d',' ','arrowup','arrowleft','arrowdown','arrowright'].includes(k)) e.preventDefault();
 });
 addEventListener('keyup', e => {
   const k = e.key.toLowerCase();
