@@ -178,6 +178,10 @@
   .lobbylist .joinRoomBtn{padding:6px 14px;font-size:11px}
   .mapRow span{flex:1}
   .mapThumb{width:64px;height:46px;border-radius:6px;border:1px solid var(--line);flex-shrink:0;image-rendering:pixelated}
+  .legendRow{display:flex;align-items:flex-start;gap:10px}
+  .legendSwatch{width:14px;height:14px;border-radius:4px;flex-shrink:0;margin-top:2px;box-shadow:0 0 6px currentColor}
+  .legendText b{display:block;color:#fff;font-size:13px}
+  .legendText span{display:block;font-size:12px;color:#9fd8e6;opacity:.85;margin-top:1px}
   .weaponIcon{width:60px;height:26px;border-radius:4px;border:1px solid var(--line);background:rgba(0,0,0,.3);flex-shrink:0}
   #netmsg,#loginMsg,#friendMsg{font-size:12px;color:var(--dim);min-height:16px;letter-spacing:.06em}
   #loginEmail,#friendEmail,#chatInput{pointer-events:auto;font:inherit;font-size:15px;text-align:left;color:#fff;
@@ -264,8 +268,15 @@
     <div class="mbtn" id="btnSolo">Solo Campaign</div>
     <div class="mbtn" id="btnMulti">Multiplayer</div>
     <div class="mbtn ghost small" id="btnArmory">Armory</div>
+    <div class="mbtn ghost small" id="btnLegend">Legend</div>
     <div class="mbtn ghost small" id="btnFriends">Friends</div>
     <div class="mbtn ghost small" id="btnAccount">Account</div>
+  </div>
+
+  <div class="panelbox hide" id="menuLegend" style="min-width:360px">
+    <div class="lbl">Pickups &amp; Buffs</div>
+    <ul class="lobbylist" id="legendList"></ul>
+    <div class="mbtn ghost small" id="btnBackLegend">Back</div>
   </div>
 
   <div class="panelbox hide" id="menuFriends" style="min-width:360px">
@@ -365,6 +376,7 @@
     <b>Mouse</b><span>Look</span>
     <b>Click</b><span>Fire</span>
     <b>Shift</b><span>Sprint</span>
+    <b>Space</b><span>Jump</span>
     <b>R</b><span>Reload</span>
     <b>1-6 / Q</b><span>Switch weapon</span>
     <b>F</b><span>Shove (Slingshot buff)</span>
@@ -444,11 +456,11 @@ function carve(...cells){ for(const [x,y] of cells) grid[y*MAPW+x]=WALL.NONE; }
 function buildMap(){
   grid.fill(WALL.NONE);
   outline(0,0,MAPW,MAPH,WALL.BRICK);                  // arena shell
-  // four corner bunkers
-  outline(3,3,7,5,WALL.STONE);   carve([6,7]);
-  outline(22,3,7,5,WALL.STONE);  carve([25,7]);
-  outline(3,16,7,5,WALL.STONE);  carve([6,16]);
-  outline(22,16,7,5,WALL.STONE); carve([25,16]);
+  // four corner bunkers — tall buildings, walkable inside
+  outline(3,3,7,5,WALL.BUILDING);   carve([6,7]);
+  outline(22,3,7,5,WALL.BUILDING);  carve([25,7]);
+  outline(3,16,7,5,WALL.BUILDING);  carve([6,16]);
+  outline(22,16,7,5,WALL.BUILDING); carve([25,16]);
   // central vault with four doorways — a tall building, walkable inside
   outline(12,8,8,8,WALL.BUILDING);
   carve([15,8],[16,8],[15,15],[16,15],[12,11],[12,12],[19,11],[19,12]);
@@ -468,8 +480,11 @@ const PICKUPS_1 = [[4.5,4.5,'health'],[27.5,4.5,'ammo'],[4.5,19.5,'ammo'],
                  [27.5,19.5,'health'],[16.5,12.5,'medkit'],[16.5,6.5,'health'],
                  [14.5,4.5,'speed'],[18.5,19.5,'damage'],[8.5,13.5,'rapid'],[23.5,13.5,'shield'],
                  [16.5,9.5,'fling']];
-// a small ramp-up deck between the top bunkers, clear of the central building
-const RAMPS_1 = [{x:15,y:1,w:3,h:2.5,axis:'y',dir:1,rampSpan:1.5,height:0.9}];
+// ramp-up decks between the bunkers, clear of the central building
+const RAMPS_1 = [
+  {x:15,y:1,w:3,h:2.5,axis:'y',dir:1,rampSpan:1.5,height:0.9},
+  {x:11,y:19,w:3,h:2.5,axis:'y',dir:-1,rampSpan:1.5,height:0.9},
+];
 
 // 2 — Ring Circuit: symmetric nested rings around a cross-shaped core
 function buildMap2(){
@@ -491,6 +506,8 @@ const SPAWNS_2 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
 const PICKUPS_2 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
                     [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[9.5,9.5,'fling']];
+// a ramp up to the keep's west doorway, in the ring corridor
+const RAMPS_2 = [{x:5,y:9,w:4,h:3,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 
 // 3 — The Maze: three staggered wall partitions, wide gaps, tight cover stubs
 function buildMap3(){
@@ -512,6 +529,8 @@ const SPAWNS_3 = [[1.5,22.5],[30.5,1.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
 const PICKUPS_3 = [[1.5,22.5,'health'],[30.5,1.5,'health'],[8.5,1.5,'ammo'],
                     [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,19.5,'rapid'],[10.5,10.5,'shield'],[17.5,1.5,'fling']];
+// a raised deck in the open corner past the last partition row
+const RAMPS_3 = [{x:20,y:19,w:5,h:3.5,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 
 // 4 — Open Plaza: large open floor, symmetric cover pairs, central metal ring
 function buildMap4(){
@@ -531,8 +550,11 @@ const SPAWNS_4 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
 const PICKUPS_4 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
                     [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,9.5,'fling']];
-// a raised deck near the tower, in the open quadrant beside it
-const RAMPS_4 = [{x:9,y:3,w:4,h:4,axis:'x',dir:1,rampSpan:2,height:0.9}];
+// raised decks near the tower, in the open quadrants beside it
+const RAMPS_4 = [
+  {x:9,y:3,w:4,h:4,axis:'x',dir:1,rampSpan:2,height:0.9},
+  {x:19,y:17,w:3.5,h:4,axis:'x',dir:-1,rampSpan:2,height:0.9},
+];
 
 // 5 — The Foundry: five parallel warehouse aisles with a cross-corridor
 function buildMap5(){
@@ -555,15 +577,20 @@ const SPAWNS_5 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[12.5,14.5],
 const PICKUPS_5 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
                     [23.5,22.5,'ammo'],[12.5,14.5,'medkit'],[1.5,10.5,'speed'],
                     [23.5,10.5,'damage'],[18.5,1.5,'rapid'],[30.5,16.5,'shield'],[10.5,22.5,'fling']];
+// ramps up in the side aisles, on either end of the cross-corridor
+const RAMPS_5 = [
+  {x:10,y:4,w:3,h:4,axis:'y',dir:1,rampSpan:2,height:0.8},
+  {x:20,y:15,w:3,h:4,axis:'y',dir:-1,rampSpan:2,height:0.8},
+];
 
 // 6 — Crossfire: four asymmetric rooms opening onto a shared center
 function buildMap6(){
   grid.fill(WALL.NONE);
   outline(0,0,MAPW,MAPH,WALL.BRICK);
-  outline(2,2,10,8,WALL.STONE);     carve([11,5],[11,6]);
+  outline(2,2,10,8,WALL.BUILDING);  carve([11,5],[11,6]);
   outline(20,2,10,6,WALL.BUILDING); carve([20,4],[20,5]);
   outline(2,15,9,7,WALL.BUILDING);  carve([10,17],[10,18]);
-  outline(21,14,9,8,WALL.STONE);    carve([21,17],[21,18]);
+  outline(21,14,9,8,WALL.BUILDING); carve([21,17],[21,18]);
   fill(14,10,4,4,WALL.TECH);
   carve([15,11],[16,11],[15,12],[16,12]);
 }
@@ -572,6 +599,8 @@ const SPAWNS_6 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
 const PICKUPS_6 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
                     [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,10.5,'fling']];
+// a small step up just above the central cover block
+const RAMPS_6 = [{x:14,y:8,w:3,h:1.8,axis:'y',dir:1,rampSpan:1,height:0.7}];
 
 // 7 — The Pit: ring corridor around two symmetric inner chambers
 function buildMap7(){
@@ -589,16 +618,18 @@ const SPAWNS_7 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
 const PICKUPS_7 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
                     [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,9.5,'fling']];
+// a ramp up in the west ring corridor, between the corner covers
+const RAMPS_7 = [{x:3,y:8,w:4,h:6,axis:'x',dir:1,rampSpan:3,height:0.9}];
 
 // 8 — The Wastes: a huge open wasteland, four corner compounds, central ruin
 const MAPW_8 = 60, MAPH_8 = 44;
 function buildMap8(){
   grid.fill(WALL.NONE);
   outline(0,0,60,44,WALL.BRICK);
-  outline(4,4,14,10,WALL.STONE);   carve([10,13],[11,13]);
-  outline(42,4,14,10,WALL.STONE);  carve([48,13],[49,13]);
-  outline(4,30,14,10,WALL.STONE);  carve([10,30],[11,30]);
-  outline(42,30,14,10,WALL.STONE); carve([48,30],[49,30]);
+  outline(4,4,14,10,WALL.BUILDING);   carve([10,13],[11,13]);
+  outline(42,4,14,10,WALL.BUILDING);  carve([48,13],[49,13]);
+  outline(4,30,14,10,WALL.BUILDING);  carve([10,30],[11,30]);
+  outline(42,30,14,10,WALL.BUILDING); carve([48,30],[49,30]);
   outline(24,16,12,12,WALL.BUILDING);   // tall central ruin, walkable inside
   carve([29,16],[30,16],[29,27],[30,27],[24,21],[24,22],[35,21],[35,22]);
   fill(18,8,2,2,WALL.TECH);  fill(40,8,2,2,WALL.TECH);
@@ -611,15 +642,19 @@ const PICKUPS_8 = [[2.5,2.5,'health'],[57.5,2.5,'ammo'],[2.5,41.5,'ammo'],
                     [57.5,41.5,'health'],[29.5,21.5,'medkit'],[20.5,8.5,'speed'],
                     [39.5,34.5,'damage'],[20.5,34.5,'rapid'],[39.5,8.5,'shield'],[29.5,29.5,'fling']];
 // a raised dune deck in the open wasteland, clear of the compounds and ruin
-const RAMPS_8 = [{x:8,y:18,w:6,h:6,axis:'x',dir:1,rampSpan:3,height:1.2}];
+const RAMPS_8 = [
+  {x:8,y:18,w:6,h:6,axis:'x',dir:1,rampSpan:3,height:1.2},
+  {x:46,y:18,w:6,h:6,axis:'x',dir:-1,rampSpan:3,height:1.2},
+];
 
 // 9 — Skyline: a city-block grid of buildings with streets between them
-const MAPW_9 = 56, MAPH_9 = 48;
+const SKYLINE_COLS = 8, SKYLINE_ROWS = 6;         // way bigger than the original 5x4 grid
+const MAPW_9 = 4 + SKYLINE_COLS*10 + 7, MAPH_9 = 4 + SKYLINE_ROWS*10 + 7;
 function buildMap9(){
   grid.fill(WALL.NONE);
-  outline(0,0,56,48,WALL.BRICK);
-  for(let by=0; by<4; by++){
-    for(let bx=0; bx<5; bx++){
+  outline(0,0,MAPW_9,MAPH_9,WALL.BRICK);
+  for(let by=0; by<SKYLINE_ROWS; by++){
+    for(let bx=0; bx<SKYLINE_COLS; bx++){
       const x = 4 + bx*10, y = 4 + by*10;
       outline(x,y,7,7,WALL.BUILDING);   // tall city block, walkable inside
       const side = (bx+by)%4;
@@ -630,11 +665,18 @@ function buildMap9(){
     }
   }
 }
-const SPAWNS_9 = [[12.5,12.5],[42.5,12.5],[12.5,42.5],[42.5,42.5],[27.5,27.5],
-                   [2.5,2.5],[53.5,2.5],[2.5,45.5],[53.5,45.5]];
-const PICKUPS_9 = [[12.5,12.5,'health'],[42.5,12.5,'ammo'],[12.5,42.5,'ammo'],
-                    [42.5,42.5,'health'],[27.5,27.5,'medkit'],[22.5,12.5,'speed'],
-                    [32.5,42.5,'damage'],[12.5,22.5,'rapid'],[42.5,22.5,'shield'],[22.5,42.5,'fling']];
+// spawns/pickups sit at street intersections between the city blocks, spread across the whole grid
+const SKYLINE_KINDS = ['health','ammo','medkit','speed','damage','rapid','shield','fling'];
+const SPAWNS_9 = [], PICKUPS_9 = [];
+for(let by=0; by<=SKYLINE_ROWS; by+=2){
+  for(let bx=0; bx<=SKYLINE_COLS; bx+=2){
+    const x = 4 + bx*10 - 1.5, y = 4 + by*10 - 1.5;
+    SPAWNS_9.push([x, y]);
+    PICKUPS_9.push([x, y, SKYLINE_KINDS[(SPAWNS_9.length-1) % SKYLINE_KINDS.length]]);
+  }
+}
+// a ramp up the narrow street between the first two blocks of row 0
+const RAMPS_9 = [{x:11,y:5,w:2.7,h:5,axis:'y',dir:1,rampSpan:3,height:0.9}];
 
 /* ---- map scale-up: existing 32x24 layouts are block-expanded onto a much
    bigger grid (walls, spawns and pickups all scaled by the same integer
@@ -672,17 +714,17 @@ function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ram
     large: factor > 1,
   };
 }
-const SCALE = 2;   // existing maps double in size — 32x24 -> 64x48
+const SCALE = 4;   // existing maps quadruple in size — 32x24 -> 128x96
 const MAPS = [
   scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE, RAMPS_1),
-  scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE),
-  scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE),
+  scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE, RAMPS_2),
+  scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE, RAMPS_3),
   scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE, RAMPS_4),
-  scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE),
-  scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE),
-  scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE),
+  scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE, RAMPS_5),
+  scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE, RAMPS_6),
+  scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE, RAMPS_7),
   { name:'The Wastes', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], ramps:RAMPS_8, large:true },
-  { name:'Skyline',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:[], large:true },
+  { name:'Skyline',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:RAMPS_9, large:true },
 ];
 let mapIndex = 0;
 let SPAWNS = MAPS[0].spawns, PICKUPS = MAPS[0].pickups, START = MAPS[0].start, RAMPS = MAPS[0].ramps || [];
@@ -971,6 +1013,7 @@ const WEAPON_ORDER = ['pistol','rifle','smg','shotgun','sniper','lmg'];
 for(const key in WEAPONS) WEAPONS[key].maxReserve = WEAPONS[key].reserve;
 
 const BASE_SPEED = 3.3, BASE_SPRINT = 5.1;
+const JUMP_SPEED = 3.4, GRAVITY = 11;   // player.z is height above local ground/ramp — purely visual/traversal, doesn't affect 2D collision or combat
 const SHIELD_TIER_CHARGE = 25, SHIELD_TIER_FAST_RECHARGE = 8, SHIELD_BASE_RECHARGE = 4;
 const player = {
   x:START[0], y:START[1], a:-Math.PI/2, pitch:0,
@@ -978,7 +1021,7 @@ const player = {
   bob:0, kick:0, flash:0, hurt:0, weapon:'pistol',
   reloading:0, cooldown:0, stepTimer:0,
   buffs: freshBuffs(), kills:0, deaths:0, name:'You', skin:0, id:'me',
-  vx:0, vy:0, shoveCooldown:0,
+  vx:0, vy:0, shoveCooldown:0, z:0, vz:0,
   shieldCharge:0, maxShieldCharge:0, shieldRegenRate:4,
   medkits:0,
 };
@@ -1332,7 +1375,7 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     return;
   }
   rec.wasDead = false;
-  mesh.position.y = lerp(mesh.position.y||0, heightAt(ent.x, ent.y), dt*8);
+  mesh.position.y = lerp(mesh.position.y||0, heightAt(ent.x, ent.y) + (ent.z||0), dt*8);
   // face the direction of travel while actually walking (so the gait reads
   // correctly instead of looking like it's sliding/moonwalking); otherwise
   // face the player, same as before, so idle/attacking enemies still look at you
@@ -1496,7 +1539,7 @@ function updateWeaponView(){
 /* ---- camera + full-scene sync, called once per frame instead of the old
    renderWorld()/renderWeapon() pair ------------------------------------------ */
 function render3D(dt){
-  camera.position.set(player.x, heightAt(player.x,player.y) + EYE_H + Math.sin(player.bob)*0.012, player.y);
+  camera.position.set(player.x, heightAt(player.x,player.y) + player.z + EYE_H + Math.sin(player.bob)*0.012, player.y);
   camera.rotation.y = -player.a - Math.PI/2;
   camera.rotation.x = player.pitch;
   headlamp.intensity = 0.85 + player.flash*0.4;
@@ -1996,6 +2039,12 @@ function useMedkit(){
   updateHUD();
 }
 
+function tryJump(){
+  if(!player.alive || player.z > 0.001) return;
+  player.vz = JUMP_SPEED;
+  Sound.step();
+}
+
 /* ------------------------------- game loop ------------------------------- */
 let now = 0, last = performance.now();
 
@@ -2031,6 +2080,13 @@ function update(dt){
     player.bob = lerp(player.bob, Math.round(player.bob/Math.PI)*Math.PI, dt*6);
   }
   integrateKnockback(player, dt, 0.26);
+
+  // ---------- jump (height above local ground/ramp — traversal only, no combat effect) ----------
+  if(player.alive){
+    player.vz -= GRAVITY * dt;
+    player.z = Math.max(0, player.z + player.vz * dt);
+    if(player.z <= 0) player.vz = 0;
+  }
 
   // ---------- weapon ----------
   player.cooldown = Math.max(0, player.cooldown - dt);
@@ -2345,7 +2401,7 @@ const Net = (() => {
 
   function playerSnap(p){
     return { id:p.id, name:p.name, x:p.x, y:p.y, a:p.a, hp:p.hp, alive:p.alive, weapon:p.weapon,
-      kills:p.kills||0, deaths:p.deaths||0, buffs:p.buffs, skin:p.skin, animPhase:p.animPhase||0 };
+      kills:p.kills||0, deaths:p.deaths||0, buffs:p.buffs, skin:p.skin, animPhase:p.animPhase||0, z:p.z||0 };
   }
   function buildSnapshot(){
     return {
@@ -2380,7 +2436,7 @@ const Net = (() => {
       if(!g){ g = { id:ps.id, x:ps.x, y:ps.y, skin:ps.skin }; otherPlayers.set(ps.id, g); }
       g.netX = ps.x; g.netY = ps.y; g.a = ps.a; g.hp = ps.hp; g.alive = ps.alive; g.weapon = ps.weapon;
       g.kills = ps.kills; g.deaths = ps.deaths; g.buffs = ps.buffs; g.name = ps.name; g.skin = ps.skin;
-      g.animPhase = ps.animPhase;
+      g.animPhase = ps.animPhase; g.z = ps.z||0;
     }
     for(const id of [...otherPlayers.keys()]) if(!seen.has(id)){ otherPlayers.delete(id); dropVoicePeer(id); }
     meshConnectAll();
@@ -2624,7 +2680,7 @@ function setNetMsg(msg){
   if(c) c.textContent = msg;
 }
 function showPanel(id){
-  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse','menuMapPick','menuLogin','menuArmory','menuFriends','menuChat']) el(p).classList.toggle('hide', p !== id);
+  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse','menuMapPick','menuLogin','menuArmory','menuLegend','menuFriends','menuChat']) el(p).classList.toggle('hide', p !== id);
 }
 let pendingHostMode = null;   // null = picking a map for solo; else 'coop'/'deathmatch'
 function showMapPicker(hostMode){
@@ -2766,6 +2822,7 @@ addEventListener('keydown', e => {
   if(k === 'v' && netMode !== 'solo') Net.toggleVoice();
   if(k === 'f') attemptShove();
   if(k === 'h') useMedkit();
+  if(k === ' ') tryJump();
   if(['w','a','s','d',' ','arrowup','arrowleft','arrowdown','arrowright'].includes(k)) e.preventDefault();
 });
 addEventListener('keyup', e => {
@@ -3062,6 +3119,28 @@ async function purchaseUpgrade(key, cost){
 }
 el('btnArmory').addEventListener('click', () => { showPanel('menuArmory'); renderArmory(); });
 el('btnBackArmory').addEventListener('click', () => showPanel('menuMain'));
+
+/* ------------------------------- pickup legend ----------------------------- */
+// Buff pickups announce themselves as "<Label> online" in the kill-feed —
+// this panel is the reference for what each one actually does.
+const LEGEND = [
+  { color:'#ff5a5a', name:'Integrity', desc:'Restores +35 Integrity (HP), up to 100.' },
+  { color:'#ffd479', name:'Ammo',      desc:'+40 reserve ammo for your current weapon.' },
+  { color:'#f2f6ff', name:'Medkit',    desc:'Carry a medkit — press H to heal on demand.' },
+  { color:BUFF_META.speed.color,  name:BUFF_META.speed.label  + ' (Speed)',  desc:`+55% move & sprint speed for ${BUFF_DUR.speed}s.` },
+  { color:BUFF_META.damage.color, name:BUFF_META.damage.label + ' (Damage)', desc:`2x weapon damage for ${BUFF_DUR.damage}s.` },
+  { color:BUFF_META.rapid.color,  name:BUFF_META.rapid.label  + ' (Fire rate)', desc:`Massively increased fire rate for ${BUFF_DUR.rapid}s.` },
+  { color:BUFF_META.shield.color, name:BUFF_META.shield.label + ' (Shield)', desc:`Full damage immunity for ${BUFF_DUR.shield}s.` },
+  { color:BUFF_META.fling.color,  name:BUFF_META.fling.label  + ' (Shove)',  desc:`Unlocks F — Shove, knocking enemies back, for ${BUFF_DUR.fling}s.` },
+];
+function renderLegend(){
+  el('legendList').innerHTML = LEGEND.map(l => `<li class="legendRow">
+      <span class="legendSwatch" style="background:${l.color};color:${l.color}"></span>
+      <span class="legendText"><b>${escapeHtml(l.name)}</b><span>${escapeHtml(l.desc)}</span></span>
+    </li>`).join('');
+}
+el('btnLegend').addEventListener('click', () => { showPanel('menuLegend'); renderLegend(); });
+el('btnBackLegend').addEventListener('click', () => showPanel('menuMain'));
 el('armoryWeaponsList').addEventListener('click', e => {
   const btn = e.target.closest('.buyWeaponBtn'); if(!btn) return; purchaseWeapon(btn.dataset.key);
 });
@@ -3251,7 +3330,7 @@ function startGame(){
   player.x = spawn[0]; player.y = spawn[1]; player.a = -Math.PI/2; player.pitch = 0;
   player.hp = 100; player.alive = true; player.weapon = 'pistol';
   player.kick = 0; player.flash = 0; player.hurt = 0; player.reloading = 0; player.cooldown = 0;
-  player.vx = 0; player.vy = 0; player.shoveCooldown = 0;
+  player.vx = 0; player.vy = 0; player.shoveCooldown = 0; player.z = 0; player.vz = 0;
   player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0; player.medkits = 0;
   for(const key in WEAPONS){ WEAPONS[key].ammo = WEAPONS[key].mag; WEAPONS[key].reserve = WEAPONS[key].maxReserve; }
   const shieldTier = account.ownedUpgrades.get('shield') || 0;
