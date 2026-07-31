@@ -361,7 +361,7 @@
   </div>
 
   <div class="keys hide" id="keysPanel">
-    <b>W A S D</b><span>Move</span>
+    <b>W A S D / Arrows</b><span>Move</span>
     <b>Mouse</b><span>Look</span>
     <b>Click</b><span>Fire</span>
     <b>Shift</b><span>Sprint</span>
@@ -428,7 +428,7 @@ const TAU   = Math.PI*2;
 
 /* --------------------------------- map ---------------------------------- */
 let MAPW = 32, MAPH = 24;
-const WALL = { NONE:0, BRICK:1, STONE:2, METAL:3, TECH:4 };
+const WALL = { NONE:0, BRICK:1, STONE:2, METAL:3, TECH:4, BUILDING:7 };
 let grid = new Uint8Array(MAPW*MAPH);
 const at   = (x,y)=> (x<0||y<0||x>=MAPW||y>=MAPH) ? WALL.BRICK : grid[y*MAPW+x];
 const solid= (x,y)=> at(x|0,y|0) !== WALL.NONE;
@@ -449,8 +449,8 @@ function buildMap(){
   outline(22,3,7,5,WALL.STONE);  carve([25,7]);
   outline(3,16,7,5,WALL.STONE);  carve([6,16]);
   outline(22,16,7,5,WALL.STONE); carve([25,16]);
-  // central vault with four doorways
-  outline(12,8,8,8,WALL.METAL);
+  // central vault with four doorways — a tall building, walkable inside
+  outline(12,8,8,8,WALL.BUILDING);
   carve([15,8],[16,8],[15,15],[16,15],[12,11],[12,12],[19,11],[19,12]);
   // scattered cover
   fill(15,4,2,2,WALL.TECH);
@@ -468,6 +468,8 @@ const PICKUPS_1 = [[4.5,4.5,'health'],[27.5,4.5,'ammo'],[4.5,19.5,'ammo'],
                  [27.5,19.5,'health'],[16.5,12.5,'medkit'],[16.5,6.5,'health'],
                  [14.5,4.5,'speed'],[18.5,19.5,'damage'],[8.5,13.5,'rapid'],[23.5,13.5,'shield'],
                  [16.5,9.5,'fling']];
+// a small ramp-up deck between the top bunkers, clear of the central building
+const RAMPS_1 = [{x:15,y:1,w:3,h:2.5,axis:'y',dir:1,rampSpan:1.5,height:0.9}];
 
 // 2 — Ring Circuit: symmetric nested rings around a cross-shaped core
 function buildMap2(){
@@ -475,7 +477,7 @@ function buildMap2(){
   outline(0,0,MAPW,MAPH,WALL.BRICK);
   outline(4,3,24,18,WALL.METAL);
   carve([15,3],[16,3],[15,20],[16,20],[4,11],[4,12],[27,11],[27,12]);
-  outline(10,7,12,10,WALL.STONE);
+  outline(10,7,12,10,WALL.BUILDING);   // tall central keep, walkable inside
   carve([15,7],[16,7],[15,16],[16,16],[10,11],[10,12],[21,11],[21,12]);
   fill(14,10,4,4,WALL.TECH);
   carve([15,11],[16,11],[15,12],[16,12]);
@@ -502,6 +504,8 @@ function buildMap3(){
   fill(9,15,1,3,WALL.STONE);
   fill(4,9,2,2,WALL.TECH);
   fill(26,15,2,2,WALL.TECH);
+  // a tall watchtower in the middle gap between the first two partitions
+  outline(13,8,6,4,WALL.BUILDING); carve([15,11],[16,11]);
 }
 const SPAWNS_3 = [[1.5,22.5],[30.5,1.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,19.5],[10.5,10.5]];
@@ -519,7 +523,7 @@ function buildMap4(){
   fill(23,17,2,2,WALL.STONE);
   fill(15,2,2,2,WALL.TECH);
   fill(15,20,2,2,WALL.TECH);
-  outline(13,9,6,6,WALL.METAL);
+  outline(13,9,6,6,WALL.BUILDING);   // tall central tower, walkable inside
   carve([15,9],[16,9],[15,14],[16,14],[13,11],[13,12],[18,11],[18,12]);
 }
 const SPAWNS_4 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
@@ -527,6 +531,8 @@ const SPAWNS_4 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
 const PICKUPS_4 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
                     [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,9.5,'fling']];
+// a raised deck near the tower, in the open quadrant beside it
+const RAMPS_4 = [{x:9,y:3,w:4,h:4,axis:'x',dir:1,rampSpan:2,height:0.9}];
 
 // 5 — The Foundry: five parallel warehouse aisles with a cross-corridor
 function buildMap5(){
@@ -541,6 +547,8 @@ function buildMap5(){
   fill(14,21,4,3,WALL.STONE); carve([15,21],[16,21]);
   fill(9,11,2,1,WALL.TECH);
   fill(21,11,2,1,WALL.TECH);
+  // a tall office block in the cross-corridor, walkable inside
+  outline(14,10,4,3,WALL.BUILDING); carve([15,12],[16,12]);
 }
 const SPAWNS_5 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[12.5,14.5],
                    [1.5,10.5],[23.5,10.5],[18.5,1.5],[30.5,16.5]];
@@ -552,10 +560,10 @@ const PICKUPS_5 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
 function buildMap6(){
   grid.fill(WALL.NONE);
   outline(0,0,MAPW,MAPH,WALL.BRICK);
-  outline(2,2,10,8,WALL.STONE);  carve([11,5],[11,6]);
-  outline(20,2,10,6,WALL.METAL); carve([20,4],[20,5]);
-  outline(2,15,9,7,WALL.METAL);  carve([10,17],[10,18]);
-  outline(21,14,9,8,WALL.STONE); carve([21,17],[21,18]);
+  outline(2,2,10,8,WALL.STONE);     carve([11,5],[11,6]);
+  outline(20,2,10,6,WALL.BUILDING); carve([20,4],[20,5]);
+  outline(2,15,9,7,WALL.BUILDING);  carve([10,17],[10,18]);
+  outline(21,14,9,8,WALL.STONE);    carve([21,17],[21,18]);
   fill(14,10,4,4,WALL.TECH);
   carve([15,11],[16,11],[15,12],[16,12]);
 }
@@ -569,7 +577,7 @@ const PICKUPS_6 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
 function buildMap7(){
   grid.fill(WALL.NONE);
   outline(0,0,MAPW,MAPH,WALL.BRICK);
-  outline(9,6,14,12,WALL.TECH);
+  outline(9,6,14,12,WALL.BUILDING);   // tall central structure, walkable inside
   carve([15,6],[16,6],[15,17],[16,17],[9,11],[9,12],[22,11],[22,12]);
   fill(4,3,2,2,WALL.STONE);
   fill(26,3,2,2,WALL.STONE);
@@ -591,7 +599,7 @@ function buildMap8(){
   outline(42,4,14,10,WALL.STONE);  carve([48,13],[49,13]);
   outline(4,30,14,10,WALL.STONE);  carve([10,30],[11,30]);
   outline(42,30,14,10,WALL.STONE); carve([48,30],[49,30]);
-  outline(24,16,12,12,WALL.METAL);
+  outline(24,16,12,12,WALL.BUILDING);   // tall central ruin, walkable inside
   carve([29,16],[30,16],[29,27],[30,27],[24,21],[24,22],[35,21],[35,22]);
   fill(18,8,2,2,WALL.TECH);  fill(40,8,2,2,WALL.TECH);
   fill(18,34,2,2,WALL.TECH); fill(40,34,2,2,WALL.TECH);
@@ -602,6 +610,8 @@ const SPAWNS_8 = [[2.5,2.5],[57.5,2.5],[2.5,41.5],[57.5,41.5],[29.5,21.5],
 const PICKUPS_8 = [[2.5,2.5,'health'],[57.5,2.5,'ammo'],[2.5,41.5,'ammo'],
                     [57.5,41.5,'health'],[29.5,21.5,'medkit'],[20.5,8.5,'speed'],
                     [39.5,34.5,'damage'],[20.5,34.5,'rapid'],[39.5,8.5,'shield'],[29.5,29.5,'fling']];
+// a raised dune deck in the open wasteland, clear of the compounds and ruin
+const RAMPS_8 = [{x:8,y:18,w:6,h:6,axis:'x',dir:1,rampSpan:3,height:1.2}];
 
 // 9 — Skyline: a city-block grid of buildings with streets between them
 const MAPW_9 = 56, MAPH_9 = 48;
@@ -611,7 +621,7 @@ function buildMap9(){
   for(let by=0; by<4; by++){
     for(let bx=0; bx<5; bx++){
       const x = 4 + bx*10, y = 4 + by*10;
-      outline(x,y,7,7,WALL.METAL);
+      outline(x,y,7,7,WALL.BUILDING);   // tall city block, walkable inside
       const side = (bx+by)%4;
       if(side===0)      carve([x+3,y]);
       else if(side===1) carve([x+6,y+3]);
@@ -631,6 +641,9 @@ const PICKUPS_9 = [[12.5,12.5,'health'],[42.5,12.5,'ammo'],[12.5,42.5,'ammo'],
    factor), so "big maps" is achieved without hand-redesigning each layout. */
 function scaleSpawns(arr, f){ return arr.map(([x,y]) => [x*f, y*f]); }
 function scalePickups(arr, f){ return arr.map(([x,y,k]) => [x*f, y*f, k]); }
+// ramps/platforms: elevation footprints are grid-space (scale with the map),
+// the height itself is an absolute world height and stays fixed
+function scaleRamps(arr, f){ return arr.map(r => ({ ...r, x:r.x*f, y:r.y*f, w:r.w*f, h:r.h*f, rampSpan:r.rampSpan*f })); }
 function buildScaledMap(baseBuild, baseW, baseH, factor){
   return function(){
     const smallGrid = new Uint8Array(baseW*baseH);
@@ -648,38 +661,57 @@ function buildScaledMap(baseBuild, baseW, baseH, factor){
     }
   };
 }
-function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor){
+function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ramps=[]){
   return {
     name, build: buildScaledMap(build, w0, h0, factor),
     w: w0*factor, h: h0*factor,
     spawns: scaleSpawns(spawns, factor),
     pickups: scalePickups(pickups, factor),
     start: [start[0]*factor, start[1]*factor],
+    ramps: scaleRamps(ramps, factor),
     large: factor > 1,
   };
 }
 const SCALE = 2;   // existing maps double in size — 32x24 -> 64x48
 const MAPS = [
-  scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE),
+  scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE, RAMPS_1),
   scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE),
   scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE),
-  scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE),
+  scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE, RAMPS_4),
   scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE),
   scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE),
   scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE),
-  { name:'The Wastes', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], large:true },
-  { name:'Skyline',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], large:true },
+  { name:'The Wastes', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], ramps:RAMPS_8, large:true },
+  { name:'Skyline',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:[], large:true },
 ];
 let mapIndex = 0;
-let SPAWNS = MAPS[0].spawns, PICKUPS = MAPS[0].pickups, START = MAPS[0].start;
+let SPAWNS = MAPS[0].spawns, PICKUPS = MAPS[0].pickups, START = MAPS[0].start, RAMPS = MAPS[0].ramps || [];
 function selectMap(idx){
   mapIndex = clamp(idx, 0, MAPS.length-1);
   const m = MAPS[mapIndex];
   MAPW = m.w; MAPH = m.h; grid = new Uint8Array(MAPW*MAPH);
   m.build();
+  RAMPS = m.ramps || [];
   SPAWNS = m.spawns; PICKUPS = m.pickups; START = m.start;
 }
 selectMap(0);
+
+/* ---- elevation: slopes/platforms layered on top of the flat 2D grid ----
+   Each ramp rises linearly from ground level over `rampSpan` grid units,
+   then stays flat at `height` for the rest of its footprint (so one entry
+   covers both the slope and the deck at the top of it). Collision stays
+   purely 2D (these are open floor, never grid walls) — this only changes
+   how high the camera/characters sit while standing in the footprint. */
+function heightAt(px, py){
+  for(const r of RAMPS){
+    if(px < r.x || px > r.x+r.w || py < r.y || py > r.y+r.h) continue;
+    const u = r.axis === 'x'
+      ? (r.dir > 0 ? (px - r.x) : (r.x + r.w - px))
+      : (r.dir > 0 ? (py - r.y) : (r.y + r.h - py));
+    return r.height * clamp(u / r.rampSpan, 0, 1);
+  }
+  return 0;
+}
 
 /* ---- static top-down thumbnails for the map picker (built once, cached) --- */
 function renderMapThumbnail(m){
@@ -698,6 +730,7 @@ function renderMapThumbnail(m){
   for(let y=0;y<builtH;y++) for(let x=0;x<builtW;x++){
     const t = builtGrid[y*builtW+x]; if(!t) continue;
     g.fillStyle = t===WALL.TECH ? 'rgba(90,220,255,.6)'
+                 : t===WALL.BUILDING ? 'rgba(200,160,255,.6)'
                  : t===WALL.METAL ? 'rgba(150,175,200,.5)'
                  : 'rgba(120,150,170,.4)';
     g.fillRect(ox+x*cell, oy+y*cell, cell, cell);
@@ -790,6 +823,19 @@ function buildTextures(){
     }
     g.fillStyle='rgba(0,0,0,.5)'; g.fillRect(0,0,4,TS); g.fillRect(60,0,4,TS);
     noise(g,400,.25);
+  });
+
+  // 7 — tall building facade: dark concrete panels with lit window rows
+  textures[WALL.BUILDING] = makeTex(g=>{
+    g.fillStyle='#232b33'; g.fillRect(0,0,TS,TS);
+    for(let row=0; row<4; row++) for(let col=0; col<3; col++){
+      const x = col*21+3, y = row*16+3, lit = Math.random()<0.55;
+      g.fillStyle = lit ? 'rgba(255,224,150,.85)' : 'rgba(20,26,34,.9)';
+      g.fillRect(x,y,15,10);
+      g.strokeStyle='rgba(0,0,0,.4)'; g.lineWidth=1; g.strokeRect(x+.5,y+.5,14,9);
+    }
+    g.fillStyle='rgba(0,0,0,.35)'; g.fillRect(0,0,TS,2); g.fillRect(0,TS-2,TS,2);
+    noise(g,500,.3);
   });
 
   // 6 — ceiling: dark slats with recessed light panels
@@ -1011,6 +1057,8 @@ function lineOfSight(ax,ay,bx,by){
    only how the world gets drawn changed.                                    */
 const VIEW = 34;                                    // far clip / fog distance (world units) — long enough for the sniper and big maps
 const WALL_H = 1.3, EYE_H = 0.62;
+const BUILD_H = WALL_H * 3;                         // tall-building walls reach much higher than cover walls
+const CEIL_H = BUILD_H + 0.4;                       // global ceiling raised above the tallest structure so buildings don't poke through it
 
 scene.fog = new THREE.Fog(0x05080a, 3, VIEW);
 scene.add(new THREE.AmbientLight(0x9fd0e8, 0.55));
@@ -1032,10 +1080,13 @@ const wallMats = {
   [WALL.METAL]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.METAL]), roughness:0.5, metalness:0.4 }),
   [WALL.TECH] : new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.TECH]), roughness:0.7,
                   emissive:0x3fc8ff, emissiveIntensity:0.35 }),
+  [WALL.BUILDING]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BUILDING], 1, 3), roughness:0.8 }),
 };
 const floorMat = new THREE.MeshStandardMaterial({ roughness:1 });
 const ceilMat  = new THREE.MeshStandardMaterial({ roughness:1, side:THREE.BackSide });
+const rampMat  = wallMats[WALL.STONE].clone(); rampMat.side = THREE.DoubleSide;
 const wallGeo = new THREE.BoxGeometry(1, WALL_H, 1);
+const buildingWallGeo = new THREE.BoxGeometry(1, BUILD_H, 1);
 
 function refreshFloorCeilTex(){
   if(floorMat.map) floorMat.map.dispose();
@@ -1044,21 +1095,64 @@ function refreshFloorCeilTex(){
   ceilMat.map  = makeCanvasTex(textures[6], MAPW, MAPH);
 }
 
-let wallGroup = null, floorMesh = null, ceilMesh = null;
+/* ---- ramp/platform mesh: a closed solid built from explicit quads (top
+   slope, top deck, and risers on the far + two side edges — the near edge
+   is flush with the floor so it needs no riser there) so it reads as a
+   real ramp up onto a solid deck rather than a floating sliver. ---------- */
+function buildRampGeometry(r){
+  const fullExtent = r.axis === 'x' ? r.w : r.h;
+  const vExtent    = r.axis === 'x' ? r.h : r.w;
+  const rampSpan = Math.min(r.rampSpan, fullExtent);
+  const u1 = rampSpan, u2 = fullExtent;
+  const toWorld = (u,v) => r.axis === 'x'
+    ? [ r.dir > 0 ? r.x+u : r.x+r.w-u, r.y+v ]
+    : [ r.x+v, r.dir > 0 ? r.y+u : r.y+r.h-u ];
+
+  const positions = [], uvs = [];
+  function quad(a,b,c,d){                          // corners in perimeter order: [u,v,y]
+    const pa=toWorld(a[0],a[1]), pb=toWorld(b[0],b[1]), pc=toWorld(c[0],c[1]), pd=toWorld(d[0],d[1]);
+    positions.push(pa[0],a[2],pa[1],  pb[0],b[2],pb[1],  pc[0],c[2],pc[1],
+                   pa[0],a[2],pa[1],  pc[0],c[2],pc[1],  pd[0],d[2],pd[1]);
+    uvs.push(0,0, 1,0, 1,1,  0,0, 1,1, 0,1);
+  }
+
+  quad([0,0,0], [u1,0,r.height], [u1,vExtent,r.height], [0,vExtent,0]);      // sloped top
+  if(u2 > u1){
+    quad([u1,0,r.height], [u2,0,r.height], [u2,vExtent,r.height], [u1,vExtent,r.height]); // flat deck top
+    quad([u2,0,0], [u2,vExtent,0], [u2,vExtent,r.height], [u2,0,r.height]);               // far riser
+  }
+  for(const v of [0, vExtent]){                    // two side risers, ramp part + deck part
+    quad([0,v,0], [u1,v,0], [u1,v,r.height], [0,v,0]);
+    if(u2 > u1) quad([u1,v,0], [u2,v,0], [u2,v,r.height], [u1,v,r.height]);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+let wallGroup = null, floorMesh = null, ceilMesh = null, rampGroup = null;
 function rebuildMapMeshes(){
   if(wallGroup) scene.remove(wallGroup);
   if(floorMesh) scene.remove(floorMesh);
   if(ceilMesh)  scene.remove(ceilMesh);
+  if(rampGroup) scene.remove(rampGroup);
   refreshFloorCeilTex();
 
   const counts = {};
   for(let y=0;y<MAPH;y++) for(let x=0;x<MAPW;x++){ const t=at(x,y); if(t) counts[t]=(counts[t]||0)+1; }
   const inst = {}, cursor = {};
-  for(const k in counts){ inst[k] = new THREE.InstancedMesh(wallGeo, wallMats[k], counts[k]); cursor[k]=0; }
+  for(const k in counts){
+    const geo = (+k === WALL.BUILDING) ? buildingWallGeo : wallGeo;
+    inst[k] = new THREE.InstancedMesh(geo, wallMats[k], counts[k]); cursor[k]=0;
+  }
   const m = new THREE.Matrix4();
   for(let y=0;y<MAPH;y++) for(let x=0;x<MAPW;x++){
     const t = at(x,y); if(!t) continue;
-    m.setPosition(x+0.5, WALL_H/2, y+0.5);
+    const h = (t === WALL.BUILDING) ? BUILD_H : WALL_H;
+    m.setPosition(x+0.5, h/2, y+0.5);
     inst[t].setMatrixAt(cursor[t]++, m);
   }
   wallGroup = new THREE.Group();
@@ -1070,8 +1164,12 @@ function rebuildMapMeshes(){
   scene.add(floorMesh);
 
   ceilMesh = new THREE.Mesh(new THREE.PlaneGeometry(MAPW, MAPH), ceilMat);
-  ceilMesh.rotation.x = Math.PI/2; ceilMesh.position.set(MAPW/2, WALL_H, MAPH/2);
+  ceilMesh.rotation.x = Math.PI/2; ceilMesh.position.set(MAPW/2, CEIL_H, MAPH/2);
   scene.add(ceilMesh);
+
+  rampGroup = new THREE.Group();
+  for(const r of RAMPS) rampGroup.add(new THREE.Mesh(buildRampGeometry(r), rampMat));
+  scene.add(rampGroup);
 }
 
 /* ---- characters (players + enemies): real rigged GLTF model, with a boxy
@@ -1230,11 +1328,11 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     } else {
       lean.rotation.z = rec.fallDir * ease * 1.35;
     }
-    mesh.position.y = -0.05 - ease*0.22;
+    mesh.position.y = heightAt(ent.x, ent.y) - 0.05 - ease*0.22;
     return;
   }
   rec.wasDead = false;
-  mesh.position.y = lerp(mesh.position.y||0, 0, dt*8);
+  mesh.position.y = lerp(mesh.position.y||0, heightAt(ent.x, ent.y), dt*8);
   // face the direction of travel while actually walking (so the gait reads
   // correctly instead of looking like it's sliding/moonwalking); otherwise
   // face the player, same as before, so idle/attacking enemies still look at you
@@ -1349,7 +1447,7 @@ function syncPickupMeshes(){
   for(let i=0;i<pickups.length;i++){
     const p = pickups[i], mesh = pickupMeshes[i]; if(!mesh) continue;
     mesh.visible = !p.taken;
-    if(!p.taken){ mesh.position.y = 0.35 + Math.sin(now*2.5+p.x)*0.05; mesh.rotation.y += 0.02; mesh.rotation.x += 0.012; }
+    if(!p.taken){ mesh.position.y = heightAt(p.x,p.y) + 0.35 + Math.sin(now*2.5+p.x)*0.05; mesh.rotation.y += 0.02; mesh.rotation.x += 0.012; }
   }
 }
 const boltGeo = new THREE.SphereGeometry(0.07, 8, 6);
@@ -1360,7 +1458,7 @@ function syncBoltMeshes(){
   for(let i=0;i<boltMeshPool.length;i++){
     const m = boltMeshPool[i];
     m.visible = i < bolts.length;
-    if(m.visible) m.position.set(bolts[i].x, 0.55, bolts[i].y);
+    if(m.visible) m.position.set(bolts[i].x, heightAt(bolts[i].x,bolts[i].y) + 0.55, bolts[i].y);
   }
 }
 
@@ -1398,7 +1496,7 @@ function updateWeaponView(){
 /* ---- camera + full-scene sync, called once per frame instead of the old
    renderWorld()/renderWeapon() pair ------------------------------------------ */
 function render3D(dt){
-  camera.position.set(player.x, EYE_H + Math.sin(player.bob)*0.012, player.y);
+  camera.position.set(player.x, heightAt(player.x,player.y) + EYE_H + Math.sin(player.bob)*0.012, player.y);
   camera.rotation.y = -player.a - Math.PI/2;
   camera.rotation.x = player.pitch;
   headlamp.intensity = 0.85 + player.flash*0.4;
@@ -2053,6 +2151,7 @@ function drawMinimap(){
   for(let y=0;y<MAPH;y++) for(let x=0;x<MAPW;x++){
     const t = at(x,y); if(!t) continue;
     mg.fillStyle = t===WALL.TECH ? 'rgba(90,220,255,.55)'
+                 : t===WALL.BUILDING ? 'rgba(200,160,255,.55)'
                  : t===WALL.METAL ? 'rgba(150,175,200,.42)'
                  : 'rgba(120,150,170,.32)';
     mg.fillRect(ox+x*cell, oy+y*cell, cell-0.4, cell-0.4);
