@@ -55,6 +55,8 @@
   .low #hpfill{background:linear-gradient(90deg,#ff3b3b,#ff8a5c)}
   #wpn{color:#ffd479}
   #mag.empty{color:#ff5f5f}
+  .mkcell .val{color:#f2f6ff}
+  .mkcell.empty .val{color:var(--dim)}
 
   /* ---------- top hud ---------- */
   .top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;
@@ -125,6 +127,11 @@
     background:rgba(20,60,80,.5);border:1px solid var(--line);color:#fff;
     display:flex;align-items:center;justify-content:center;font-size:13px;letter-spacing:.1em;
     pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none}
+  #medkitBtn{position:absolute;right:26px;bottom:284px;width:52px;height:52px;border-radius:50%;
+    background:rgba(200,225,255,.22);border:1px solid rgba(220,235,255,.5);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;
+    pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none}
+  #medkitBtn.empty{opacity:.35}
 
   /* ---------- buffs ---------- */
   #buffs{position:absolute;left:0;right:0;bottom:96px;display:flex;justify-content:center;gap:8px;padding:0 22px}
@@ -223,6 +230,10 @@
       <div class="lbl">Coins</div>
       <div class="val" id="hudCoins">0</div>
     </div>
+    <div class="cell mkcell" id="mkcell" style="text-align:center">
+      <div class="lbl">Medkit <small>[H]</small></div>
+      <div class="val"><span id="mkCount">0</span><small> / <span id="mkCap">2</span></small></div>
+    </div>
     <div class="cell" style="text-align:right">
       <div class="lbl" id="wpn">Pistol</div>
       <div class="val"><span id="mag">12</span><small> / <span id="res">∞</span></small></div>
@@ -240,6 +251,7 @@
     <div id="joyBase"><div id="joyStick"></div></div>
     <div id="fireBtn">FIRE</div>
     <div id="reloadBtn">R</div>
+    <div id="medkitBtn">+</div>
   </div>
 </div>
 
@@ -356,6 +368,7 @@
     <b>R</b><span>Reload</span>
     <b>1-6 / Q</b><span>Switch weapon</span>
     <b>F</b><span>Shove (Slingshot buff)</span>
+    <b>H</b><span>Use medkit</span>
     <b>Tab</b><span>Scoreboard</span>
     <b>Esc</b><span>Pause / release cursor</span>
   </div>
@@ -452,7 +465,7 @@ function buildMap(){
 const SPAWNS_1  = [[6.5,5.5],[25.5,5.5],[6.5,18.5],[25.5,18.5],[16.5,12.5],
                  [16.5,2.5],[2.5,12.5],[29.5,12.5],[16.5,21.5]];
 const PICKUPS_1 = [[4.5,4.5,'health'],[27.5,4.5,'ammo'],[4.5,19.5,'ammo'],
-                 [27.5,19.5,'health'],[16.5,12.5,'ammo'],[16.5,6.5,'health'],
+                 [27.5,19.5,'health'],[16.5,12.5,'medkit'],[16.5,6.5,'health'],
                  [14.5,4.5,'speed'],[18.5,19.5,'damage'],[8.5,13.5,'rapid'],[23.5,13.5,'shield'],
                  [16.5,9.5,'fling']];
 
@@ -474,7 +487,7 @@ function buildMap2(){
 const SPAWNS_2 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_2 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'ammo'],[1.5,10.5,'speed'],
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[9.5,9.5,'fling']];
 
 // 3 — The Maze: three staggered wall partitions, wide gaps, tight cover stubs
@@ -493,7 +506,7 @@ function buildMap3(){
 const SPAWNS_3 = [[1.5,22.5],[30.5,1.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,19.5],[10.5,10.5]];
 const PICKUPS_3 = [[1.5,22.5,'health'],[30.5,1.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'ammo'],[1.5,10.5,'speed'],
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,19.5,'rapid'],[10.5,10.5,'shield'],[17.5,1.5,'fling']];
 
 // 4 — Open Plaza: large open floor, symmetric cover pairs, central metal ring
@@ -512,7 +525,7 @@ function buildMap4(){
 const SPAWNS_4 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_4 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'ammo'],[1.5,10.5,'speed'],
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,9.5,'fling']];
 
 // 5 — The Foundry: five parallel warehouse aisles with a cross-corridor
@@ -532,7 +545,7 @@ function buildMap5(){
 const SPAWNS_5 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[12.5,14.5],
                    [1.5,10.5],[23.5,10.5],[18.5,1.5],[30.5,16.5]];
 const PICKUPS_5 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[12.5,14.5,'ammo'],[1.5,10.5,'speed'],
+                    [23.5,22.5,'ammo'],[12.5,14.5,'medkit'],[1.5,10.5,'speed'],
                     [23.5,10.5,'damage'],[18.5,1.5,'rapid'],[30.5,16.5,'shield'],[10.5,22.5,'fling']];
 
 // 6 — Crossfire: four asymmetric rooms opening onto a shared center
@@ -549,7 +562,7 @@ function buildMap6(){
 const SPAWNS_6 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_6 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'ammo'],[1.5,10.5,'speed'],
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,10.5,'fling']];
 
 // 7 — The Pit: ring corridor around two symmetric inner chambers
@@ -566,7 +579,7 @@ function buildMap7(){
 const SPAWNS_7 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_7 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'ammo'],[1.5,10.5,'speed'],
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
                     [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,9.5,'fling']];
 
 // 8 — The Wastes: a huge open wasteland, four corner compounds, central ruin
@@ -587,7 +600,7 @@ function buildMap8(){
 const SPAWNS_8 = [[2.5,2.5],[57.5,2.5],[2.5,41.5],[57.5,41.5],[29.5,21.5],
                    [20.5,2.5],[39.5,41.5],[6.5,21.5],[53.5,21.5]];
 const PICKUPS_8 = [[2.5,2.5,'health'],[57.5,2.5,'ammo'],[2.5,41.5,'ammo'],
-                    [57.5,41.5,'health'],[29.5,21.5,'ammo'],[20.5,8.5,'speed'],
+                    [57.5,41.5,'health'],[29.5,21.5,'medkit'],[20.5,8.5,'speed'],
                     [39.5,34.5,'damage'],[20.5,34.5,'rapid'],[39.5,8.5,'shield'],[29.5,29.5,'fling']];
 
 // 9 — Skyline: a city-block grid of buildings with streets between them
@@ -610,7 +623,7 @@ function buildMap9(){
 const SPAWNS_9 = [[12.5,12.5],[42.5,12.5],[12.5,42.5],[42.5,42.5],[27.5,27.5],
                    [2.5,2.5],[53.5,2.5],[2.5,45.5],[53.5,45.5]];
 const PICKUPS_9 = [[12.5,12.5,'health'],[42.5,12.5,'ammo'],[12.5,42.5,'ammo'],
-                    [42.5,42.5,'health'],[27.5,27.5,'ammo'],[22.5,12.5,'speed'],
+                    [42.5,42.5,'health'],[27.5,27.5,'medkit'],[22.5,12.5,'speed'],
                     [32.5,42.5,'damage'],[12.5,22.5,'rapid'],[42.5,22.5,'shield'],[22.5,42.5,'fling']];
 
 /* ---- map scale-up: existing 32x24 layouts are block-expanded onto a much
@@ -869,6 +882,7 @@ const Sound = (()=>{
     hurt(){ burst(.22,220,.8,.34); blip(90,.22,'sine',.22,-40); },
     enemyShot(){ blip(520,.11,'square',.12,320); },
     pickup(){ blip(660,.07,'sine',.18); setTimeout(()=>blip(990,.1,'sine',.18),70); },
+    heal(){ blip(440,.1,'sine',.2); setTimeout(()=>blip(660,.14,'sine',.22),90); setTimeout(()=>blip(880,.18,'sine',.2),190); },
     buff(){ [520,720,980].forEach((f,i)=> setTimeout(()=>blip(f,.13,'sine',.18), i*60)); },
     shieldBlock(){ blip(180,.12,'square',.18,60); burst(.15,700,1.4,.2); },
     shove(){ blip(140,.14,'square',.24,-70); burst(.14,320,1,.22); },
@@ -920,7 +934,10 @@ const player = {
   buffs: freshBuffs(), kills:0, deaths:0, name:'You', skin:0, id:'me',
   vx:0, vy:0, shoveCooldown:0,
   shieldCharge:0, maxShieldCharge:0, shieldRegenRate:4,
+  medkits:0,
 };
+const MEDKIT_BASE_CAP = 2, MEDKIT_BONUS_CAP = 2, MEDKIT_HEAL = 50;
+function medkitCap(){ return MEDKIT_BASE_CAP + (account.ownedUpgrades.has('medkit') ? MEDKIT_BONUS_CAP : 0); }
 let enemies = [], bolts = [], pickups = [];
 let wave = 0, kills = 0, score = 0, waveTimer = 0, spawning = false;
 let running = false, paused = false, gameOver = false;
@@ -1313,7 +1330,7 @@ function syncPlayerMeshes(dt){
 const pickupGeo = new THREE.OctahedronGeometry(0.17, 0);
 function pickupMat(color){ return new THREE.MeshStandardMaterial({ color, emissive:color, emissiveIntensity:0.65, roughness:0.35 }); }
 const pickupMats = {
-  health: pickupMat('#ff5a5a'), ammo: pickupMat('#ffd479'),
+  health: pickupMat('#ff5a5a'), ammo: pickupMat('#ffd479'), medkit: pickupMat('#f2f6ff'),
   speed: pickupMat(BUFF_META.speed.color), damage: pickupMat(BUFF_META.damage.color),
   rapid: pickupMat(BUFF_META.rapid.color), shield: pickupMat(BUFF_META.shield.color),
   fling: pickupMat(BUFF_META.fling.color),
@@ -1852,12 +1869,17 @@ function decayBuffs(b, dt){
 
 function applyPickup(pl, p){
   p.taken = true;
-  p.respawnAt = now + (p.kind==='health'||p.kind==='ammo' ? 16 : 24);
+  p.respawnAt = now + (p.kind==='health'||p.kind==='ammo'||p.kind==='medkit' ? 16 : 24);
   const isMe = pl === player;
   if(p.kind === 'health'){
     if(pl.hp >= 100){ p.taken = false; p.respawnAt = 0; return; }
     pl.hp = Math.min(100, pl.hp + 35);
     Net.emit({ kind:'pickup', targetId: pl.id, text:'+35 integrity', color:'#8ef5c0' });
+  } else if(p.kind === 'medkit'){
+    const cap = isMe ? medkitCap() : MEDKIT_BASE_CAP;
+    if((pl.medkits||0) >= cap){ p.taken = false; p.respawnAt = 0; return; }
+    pl.medkits = (pl.medkits||0) + 1;
+    Net.emit({ kind:'pickup', targetId: pl.id, text:'+1 medkit', color:'#f2f6ff' });
   } else if(p.kind === 'ammo'){
     Net.emit({ kind:'ammo', targetId: pl.id, text:'+40 rifle ammo', color:'#ffd479' });
   } else {
@@ -1865,6 +1887,15 @@ function applyPickup(pl, p){
     Net.emit({ kind:'buff', targetId: pl.id, text:`${BUFF_META[p.kind].label} online`, color:BUFF_META[p.kind].color });
   }
   if(isMe) updateHUD();
+}
+
+function useMedkit(){
+  if(!player.alive || player.medkits <= 0){ Sound.dry(); return; }
+  if(player.hp >= 100) return;
+  player.medkits--;
+  player.hp = Math.min(100, player.hp + MEDKIT_HEAL);
+  Net.emit({ kind:'heal', targetId: player.id, text:`+${MEDKIT_HEAL} integrity (medkit)`, color:'#f2f6ff' });
+  updateHUD();
 }
 
 /* ------------------------------- game loop ------------------------------- */
@@ -2027,7 +2058,7 @@ function drawMinimap(){
   }
   for(const p of pickups){
     if(p.taken) continue;
-    mg.fillStyle = p.kind==='health' ? '#ff6b6b' : p.kind==='ammo' ? '#ffd479' : BUFF_META[p.kind].color;
+    mg.fillStyle = p.kind==='health' ? '#ff6b6b' : p.kind==='ammo' ? '#ffd479' : p.kind==='medkit' ? '#f2f6ff' : BUFF_META[p.kind].color;
     mg.fillRect(ox+p.x*cell-1.5, oy+p.y*cell-1.5, 3, 3);
   }
   for(const e of enemies){
@@ -2063,6 +2094,10 @@ function updateHUD(){
   el('wave').textContent = wave;
   el('left').textContent = enemies.filter(e=>!e.dead).length;
   el('hudCoins').textContent = account.coins;
+  el('mkCount').textContent = player.medkits;
+  el('mkCap').textContent = medkitCap();
+  el('mkcell').classList.toggle('empty', player.medkits <= 0);
+  el('medkitBtn').classList.toggle('empty', player.medkits <= 0);
   el('wpn').textContent  = w.name;
   el('mag').textContent  = w.ammo;
   el('mag').classList.toggle('empty', w.ammo === 0);
@@ -2112,6 +2147,10 @@ function handleNetEvent(evt){
     case 'pickup':
       feed(evt.text, evt.color);
       if(evt.targetId === myId) Sound.pickup();
+      break;
+    case 'heal':
+      feed(evt.text, evt.color);
+      if(evt.targetId === myId) Sound.heal();
       break;
     case 'buff':
       feed(evt.text, evt.color);
@@ -2626,6 +2665,7 @@ addEventListener('keydown', e => {
   }
   if(k === 'v' && netMode !== 'solo') Net.toggleVoice();
   if(k === 'f') attemptShove();
+  if(k === 'h') useMedkit();
   if(['w','a','s','d',' '].includes(k)) e.preventDefault();
 });
 addEventListener('keyup', e => {
@@ -2688,6 +2728,8 @@ document.addEventListener('touchstart', e => {
       fireTouchId = t.identifier; mouseDown = true; player.firedThisClick = false;
     } else if(inRect(el('reloadBtn'), t.clientX, t.clientY)){
       tryReload();
+    } else if(inRect(el('medkitBtn'), t.clientX, t.clientY)){
+      useMedkit();
     } else if(lookTouchId===null && running){
       lookTouchId = t.identifier; lookLast.x = t.clientX; lookLast.y = t.clientY;
     }
@@ -2863,6 +2905,7 @@ const POWERUPS = [
   { key:'speed',  name:'Fleet Feet',  cost:400, desc:'+10% move & sprint speed' },
   { key:'reload', name:'Quick Hands', cost:450, desc:'-15% reload time' },
   { key:'regen',  name:'Nanite Regen', cost:500, desc:'Slow passive health regen' },
+  { key:'medkit', name:'Medkit Satchel', cost:350, desc:`Carry ${MEDKIT_BASE_CAP+MEDKIT_BONUS_CAP} medkits instead of ${MEDKIT_BASE_CAP}` },
 ];
 function renderArmory(){
   el('armoryCoins').textContent = account.coins;
@@ -3109,7 +3152,7 @@ function startGame(){
   player.hp = 100; player.alive = true; player.weapon = 'pistol';
   player.kick = 0; player.flash = 0; player.hurt = 0; player.reloading = 0; player.cooldown = 0;
   player.vx = 0; player.vy = 0; player.shoveCooldown = 0;
-  player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0;
+  player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0; player.medkits = 0;
   for(const key in WEAPONS){ WEAPONS[key].ammo = WEAPONS[key].mag; WEAPONS[key].reserve = WEAPONS[key].maxReserve; }
   const shieldTier = account.ownedUpgrades.get('shield') || 0;
   player.maxShieldCharge = shieldTier * SHIELD_TIER_CHARGE;
@@ -3167,7 +3210,7 @@ Object.defineProperty(window, '__breach', { configurable:true, get(){ return {
   purchaseWeapon, purchaseShieldTier, purchaseUpgrade, sendFriendRequest, respondToRequest, openChat,
   sendChatMessage, loadFriendsData, renderArmory, update, render3D, setZoom, resetJoy, el, escapeHtml,
   refreshFlowFields, rebuildMapMeshes, spawnEnemy, makeCharacter, TYPES, SKINS, characterTemplate,
-  nextEnemyId, enemyMeshes, playerMeshes,
+  nextEnemyId, enemyMeshes, playerMeshes, useMedkit, medkitCap, MEDKIT_BASE_CAP, MEDKIT_BONUS_CAP, MEDKIT_HEAL,
 }; } });
 }
 if(window.THREE) __startBreach();
