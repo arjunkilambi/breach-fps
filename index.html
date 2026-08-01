@@ -73,7 +73,7 @@
     text-shadow:0 0 24px rgba(0,220,255,.55);opacity:0;transition:opacity .3s}
   #banner small{display:block;font-size:13px;letter-spacing:.3em;color:var(--dim);margin-top:6px;font-weight:600}
 
-  /* ---------- secret safe zone ---------- */
+  /* ---------- safe zone ---------- */
   #safeZoneUI{position:absolute;left:50%;top:3%;transform:translateX(-50%);text-align:center;pointer-events:none}
   #safeZoneTimer{font-size:12px;letter-spacing:.2em;color:var(--dim);font-weight:600;text-transform:uppercase}
   #safeZoneLabel{font-size:22px;font-weight:800;letter-spacing:.15em;color:#8ef5ff;text-transform:uppercase;
@@ -490,7 +490,7 @@ const RAMPS_1 = [
   {x:15,y:1,w:3,h:2.5,axis:'y',dir:1,rampSpan:1.5,height:0.9},
   {x:11,y:19,w:3,h:2.5,axis:'y',dir:-1,rampSpan:1.5,height:0.9},
 ];
-// a secret safe zone tucked in a quiet corner — no marker, just open floor
+// a marked safe zone tucked in a quiet corner
 const SAFEZONES_1 = [{x:1,y:11,w:2,h:2}];
 
 // 2 — Ring Circuit: symmetric nested rings around a cross-shaped core
@@ -702,7 +702,7 @@ function scalePickups(arr, f){ return arr.map(([x,y,k]) => [x*f, y*f, k]); }
 // ramps/platforms: elevation footprints are grid-space (scale with the map),
 // the height itself is an absolute world height and stays fixed
 function scaleRamps(arr, f){ return arr.map(r => ({ ...r, x:r.x*f, y:r.y*f, w:r.w*f, h:r.h*f, rampSpan:r.rampSpan*f })); }
-// secret safe zones: unmarked floor regions, no new geometry — just scale the footprint
+// safe zones: marked floor regions, no new geometry — just scale the footprint
 function scaleSafeZones(arr, f){ return arr.map(z => ({ ...z, x:z.x*f, y:z.y*f, w:z.w*f, h:z.h*f })); }
 function buildScaledMap(baseBuild, baseW, baseH, factor){
   return function(){
@@ -797,6 +797,10 @@ function renderMapThumbnail(m){
                  : t===WALL.METAL ? 'rgba(150,175,200,.5)'
                  : 'rgba(120,150,170,.4)';
     g.fillRect(ox+x*cell, oy+y*cell, cell, cell);
+  }
+  for(const z of (m.safeZones||[])){
+    g.fillStyle = 'rgba(142,245,255,.4)';
+    g.fillRect(ox+z.x*cell, oy+z.y*cell, z.w*cell, z.h*cell);
   }
   return cv.toDataURL();
 }
@@ -1208,12 +1212,13 @@ function buildRampGeometry(r){
   return geo;
 }
 
-let wallGroup = null, floorMesh = null, ceilMesh = null, rampGroup = null;
+let wallGroup = null, floorMesh = null, ceilMesh = null, rampGroup = null, safeZoneGroup = null;
 function rebuildMapMeshes(){
   if(wallGroup) scene.remove(wallGroup);
   if(floorMesh) scene.remove(floorMesh);
   if(ceilMesh)  scene.remove(ceilMesh);
   if(rampGroup) scene.remove(rampGroup);
+  if(safeZoneGroup) scene.remove(safeZoneGroup);
   refreshFloorCeilTex();
 
   const counts = {};
@@ -1245,6 +1250,21 @@ function rebuildMapMeshes(){
   rampGroup = new THREE.Group();
   for(const r of RAMPS) rampGroup.add(new THREE.Mesh(buildRampGeometry(r), rampMat));
   scene.add(rampGroup);
+
+  safeZoneGroup = new THREE.Group();
+  for(const z of SAFEZONES){
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(z.w, z.h),
+      new THREE.MeshBasicMaterial({ color:0x8ef5ff, transparent:true, opacity:0.3, side:THREE.DoubleSide }));
+    glow.rotation.x = -Math.PI/2;
+    glow.position.set(z.x + z.w/2, 0.03, z.y + z.h/2);
+    safeZoneGroup.add(glow);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(Math.max(z.w,z.h)/2 - 0.08, Math.max(z.w,z.h)/2, 24),
+      new THREE.MeshBasicMaterial({ color:0xcfffff, transparent:true, opacity:0.6, side:THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI/2;
+    ring.position.set(z.x + z.w/2, 0.04, z.y + z.h/2);
+    safeZoneGroup.add(ring);
+  }
+  scene.add(safeZoneGroup);
 }
 
 /* ---- characters (players + enemies): real rigged GLTF model, with a boxy
@@ -2266,7 +2286,7 @@ function update(dt){
     player.hp = Math.min(100, player.hp + dt);
   }
 
-  // ---------- secret safe zone: safe for SAFE_ZONE_GRACE, then it hurts to camp ----------
+  // ---------- safe zone: safe for SAFE_ZONE_GRACE, then it hurts to camp ----------
   const zone = SAFEZONES.find(z => player.x >= z.x && player.x <= z.x+z.w && player.y >= z.y && player.y <= z.y+z.h);
   player.inSafeZone = !!zone;
   if(zone && player.alive){
@@ -2407,6 +2427,12 @@ function drawMinimap(){
                  : t===WALL.METAL ? 'rgba(150,175,200,.42)'
                  : 'rgba(120,150,170,.32)';
     mg.fillRect(ox+x*cell, oy+y*cell, cell-0.4, cell-0.4);
+  }
+  for(const z of SAFEZONES){
+    mg.fillStyle = 'rgba(142,245,255,.35)';
+    mg.fillRect(ox+z.x*cell, oy+z.y*cell, z.w*cell, z.h*cell);
+    mg.strokeStyle = 'rgba(207,255,255,.8)'; mg.lineWidth = 1;
+    mg.strokeRect(ox+z.x*cell, oy+z.y*cell, z.w*cell, z.h*cell);
   }
   for(const p of pickups){
     if(p.taken) continue;
