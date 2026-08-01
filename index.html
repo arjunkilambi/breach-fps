@@ -781,9 +781,9 @@ function heightAt(px, py){
     const u = r.axis === 'x'
       ? (r.dir > 0 ? (px - r.x) : (r.x + r.w - px))
       : (r.dir > 0 ? (py - r.y) : (r.y + r.h - py));
-    return r.height * clamp(u / r.rampSpan, 0, 1);
+    return Math.max(r.height * clamp(u / r.rampSpan, 0, 1), rubbleHeightAt(px, py));
   }
-  return 0;
+  return rubbleHeightAt(px, py);
 }
 
 /* ---- static top-down thumbnails for the map picker (built once, cached) --- */
@@ -1572,11 +1572,38 @@ function syncBoltMeshes(){
 let activeFX = [];
 const rubbleGroup = new THREE.Group();   // settled debris lives here, permanently, until the next match
 scene.add(rubbleGroup);
+// Settled rubble a player can climb onto: an elongated footprint (pivot +
+// direction it toppled toward) with a stand height low enough to clear with a
+// single normal jump (max jump apex ≈ JUMP_SPEED²/(2·GRAVITY) ≈ 0.53).
+let rubblePlatforms = [];
 function clearRubble(){
   for(const child of [...rubbleGroup.children]){
     rubbleGroup.remove(child);
     child.geometry.dispose(); child.material.dispose();
   }
+  rubblePlatforms = [];
+}
+function rubbleHeightAt(px, py){
+  let h = 0;
+  for(const p of rubblePlatforms){
+    const dx = px-p.px, dy = py-p.py;
+    const along = dx*p.fx + dy*p.fy, perp = dx*-p.fy + dy*p.fx;
+    if(along < -0.3 || along > p.len || Math.abs(perp) > p.halfWidth) continue;
+    if(p.height > h) h = p.height;
+  }
+  return h;
+}
+// A rubble platform only blocks movement into its footprint while the mover
+// is below its stand height — jump up to clear it, or already be standing on
+// it; walking straight into it at ground level is blocked like a low wall.
+function rubbleBlockedAt(px, py, curAbsHeight){
+  for(const p of rubblePlatforms){
+    const dx = px-p.px, dy = py-p.py;
+    const along = dx*p.fx + dy*p.fy, perp = dx*-p.fy + dy*p.fx;
+    if(along < -0.3 || along > p.len || Math.abs(perp) > p.halfWidth) continue;
+    if(curAbsHeight < p.height - 0.15) return true;
+  }
+  return false;
 }
 function spawnExplosionFX(x, y, radius){
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8),
@@ -1599,7 +1626,7 @@ function spawnZapFX(x1, y1, x2, y2){
 // vanishing. `geometry` is rebuilt fresh per call (never a shared
 // InstancedMesh geometry) so disposing/reparenting it can't affect any
 // other still-standing wall.
-function spawnDebrisFX(geometry, material, footX, footY, meshY, preferredDir){
+function spawnDebrisFX(geometry, material, footX, footY, meshY, preferredDir, climb){
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.y = meshY;
   const group = new THREE.Group();
@@ -1612,9 +1639,13 @@ function spawnDebrisFX(geometry, material, footX, footY, meshY, preferredDir){
   const primaryAxis = preferredDir ? preferredDir.axis : (Math.random() < 0.5 ? 'x' : 'z');
   const primaryDir = preferredDir ? preferredDir.dir : (Math.random()<0.5?1:-1);
   const secondaryAxis = primaryAxis === 'x' ? 'z' : 'x';
+  // Cardinal direction it topples toward (matches the rotation-axis/sign
+  // convention above), used to lay out the climbable footprint along its length.
+  const fallX = primaryAxis === 'z' ? -primaryDir : 0;
+  const fallY = primaryAxis === 'x' ? primaryDir  : 0;
   activeFX.push({
     mesh:group, innerMesh:mesh, age:0, life:rand(0.85,0.6), kind:'debris',
-    primaryAxis, secondaryAxis, baseX:footX, baseZ:footY,
+    primaryAxis, secondaryAxis, baseX:footX, baseZ:footY, fallX, fallY, climb,
     primaryAngle: primaryDir * rand(1.55,1.15),                 // ~65-90°, never a clean 90
     secondaryAngle: (Math.random()<0.5?1:-1) * rand(0.5,0.15),  // wobble on the other axis — the "uneven" part
     driftX: rand(0.4,-0.4), driftZ: rand(0.4,-0.4),
@@ -1638,7 +1669,16 @@ function updateFX(dt){
     }
     if(t >= 1){
       scene.remove(f.mesh);
-      if(f.kind === 'debris'){ rubbleGroup.add(f.mesh); }
+      if(f.kind === 'debris'){
+        rubbleGroup.add(f.mesh);
+        if(f.climb){
+          rubblePlatforms.push({
+            px: f.baseX + f.driftX, py: f.baseZ + f.driftZ,
+            fx: f.fallX, fy: f.fallY,
+            len: f.climb.len, halfWidth: f.climb.width/2, height: f.climb.height,
+          });
+        }
+      }
       else { f.mesh.geometry.dispose(); f.mesh.material.dispose(); }
       activeFX.splice(i,1);
     }
@@ -1890,10 +1930,14 @@ function fallDirFor(cx, cy, viewX, viewY){
   }
   return null;   // fully enclosed even at max wall thickness — fall randomly
 }
+// Climb dimensions are kept low enough (~0.35-0.5) to clear with a single
+// normal jump (max jump apex ≈ JUMP_SPEED²/(2·GRAVITY) ≈ 0.53) — rubble is
+// meant to be a hop-up ledge, not a wall you need Moon Boots to scale.
 function spawnBuildingDebris(cx, cy, viewX, viewY){
   const debrisMat = wallMats[WALL.BUILDING].clone(); debrisMat.transparent = true;
   const dir = fallDirFor(cx, cy, viewX ?? player.x, viewY ?? player.y);
-  spawnDebrisFX(new THREE.BoxGeometry(1, BUILD_H, 1), debrisMat, cx+0.5, cy+0.5, BUILD_H/2, dir);
+  spawnDebrisFX(new THREE.BoxGeometry(1, BUILD_H, 1), debrisMat, cx+0.5, cy+0.5, BUILD_H/2, dir,
+    { len: BUILD_H*0.9, width: 1.3, height: 0.5 });
 }
 function spawnRampDebris(ramp, viewX, viewY){
   const footX = ramp.x + ramp.w/2, footY = ramp.y + ramp.h/2;
@@ -1905,7 +1949,8 @@ function spawnRampDebris(ramp, viewX, viewY){
   const dir = Math.abs(dx) > Math.abs(dy)
     ? { axis:'z', dir: dx < 0 ? 1 : -1 }
     : { axis:'x', dir: dy < 0 ? -1 : 1 };
-  spawnDebrisFX(debrisGeo, debrisMat, footX, footY, 0, dir);
+  const span = Math.max(ramp.w, ramp.h);
+  spawnDebrisFX(debrisGeo, debrisMat, footX, footY, 0, dir, { len: span*0.85, width: Math.min(ramp.w,ramp.h), height: 0.35 });
 }
 
 // Destructible buildings: a tall WALL.BUILDING cell crumbles to open floor
@@ -2201,18 +2246,22 @@ function flowFieldFor(target){
   return f;
 }
 
-function moveEntity(e, dx, dy, radius){
+// `curHeight` is the mover's current absolute height (heightAt + z offset) —
+// rubble blocks entry to its footprint like a low wall unless the mover is
+// already up at (or airborne above) its stand height, letting a jump clear it.
+function moveEntity(e, dx, dy, radius, curHeight=0){
+  const blockedAt = (x,y) => solid(x,y) || rubbleBlockedAt(x,y,curHeight);
   // axis-separated collision keeps entities sliding along walls
   let blocked = false;
   const nx = e.x + dx;
-  if(!solid(nx + Math.sign(dx)*radius, e.y) &&
-     !solid(nx + Math.sign(dx)*radius, e.y - radius*0.7) &&
-     !solid(nx + Math.sign(dx)*radius, e.y + radius*0.7)) e.x = nx;
+  if(!blockedAt(nx + Math.sign(dx)*radius, e.y) &&
+     !blockedAt(nx + Math.sign(dx)*radius, e.y - radius*0.7) &&
+     !blockedAt(nx + Math.sign(dx)*radius, e.y + radius*0.7)) e.x = nx;
   else if(dx) blocked = true;
   const ny = e.y + dy;
-  if(!solid(e.x, ny + Math.sign(dy)*radius) &&
-     !solid(e.x - radius*0.7, ny + Math.sign(dy)*radius) &&
-     !solid(e.x + radius*0.7, ny + Math.sign(dy)*radius)) e.y = ny;
+  if(!blockedAt(e.x, ny + Math.sign(dy)*radius) &&
+     !blockedAt(e.x - radius*0.7, ny + Math.sign(dy)*radius) &&
+     !blockedAt(e.x + radius*0.7, ny + Math.sign(dy)*radius)) e.y = ny;
   else if(dy) blocked = true;
   return blocked;
 }
@@ -2488,7 +2537,7 @@ function update(dt){
   if(mag > 0.001 && player.alive){
     const analogScale = (!keyboardActive && joyMag > 0.05) ? joyMag : 1;
     const sp = (sprinting ? player.sprint : player.speed) * speedBoost * analogScale * dt;
-    moveEntity(player, (fx/mag)*sp, (fy/mag)*sp, 0.26);
+    moveEntity(player, (fx/mag)*sp, (fy/mag)*sp, 0.26, heightAt(player.x, player.y) + (player.z||0));
     player.bob += dt * (sprinting ? 13 : 9);
     player.animPhase = (player.animPhase||0) + dt * (sprinting ? 13 : 9);
     player.stepTimer -= dt * (sprinting ? 1.5 : 1);
