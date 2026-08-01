@@ -3328,7 +3328,7 @@ async function purchaseWeapon(key){
   if(account.ownedWeapons.has(key) || account.coins < w.cost) return;
   account.coins -= w.cost; account.ownedWeapons.add(key);
   refreshCoinHud(); renderAccountStatus(); renderArmory();
-  const { error } = await supa.from('owned_weapons').insert({ user_id: account.user.id, weapon_key: key });
+  const { error } = await supa.from('owned_weapons').upsert({ user_id: account.user.id, weapon_key: key });
   if(!error) await supa.from('profiles').update({ coins: account.coins }).eq('id', account.user.id);
   else { account.coins += w.cost; account.ownedWeapons.delete(key); refreshCoinHud(); renderArmory(); el('armoryMsg').textContent = 'Purchase failed.'; }
 }
