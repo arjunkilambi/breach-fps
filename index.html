@@ -1048,7 +1048,7 @@ for(const key in WEAPONS) WEAPONS[key].maxReserve = WEAPONS[key].reserve;
 
 const BASE_SPEED = 3.3, BASE_SPRINT = 5.1;
 const JUMP_SPEED = 3.4, GRAVITY = 11;   // player.z is height above local ground/ramp — purely visual/traversal, doesn't affect 2D collision or combat
-const SAFE_ZONE_GRACE = 15, SAFE_ZONE_DRAIN = 40;   // seconds safe, then HP/sec lost if you keep camping
+const SAFE_ZONE_GRACE = 120, SAFE_ZONE_DRAIN = 40;   // seconds safe, then HP/sec lost if you keep camping
 const SHIELD_TIER_CHARGE = 25, SHIELD_TIER_FAST_RECHARGE = 8, SHIELD_BASE_RECHARGE = 4;
 const player = {
   x:START[0], y:START[1], a:-Math.PI/2, pitch:0,
@@ -2306,9 +2306,9 @@ function update(dt){
       }
       updateHUD();
     }
-  } else {
-    player.safeZoneT = 0;
   }
+  // note: safeZoneT is deliberately NOT reset on exit — leaving and coming
+  // back later just resumes the same clock instead of buying a fresh grace period.
   updateSafeZoneUI();
   if(player.reloading > 0){
     player.reloading -= dt;
