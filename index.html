@@ -1614,7 +1614,7 @@ function spawnDebrisFX(geometry, material, footX, footY, meshY, preferredDir){
   const secondaryAxis = primaryAxis === 'x' ? 'z' : 'x';
   activeFX.push({
     mesh:group, innerMesh:mesh, age:0, life:rand(0.85,0.6), kind:'debris',
-    primaryAxis, secondaryAxis,
+    primaryAxis, secondaryAxis, baseX:footX, baseZ:footY,
     primaryAngle: primaryDir * rand(1.55,1.15),                 // ~65-90°, never a clean 90
     secondaryAngle: (Math.random()<0.5?1:-1) * rand(0.5,0.15),  // wobble on the other axis — the "uneven" part
     driftX: rand(0.4,-0.4), driftZ: rand(0.4,-0.4),
@@ -1633,8 +1633,8 @@ function updateFX(dt){
       const fall = Math.min(1, t*1.6);            // settles before life runs out, then just sits there
       f.mesh.rotation[f.primaryAxis]   = f.primaryAngle * fall;
       f.mesh.rotation[f.secondaryAxis] = f.secondaryAngle * fall;
-      f.mesh.position.x = f.driftX * fall;
-      f.mesh.position.z = f.driftZ * fall;
+      f.mesh.position.x = f.baseX + f.driftX * fall;
+      f.mesh.position.z = f.baseZ + f.driftZ * fall;
     }
     if(t >= 1){
       scene.remove(f.mesh);
