@@ -1860,28 +1860,57 @@ function crushNearby(cx, cy, radius){
 // Which way is actually open, so the topple falls into the gap it just made
 // instead of into a neighboring wall (verified against real rotation math:
 // rotating 'z' tips the top toward -X/+X, rotating 'x' tips it toward +Z/-Z).
-function fallDirFor(cx, cy){
-  if(!solid(cx+1, cy)) return {axis:'z', dir:-1};
-  if(!solid(cx-1, cy)) return {axis:'z', dir:1};
-  if(!solid(cx, cy+1)) return {axis:'x', dir:1};
-  if(!solid(cx, cy-1)) return {axis:'x', dir:-1};
-  return null;   // fully enclosed by other solid cells — no good direction, fall randomly
+// Buildings are hollow outlines (walkable inside), so a wall segment often has
+// BOTH its outward and inward neighbor open — picking the first open side in a
+// fixed order always resolved to "inward" for two of the four wall facings,
+// toppling the debris into the building's interior where the shooter (standing
+// outside) could never see it. Score every open side by how much it faces
+// toward the viewer instead, so it topples into view rather than away from it.
+function fallDirFor(cx, cy, viewX, viewY){
+  const ccx = cx+0.5, ccy = cy+0.5;
+  // Building walls are SCALE cells thick, so a cell in the middle of a band can
+  // have all four immediate neighbors solid too — widen the search outward
+  // ring by ring (up to the wall's max thickness) until an opening turns up,
+  // instead of declaring it "enclosed" and toppling in a blind random direction.
+  for(let r=1; r<=SCALE; r++){
+    const candidates = [];
+    if(!solid(cx+r, cy)) candidates.push({axis:'z', dir:-1, nx:cx+r+0.5, ny:cy+0.5});
+    if(!solid(cx-r, cy)) candidates.push({axis:'z', dir:1,  nx:cx-r+0.5, ny:cy+0.5});
+    if(!solid(cx, cy+r)) candidates.push({axis:'x', dir:1,  nx:cx+0.5, ny:cy+r+0.5});
+    if(!solid(cx, cy-r)) candidates.push({axis:'x', dir:-1, nx:cx+0.5, ny:cy-r+0.5});
+    if(!candidates.length) continue;
+    if(viewX == null) return candidates[0];
+    const towardX = viewX - ccx, towardY = viewY - ccy;
+    let best = candidates[0], bestScore = -Infinity;
+    for(const c of candidates){
+      const score = (c.nx-ccx)*towardX + (c.ny-ccy)*towardY;
+      if(score > bestScore){ bestScore = score; best = c; }
+    }
+    return best;
+  }
+  return null;   // fully enclosed even at max wall thickness — fall randomly
 }
-function spawnBuildingDebris(cx, cy){
+function spawnBuildingDebris(cx, cy, viewX, viewY){
   const debrisMat = wallMats[WALL.BUILDING].clone(); debrisMat.transparent = true;
-  spawnDebrisFX(new THREE.BoxGeometry(1, BUILD_H, 1), debrisMat, cx+0.5, cy+0.5, BUILD_H/2, fallDirFor(cx, cy));
+  const dir = fallDirFor(cx, cy, viewX ?? player.x, viewY ?? player.y);
+  spawnDebrisFX(new THREE.BoxGeometry(1, BUILD_H, 1), debrisMat, cx+0.5, cy+0.5, BUILD_H/2, dir);
 }
-function spawnRampDebris(ramp){
+function spawnRampDebris(ramp, viewX, viewY){
   const footX = ramp.x + ramp.w/2, footY = ramp.y + ramp.h/2;
   const debrisGeo = buildRampGeometry(ramp);
   debrisGeo.translate(-footX, 0, -footY);
   const debrisMat = rampMat.clone(); debrisMat.transparent = true;
-  spawnDebrisFX(debrisGeo, debrisMat, footX, footY, 0);
+  const vx = viewX ?? player.x, vy = viewY ?? player.y;
+  const dx = vx - footX, dy = vy - footY;
+  const dir = Math.abs(dx) > Math.abs(dy)
+    ? { axis:'z', dir: dx < 0 ? 1 : -1 }
+    : { axis:'x', dir: dy < 0 ? -1 : 1 };
+  spawnDebrisFX(debrisGeo, debrisMat, footX, footY, 0, dir);
 }
 
 // Destructible buildings: a tall WALL.BUILDING cell crumbles to open floor
 // once its HP runs out, breaching a new hole in the structure.
-function damageBuildingCell(cx, cy, dmg){
+function damageBuildingCell(cx, cy, dmg, fromX, fromY){
   const key = cy*MAPW + cx;
   const hp = (buildingHP.has(key) ? buildingHP.get(key) : BUILDING_MAX_HP) - dmg;
   if(hp > 0){ buildingHP.set(key, hp); return; }
@@ -1890,7 +1919,7 @@ function damageBuildingCell(cx, cy, dmg){
   destroyedCells.push(key);
   flowFields.clear();
   spawnExplosionFX(cx+0.5, cy+0.5, 1.6);
-  spawnBuildingDebris(cx, cy);
+  spawnBuildingDebris(cx, cy, fromX, fromY);
   crushNearby(cx+0.5, cy+0.5, 2.2);
   Sound.kill();
   rebuildMapMeshes();
@@ -1959,7 +1988,7 @@ function resolveShot(px, py, ang, dmg, shooter, authoritative, chainShock, booms
     } else if(bestKind === 'player'){
       damageOtherPlayer(best, dmg, shooter);
     } else if(wallRay.tile === WALL.BUILDING){
-      damageBuildingCell(wallRay.mapX, wallRay.mapY, dmg);
+      damageBuildingCell(wallRay.mapX, wallRay.mapY, dmg, px, py);
     }
     if(boomshot) boomshotExplosion(hitX, hitY, dmg, bestKind === 'enemy' ? best : null, shooter);
   }
