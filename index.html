@@ -1599,19 +1599,23 @@ function spawnZapFX(x1, y1, x2, y2){
 // vanishing. `geometry` is rebuilt fresh per call (never a shared
 // InstancedMesh geometry) so disposing/reparenting it can't affect any
 // other still-standing wall.
-function spawnDebrisFX(geometry, material, footX, footY, meshY){
+function spawnDebrisFX(geometry, material, footX, footY, meshY, preferredDir){
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.y = meshY;
   const group = new THREE.Group();
   group.position.set(footX, 0, footY);
   group.add(mesh);
   scene.add(group);
-  const primaryAxis = Math.random() < 0.5 ? 'x' : 'z';
+  // Topple toward the gap it just opened up, not at random — a random pick
+  // sends it into a neighboring wall about half the time, burying a tall
+  // BUILD_H-scale piece inside solid geometry where it's never seen again.
+  const primaryAxis = preferredDir ? preferredDir.axis : (Math.random() < 0.5 ? 'x' : 'z');
+  const primaryDir = preferredDir ? preferredDir.dir : (Math.random()<0.5?1:-1);
   const secondaryAxis = primaryAxis === 'x' ? 'z' : 'x';
   activeFX.push({
     mesh:group, innerMesh:mesh, age:0, life:rand(0.85,0.6), kind:'debris',
     primaryAxis, secondaryAxis,
-    primaryAngle: (Math.random()<0.5?1:-1) * rand(1.55,1.15),   // ~65-90°, never a clean 90
+    primaryAngle: primaryDir * rand(1.55,1.15),                 // ~65-90°, never a clean 90
     secondaryAngle: (Math.random()<0.5?1:-1) * rand(0.5,0.15),  // wobble on the other axis — the "uneven" part
     driftX: rand(0.4,-0.4), driftZ: rand(0.4,-0.4),
   });
@@ -1853,9 +1857,19 @@ function crushNearby(cx, cy, radius){
     if(dmg > 0) damageEnemy(e, dmg, player);
   }
 }
+// Which way is actually open, so the topple falls into the gap it just made
+// instead of into a neighboring wall (verified against real rotation math:
+// rotating 'z' tips the top toward -X/+X, rotating 'x' tips it toward +Z/-Z).
+function fallDirFor(cx, cy){
+  if(!solid(cx+1, cy)) return {axis:'z', dir:-1};
+  if(!solid(cx-1, cy)) return {axis:'z', dir:1};
+  if(!solid(cx, cy+1)) return {axis:'x', dir:1};
+  if(!solid(cx, cy-1)) return {axis:'x', dir:-1};
+  return null;   // fully enclosed by other solid cells — no good direction, fall randomly
+}
 function spawnBuildingDebris(cx, cy){
   const debrisMat = wallMats[WALL.BUILDING].clone(); debrisMat.transparent = true;
-  spawnDebrisFX(new THREE.BoxGeometry(1, BUILD_H, 1), debrisMat, cx+0.5, cy+0.5, BUILD_H/2);
+  spawnDebrisFX(new THREE.BoxGeometry(1, BUILD_H, 1), debrisMat, cx+0.5, cy+0.5, BUILD_H/2, fallDirFor(cx, cy));
 }
 function spawnRampDebris(ramp){
   const footX = ramp.x + ramp.w/2, footY = ramp.y + ramp.h/2;
@@ -1877,7 +1891,7 @@ function damageBuildingCell(cx, cy, dmg){
   flowFields.clear();
   spawnExplosionFX(cx+0.5, cy+0.5, 1.6);
   spawnBuildingDebris(cx, cy);
-  crushNearby(cx+0.5, cy+0.5, 1.3);
+  crushNearby(cx+0.5, cy+0.5, 2.2);
   Sound.kill();
   rebuildMapMeshes();
 }
@@ -1905,7 +1919,7 @@ function damageRamp(ramp, x, y, dmg){
   if(idx >= 0) destroyedRampIdx.push(idx);
   Sound.kill();
   spawnRampDebris(ramp);
-  crushNearby(ramp.x + ramp.w/2, ramp.y + ramp.h/2, Math.max(ramp.w, ramp.h)/2 + 0.6);
+  crushNearby(ramp.x + ramp.w/2, ramp.y + ramp.h/2, Math.max(ramp.w, ramp.h)/2 + 1.2);
   rebuildMapMeshes();
 }
 
