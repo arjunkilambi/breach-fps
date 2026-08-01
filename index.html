@@ -138,11 +138,6 @@
   #buffs .buff{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;
     font-size:11px;letter-spacing:.08em;display:flex;align-items:center;gap:6px;animation:pop .18s ease-out}
   #buffs .buff b{font-weight:800}
-  #buffs .buff.speed{color:#8ef5c0}
-  #buffs .buff.damage{color:#ff9a6a}
-  #buffs .buff.rapid{color:#ffe27a}
-  #buffs .buff.shield{color:#7dd8ff}
-  #buffs .buff.fling{color:#c9a8ff}
 
   /* ---------- scoreboard ---------- */
   #scoreboard{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
@@ -379,7 +374,6 @@
     <b>Space</b><span>Jump</span>
     <b>R</b><span>Reload</span>
     <b>1-6 / Q</b><span>Switch weapon</span>
-    <b>F</b><span>Shove (Slingshot buff)</span>
     <b>H</b><span>Use medkit</span>
     <b>Tab</b><span>Scoreboard</span>
     <b>Esc</b><span>Pause / release cursor</span>
@@ -478,8 +472,8 @@ const SPAWNS_1  = [[6.5,5.5],[25.5,5.5],[6.5,18.5],[25.5,18.5],[16.5,12.5],
                  [16.5,2.5],[2.5,12.5],[29.5,12.5],[16.5,21.5]];
 const PICKUPS_1 = [[4.5,4.5,'health'],[27.5,4.5,'ammo'],[4.5,19.5,'ammo'],
                  [27.5,19.5,'health'],[16.5,12.5,'medkit'],[16.5,6.5,'health'],
-                 [14.5,4.5,'speed'],[18.5,19.5,'damage'],[8.5,13.5,'rapid'],[23.5,13.5,'shield'],
-                 [16.5,9.5,'fling']];
+                 [14.5,4.5,'overdrive'],[18.5,19.5,'boomshot'],[8.5,13.5,'titanshield'],[23.5,13.5,'phantom'],
+                 [16.5,9.5,'moonboots']];
 // ramp-up decks between the bunkers, clear of the central building
 const RAMPS_1 = [
   {x:15,y:1,w:3,h:2.5,axis:'y',dir:1,rampSpan:1.5,height:0.9},
@@ -504,8 +498,8 @@ function buildMap2(){
 const SPAWNS_2 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_2 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
-                    [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[9.5,9.5,'fling']];
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'frenzy'],
+                    [30.5,13.5,'bullettime'],[12.5,18.5,'chainshock'],[17.5,1.5,'drone'],[9.5,9.5,'chaoscore']];
 // a ramp up to the keep's west doorway, in the ring corridor
 const RAMPS_2 = [{x:5,y:9,w:4,h:3,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 
@@ -527,8 +521,8 @@ function buildMap3(){
 const SPAWNS_3 = [[1.5,22.5],[30.5,1.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,19.5],[10.5,10.5]];
 const PICKUPS_3 = [[1.5,22.5,'health'],[30.5,1.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
-                    [30.5,13.5,'damage'],[12.5,19.5,'rapid'],[10.5,10.5,'shield'],[17.5,1.5,'fling']];
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'overdrive'],
+                    [30.5,13.5,'boomshot'],[12.5,19.5,'titanshield'],[10.5,10.5,'phantom'],[17.5,1.5,'moonboots']];
 // a raised deck in the open corner past the last partition row
 const RAMPS_3 = [{x:20,y:19,w:5,h:3.5,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 
@@ -548,8 +542,8 @@ function buildMap4(){
 const SPAWNS_4 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_4 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
-                    [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,9.5,'fling']];
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'frenzy'],
+                    [30.5,13.5,'bullettime'],[12.5,18.5,'chainshock'],[17.5,1.5,'drone'],[10.5,9.5,'chaoscore']];
 // raised decks near the tower, in the open quadrants beside it
 const RAMPS_4 = [
   {x:9,y:3,w:4,h:4,axis:'x',dir:1,rampSpan:2,height:0.9},
@@ -575,8 +569,8 @@ function buildMap5(){
 const SPAWNS_5 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[12.5,14.5],
                    [1.5,10.5],[23.5,10.5],[18.5,1.5],[30.5,16.5]];
 const PICKUPS_5 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[12.5,14.5,'medkit'],[1.5,10.5,'speed'],
-                    [23.5,10.5,'damage'],[18.5,1.5,'rapid'],[30.5,16.5,'shield'],[10.5,22.5,'fling']];
+                    [23.5,22.5,'ammo'],[12.5,14.5,'medkit'],[1.5,10.5,'overdrive'],
+                    [23.5,10.5,'boomshot'],[18.5,1.5,'titanshield'],[30.5,16.5,'phantom'],[10.5,22.5,'moonboots']];
 // ramps up in the side aisles, on either end of the cross-corridor
 const RAMPS_5 = [
   {x:10,y:4,w:3,h:4,axis:'y',dir:1,rampSpan:2,height:0.8},
@@ -597,8 +591,8 @@ function buildMap6(){
 const SPAWNS_6 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_6 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
-                    [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,10.5,'fling']];
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'frenzy'],
+                    [30.5,13.5,'bullettime'],[12.5,18.5,'chainshock'],[17.5,1.5,'drone'],[10.5,10.5,'chaoscore']];
 // a small step up just above the central cover block
 const RAMPS_6 = [{x:14,y:8,w:3,h:1.8,axis:'y',dir:1,rampSpan:1,height:0.7}];
 
@@ -616,8 +610,8 @@ function buildMap7(){
 const SPAWNS_7 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_7 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'speed'],
-                    [30.5,13.5,'damage'],[12.5,18.5,'rapid'],[17.5,1.5,'shield'],[10.5,9.5,'fling']];
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'overdrive'],
+                    [30.5,13.5,'boomshot'],[12.5,18.5,'titanshield'],[17.5,1.5,'phantom'],[10.5,9.5,'moonboots']];
 // a ramp up in the west ring corridor, between the corner covers
 const RAMPS_7 = [{x:3,y:8,w:4,h:6,axis:'x',dir:1,rampSpan:3,height:0.9}];
 
@@ -639,8 +633,8 @@ function buildMap8(){
 const SPAWNS_8 = [[2.5,2.5],[57.5,2.5],[2.5,41.5],[57.5,41.5],[29.5,21.5],
                    [20.5,2.5],[39.5,41.5],[6.5,21.5],[53.5,21.5]];
 const PICKUPS_8 = [[2.5,2.5,'health'],[57.5,2.5,'ammo'],[2.5,41.5,'ammo'],
-                    [57.5,41.5,'health'],[29.5,21.5,'medkit'],[20.5,8.5,'speed'],
-                    [39.5,34.5,'damage'],[20.5,34.5,'rapid'],[39.5,8.5,'shield'],[29.5,29.5,'fling']];
+                    [57.5,41.5,'health'],[29.5,21.5,'medkit'],[20.5,8.5,'frenzy'],
+                    [39.5,34.5,'bullettime'],[20.5,34.5,'chainshock'],[39.5,8.5,'drone'],[29.5,29.5,'chaoscore']];
 // a raised dune deck in the open wasteland, clear of the compounds and ruin
 const RAMPS_8 = [
   {x:8,y:18,w:6,h:6,axis:'x',dir:1,rampSpan:3,height:1.2},
@@ -666,7 +660,8 @@ function buildMap9(){
   }
 }
 // spawns/pickups sit at street intersections between the city blocks, spread across the whole grid
-const SKYLINE_KINDS = ['health','ammo','medkit','speed','damage','rapid','shield','fling'];
+const SKYLINE_KINDS = ['health','ammo','medkit','overdrive','boomshot','titanshield','phantom',
+                       'moonboots','frenzy','bullettime','chainshock','drone','chaoscore'];
 const SPAWNS_9 = [], PICKUPS_9 = [];
 for(let by=0; by<=SKYLINE_ROWS; by+=2){
   for(let bx=0; bx<=SKYLINE_COLS; bx+=2){
@@ -782,15 +777,22 @@ function renderMapThumbnail(m){
 const MAP_THUMBS = MAPS.map(renderMapThumbnail);
 
 /* -------------------------------- power-ups ------------------------------- */
-const BUFF_DUR  = { speed:14, damage:12, rapid:12, shield:10, fling:16 };
+const BUFF_DUR  = { overdrive:12, boomshot:10, titanshield:20, phantom:15, moonboots:15,
+                    frenzy:10, bullettime:6, chainshock:12, drone:20, chaoscore:20 };
 const BUFF_META = {
-  speed : { label:'Overdrive',  color:'#8ef5c0' },
-  damage: { label:'Overcharge', color:'#ff9a6a' },
-  rapid : { label:'Frenzy',     color:'#ffe27a' },
-  shield: { label:'Aegis',      color:'#7dd8ff' },
-  fling : { label:'Slingshot',  color:'#c9a8ff' },
+  overdrive:   { label:'Overdrive',    color:'#ffe27a', icon:'⚡' },
+  boomshot:    { label:'Boomshot',     color:'#ff9a4a', icon:'💥' },
+  titanshield: { label:'Titan Shield', color:'#7dd8ff', icon:'🛡️' },
+  phantom:     { label:'Phantom',      color:'#c9a8ff', icon:'👻' },
+  moonboots:   { label:'Moon Boots',   color:'#8ef5c0', icon:'🦘' },
+  frenzy:      { label:'Frenzy',       color:'#ff5c5c', icon:'⚔️' },
+  bullettime:  { label:'Bullet Time',  color:'#cfe8ff', icon:'⏳' },
+  chainshock:  { label:'Chain Shock',  color:'#5ce1ff', icon:'⚡' },
+  drone:       { label:'Combat Drone', color:'#ffb0e0', icon:'🤖' },
+  chaoscore:   { label:'Chaos Core',   color:'#ffd700', icon:'👑' },
 };
-function freshBuffs(){ return { speed:0, damage:0, rapid:0, shield:0, fling:0 }; }
+const BUFF_KEYS = Object.keys(BUFF_META);
+function freshBuffs(){ const b = {}; for(const k of BUFF_KEYS) b[k] = 0; return b; }
 
 /* ------------------------------- textures -------------------------------- */
 const TS = 64;                                  // texture size
@@ -1023,8 +1025,9 @@ const player = {
   bob:0, kick:0, flash:0, hurt:0, weapon:'pistol',
   reloading:0, cooldown:0, stepTimer:0,
   buffs: freshBuffs(), kills:0, deaths:0, name:'You', skin:0, id:'me',
-  vx:0, vy:0, shoveCooldown:0, z:0, vz:0,
+  vx:0, vy:0, z:0, vz:0, jumpsUsed:0,
   shieldCharge:0, maxShieldCharge:0, shieldRegenRate:4,
+  titanShield:0, phantomRevealT:0, chaosSwitchT:0, chaosActiveKey:null,
   medkits:0,
 };
 const MEDKIT_BASE_CAP = 2, MEDKIT_BONUS_CAP = 2, MEDKIT_HEAL = 50;
@@ -1472,12 +1475,8 @@ function syncPlayerMeshes(dt){
 /* ---- pickups (static per-map pool, just toggled/animated) + bolts -------- */
 const pickupGeo = new THREE.OctahedronGeometry(0.17, 0);
 function pickupMat(color){ return new THREE.MeshStandardMaterial({ color, emissive:color, emissiveIntensity:0.65, roughness:0.35 }); }
-const pickupMats = {
-  health: pickupMat('#ff5a5a'), ammo: pickupMat('#ffd479'), medkit: pickupMat('#f2f6ff'),
-  speed: pickupMat(BUFF_META.speed.color), damage: pickupMat(BUFF_META.damage.color),
-  rapid: pickupMat(BUFF_META.rapid.color), shield: pickupMat(BUFF_META.shield.color),
-  fling: pickupMat(BUFF_META.fling.color),
-};
+const pickupMats = { health: pickupMat('#ff5a5a'), ammo: pickupMat('#ffd479'), medkit: pickupMat('#f2f6ff') };
+for(const k of BUFF_KEYS) pickupMats[k] = pickupMat(BUFF_META[k].color);
 let pickupMeshes = [];
 function rebuildPickupMeshes(){
   for(const m of pickupMeshes) scene.remove(m);
@@ -1504,6 +1503,103 @@ function syncBoltMeshes(){
     const m = boltMeshPool[i];
     m.visible = i < bolts.length;
     if(m.visible) m.position.set(bolts[i].x, heightAt(bolts[i].x,bolts[i].y) + 0.55, bolts[i].y);
+  }
+}
+
+/* ---- transient power-up VFX: Boomshot explosions, Chain Shock zaps -------- */
+let activeFX = [];
+function spawnExplosionFX(x, y, radius){
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8),
+    new THREE.MeshBasicMaterial({ color:0xff9a4a, transparent:true, opacity:0.85 }));
+  mesh.position.set(x, heightAt(x,y) + 0.5, y);
+  scene.add(mesh);
+  activeFX.push({ mesh, age:0, life:0.32, maxScale: Math.max(1, radius*2.2) });
+}
+function spawnZapFX(x1, y1, x2, y2){
+  const geo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(x1, heightAt(x1,y1) + 0.5, y1),
+    new THREE.Vector3(x2, heightAt(x2,y2) + 0.5, y2),
+  ]);
+  const mesh = new THREE.Line(geo, new THREE.LineBasicMaterial({ color:0x5ce1ff, transparent:true, opacity:0.9 }));
+  scene.add(mesh);
+  activeFX.push({ mesh, age:0, life:0.18, maxScale:1 });
+}
+function updateFX(dt){
+  for(let i=activeFX.length-1; i>=0; i--){
+    const f = activeFX[i]; f.age += dt;
+    const t = clamp(f.age/f.life, 0, 1);
+    if(f.mesh.geometry.type === 'SphereGeometry') f.mesh.scale.setScalar(1 + t*(f.maxScale-1));
+    f.mesh.material.opacity = 0.9 * (1-t);
+    if(t >= 1){ scene.remove(f.mesh); f.mesh.geometry.dispose(); f.mesh.material.dispose(); activeFX.splice(i,1); }
+  }
+}
+
+/* ---- Combat Drone: a local companion that orbits the player and shoots
+   whatever's nearest — cosmetic-only on network clients (only host/solo deal
+   real damage, same authority rule as every other hit in this file). ------- */
+let droneMesh = null;
+function spawnDrone(){
+  if(!droneMesh){
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8),
+      new THREE.MeshStandardMaterial({ color:0xffb0e0, emissive:0xffb0e0, emissiveIntensity:0.6 }));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.02, 6, 16),
+      new THREE.MeshBasicMaterial({ color:0xffe0f5 }));
+    ring.rotation.x = Math.PI/2;
+    droneMesh = new THREE.Group();
+    droneMesh.add(body, ring);
+    scene.add(droneMesh);
+  }
+  droneMesh.visible = true;
+  player.droneAngle = 0; player.droneCool = 0;
+}
+function removeDrone(){
+  if(droneMesh) droneMesh.visible = false;
+}
+// Chaos Core: becomes a random other power-up, re-rolling every 5s, until its
+// own 20s runs out — reuses grantBuff/revokeBuffEffect so pool-based buffs
+// (Titan Shield, Combat Drone) get set up and torn down correctly each roll.
+function revokeBuffEffect(key){
+  player.buffs[key] = 0;
+  if(key === 'titanshield') player.titanShield = 0;
+  else if(key === 'drone') removeDrone();
+}
+function updateChaosCore(dt){
+  if(player.buffs.chaoscore <= 0){
+    if(player.chaosActiveKey){ revokeBuffEffect(player.chaosActiveKey); player.chaosActiveKey = null; }
+    return;
+  }
+  player.chaosSwitchT -= dt;
+  if(player.chaosSwitchT <= 0 || !player.chaosActiveKey){
+    if(player.chaosActiveKey) revokeBuffEffect(player.chaosActiveKey);
+    const pool = BUFF_KEYS.filter(k => k !== 'chaoscore');
+    const next = pool[(Math.random()*pool.length)|0];
+    player.chaosActiveKey = next;
+    player.chaosSwitchT = 5;
+    grantBuff(player, next);
+  }
+}
+function updateDrone(dt){
+  if(!droneMesh || !droneMesh.visible) return;
+  if(player.buffs.drone <= 0){ removeDrone(); return; }
+  player.droneAngle = (player.droneAngle||0) + dt*1.6;
+  const orbitR = 0.9;
+  const dx = player.x + Math.cos(player.droneAngle)*orbitR;
+  const dy = player.y + Math.sin(player.droneAngle)*orbitR;
+  droneMesh.position.set(dx, heightAt(dx,dy) + EYE_H + player.z + 0.35, dy);
+  if(netMode === 'client') return;   // host/solo only: real damage stays authoritative
+  player.droneCool = (player.droneCool||0) - dt;
+  if(player.droneCool <= 0){
+    let best = null, bd = 8;
+    for(const e of enemies){
+      if(e.dead) continue;
+      const d = Math.hypot(e.x-dx, e.y-dy);
+      if(d < bd && lineOfSight(dx, dy, e.x, e.y)){ best = e; bd = d; }
+    }
+    if(best){
+      player.droneCool = 0.55;
+      spawnZapFX(dx, dy, best.x, best.y);
+      damageEnemy(best, 8, player);
+    }
   }
 }
 
@@ -1550,17 +1646,41 @@ function render3D(dt){
   syncPlayerMeshes(dt);
   syncPickupMeshes();
   syncBoltMeshes();
+  updateFX(dt);
   updateWeaponView();
 
   renderer.render(scene, camera);
 }
 
 /* --------------------------------- combat -------------------------------- */
+function chainShockZap(x, y, dmg, excludeEnemy, shooter){
+  let hits = 0;
+  for(const e of enemies){
+    if(e.dead || e === excludeEnemy || hits >= 3) continue;
+    if(Math.hypot(e.x-x, e.y-y) > 3.2) continue;
+    spawnZapFX(x, y, e.x, e.y);
+    damageEnemy(e, dmg, shooter);
+    hits++;
+  }
+}
+function boomshotExplosion(x, y, dmg, excludeEnemy, shooter){
+  spawnExplosionFX(x, y, 1.8);
+  for(const e of enemies){
+    if(e.dead || e === excludeEnemy) continue;
+    const d = Math.hypot(e.x-x, e.y-y);
+    if(d > 1.8) continue;
+    damageEnemy(e, Math.round(dmg*0.6*(1 - d/1.8)), shooter);
+    applyFling(e, x, y, 5);
+  }
+}
+
 // Traces one shot from (px,py) along `ang` against enemies (always) and, in
 // deathmatch, every other living player. `authoritative` performs the actual
 // damage; otherwise it only reports what WOULD be hit (used for a client's
-// optimistic hit-marker while the host resolves the real outcome).
-function resolveShot(px, py, ang, dmg, shooter, authoritative, fling){
+// optimistic hit-marker while the host resolves the real outcome). Always
+// returns the impact point (even a bare wall hit) so on-hit power-ups like
+// Boomshot can trigger regardless of what — if anything — was actually hit.
+function resolveShot(px, py, ang, dmg, shooter, authoritative, chainShock, boomshot){
   const dx = Math.cos(ang), dy = Math.sin(ang);
   const wallHit = castRay(px, py, dx, dy, VIEW*1.4).dist;
   let best = null, bestT = wallHit, bestKind = null;
@@ -1572,7 +1692,7 @@ function resolveShot(px, py, ang, dmg, shooter, authoritative, fling){
     const perp = Math.hypot(ex - dx*t, ey - dy*t);
     if(perp <= e.type.radius + 0.05){ best = e; bestT = t; bestKind = 'enemy'; }
   }
-  if(MODE === 'deathmatch' || fling){
+  if(MODE === 'deathmatch'){
     for(const op of allPlayers()){
       if(op === shooter || !op.alive) continue;
       const ex = op.x-px, ey = op.y-py;
@@ -1582,38 +1702,45 @@ function resolveShot(px, py, ang, dmg, shooter, authoritative, fling){
       if(perp <= 0.38){ best = op; bestT = t; bestKind = 'player'; }
     }
   }
-  if(!best) return null;
+  const hitX = px + dx*bestT, hitY = py + dy*bestT;
   if(authoritative){
-    if(fling) applyFling(best, px, py, 9);
-    else if(bestKind === 'enemy') damageEnemy(best, dmg, shooter);
-    else damageOtherPlayer(best, dmg, shooter);
+    if(bestKind === 'enemy'){
+      damageEnemy(best, dmg, shooter);
+      if(chainShock) chainShockZap(hitX, hitY, Math.round(dmg*0.5), best, shooter);
+    } else if(bestKind === 'player'){
+      damageOtherPlayer(best, dmg, shooter);
+    }
+    if(boomshot) boomshotExplosion(hitX, hitY, dmg, bestKind === 'enemy' ? best : null, shooter);
   }
-  return bestKind;
+  return { kind: bestKind, x: hitX, y: hitY };
 }
 
 function fire(){
   const w = WEAPONS[player.weapon];
   if(player.reloading > 0 || player.cooldown > 0) return;
-  if(w.ammo <= 0){ Sound.dry(); player.cooldown = .25; tryReload(); return; }
+  const frenzy = player.buffs.frenzy > 0;
+  if(!frenzy && w.ammo <= 0){ Sound.dry(); player.cooldown = .25; tryReload(); return; }
 
-  w.ammo--;
-  player.cooldown = player.buffs.rapid > 0 ? Math.min(w.rof, 0.045) : w.rof;
+  if(!frenzy) w.ammo--;
+  player.cooldown = frenzy ? Math.min(w.rof, 0.045) : w.rof;
   player.kick = Math.min(player.kick + w.kick, 16);
   player.flash = 1;
+  if(player.buffs.phantom > 0) player.phantomRevealT = 0.6;   // attacking briefly reveals a Phantom
   Sound.shoot(w.heavy);
 
   const spread = w.spread * (1 + player.kick*0.06);
-  const dmg = w.dmg * (player.buffs.damage > 0 ? 2 : 1);
-  const flinging = player.buffs.fling > 0;
+  const dmg = w.dmg;
+  const chainShock = player.buffs.chainshock > 0;
+  const boomshot = player.buffs.boomshot > 0;
   const authoritative = netMode !== 'client';
   const pellets = w.pellets || 1;
 
   let anyHit = false;
   for(let i=0;i<pellets;i++){
     const ang = player.a + rand(spread,-spread);
-    const hitKind = resolveShot(player.x, player.y, ang, dmg, player, authoritative, flinging);
-    if(hitKind) anyHit = true;
-    if(!authoritative) Net.send({ type:'shot', a: ang, dmg, fling: flinging });
+    const result = resolveShot(player.x, player.y, ang, dmg, player, authoritative, chainShock, boomshot);
+    if(result.kind) anyHit = true;
+    if(!authoritative) Net.send({ type:'shot', a: ang, dmg, chainShock, boomshot });
   }
   if(anyHit) hitMarker();
 
@@ -1649,7 +1776,13 @@ function damageEnemy(e, dmg, shooter){
 
 function damagePlayer(dmg, shooter){
   if(!player.alive) return;
-  if(player.buffs.shield > 0){ Net.emit({ kind:'shieldblock', targetId: player.id }); return; }
+  if(player.titanShield > 0){
+    const absorbed = Math.min(player.titanShield, dmg);
+    player.titanShield -= absorbed;
+    dmg -= absorbed;
+    if(player.titanShield <= 0) player.buffs.titanshield = 0;   // pool depleted — buff ends early
+    if(dmg <= 0){ Net.emit({ kind:'shieldblock', targetId: player.id }); updateHUD(); return; }
+  }
   if(player.shieldCharge > 0){
     const absorbed = Math.min(player.shieldCharge, dmg);
     player.shieldCharge -= absorbed;
@@ -1679,9 +1812,12 @@ function damagePlayer(dmg, shooter){
 function damageOtherPlayer(target, dmg, shooter){
   if(!target.alive) return;
   if(target === player){ damagePlayer(dmg, shooter); return; }
-  if(target.buffs && target.buffs.shield > 0){
-    Net.emit({ kind:'shieldblock', targetId: target.id });
-    return;
+  if(target.titanShield > 0){
+    const absorbed = Math.min(target.titanShield, dmg);
+    target.titanShield -= absorbed;
+    dmg -= absorbed;
+    if(target.titanShield <= 0 && target.buffs) target.buffs.titanshield = 0;
+    if(dmg <= 0){ Net.emit({ kind:'shieldblock', targetId: target.id }); return; }
   }
   target.hp = Math.max(0, target.hp - dmg);
   if(target.hp <= 0){
@@ -1712,9 +1848,11 @@ function allPlayers(){
 }
 
 function tryReload(){
+  if(player.buffs.frenzy > 0) return;   // Frenzy: infinite ammo, no reloads needed
   const w = WEAPONS[player.weapon];
   if(player.reloading > 0 || w.ammo >= w.mag || w.reserve <= 0) return;
-  player.reloading = w.reload * (account.ownedUpgrades.has('reload') ? 0.85 : 1);
+  player.reloading = player.buffs.overdrive > 0 ? 0.05
+    : w.reload * (account.ownedUpgrades.has('reload') ? 0.85 : 1);
   Sound.reload();
 }
 function finishReload(){
@@ -1729,7 +1867,7 @@ function switchWeapon(name){
   if(name === player.weapon || player.reloading > 0) return;
   if(!account.ownedWeapons.has(name)) return;
   player.weapon = name;
-  player.cooldown = Math.max(player.cooldown, 0.25);
+  player.cooldown = Math.max(player.cooldown, player.buffs.overdrive > 0 ? 0.05 : 0.25);
   Sound.reload();
   if(!WEAPONS[name].zoom) setZoom(false);
   updateHUD();
@@ -1814,41 +1952,14 @@ function applyFling(ent, fromX, fromY, force){
   ent.flungAt = now;
   if(ent.buffs) Net.emit({ kind:'fling', targetId: ent.id, vx: ent.vx, vy: ent.vy });
 }
-// Melee-range shove: nearest living target within `range`, roughly in front.
-function resolveFling(px, py, dirX, dirY, range, force, shooter, authoritative){
-  let best = null, bestD = range;
-  for(const e of enemies){
-    if(e.dead) continue;
-    const d = Math.hypot(e.x-px, e.y-py);
-    if(d >= bestD) continue;
-    const fx = (e.x-px)/(d||1), fy = (e.y-py)/(d||1);
-    if(fx*dirX + fy*dirY > 0.3){ best = e; bestD = d; }
-  }
-  for(const op of allPlayers()){
-    if(op === shooter || !op.alive) continue;
-    const d = Math.hypot(op.x-px, op.y-py);
-    if(d >= bestD) continue;
-    const fx = (op.x-px)/(d||1), fy = (op.y-py)/(d||1);
-    if(fx*dirX + fy*dirY > 0.3){ best = op; bestD = d; }
-  }
-  if(!best) return false;
-  if(authoritative) applyFling(best, px, py, force);
-  return true;
+// Phantom: invisible to AI while standing still; attacking briefly reveals you.
+function isStealthed(p){
+  return !!(p.buffs && p.buffs.phantom > 0 && !(p.phantomRevealT > 0) && !p.isMoving);
 }
-function attemptShove(){
-  if(!player.alive || player.buffs.fling <= 0 || player.shoveCooldown > 0) return;
-  player.shoveCooldown = 0.6;
-  const dirX = Math.cos(player.a), dirY = Math.sin(player.a);
-  if(netMode !== 'client'){
-    if(resolveFling(player.x, player.y, dirX, dirY, 1.5, 13, player, true)) Sound.shove();
-  } else {
-    Net.send({ type:'shove' });
-  }
-}
-
 function nearestLivingPlayer(e){
   let best = null, bd = Infinity;
   for(const p of livingPlayers()){
+    if(isStealthed(p)) continue;
     const d = (p.x-e.x)**2 + (p.y-e.y)**2;
     if(d < bd){ bd = d; best = p; }
   }
@@ -2035,10 +2146,18 @@ function applyPickup(pl, p){
   } else if(p.kind === 'ammo'){
     Net.emit({ kind:'ammo', targetId: pl.id, text:'+40 rifle ammo', color:'#ffd479' });
   } else {
-    pl.buffs[p.kind] = BUFF_DUR[p.kind];
-    Net.emit({ kind:'buff', targetId: pl.id, text:`${BUFF_META[p.kind].label} online`, color:BUFF_META[p.kind].color });
+    grantBuff(pl, p.kind);
   }
   if(isMe) updateHUD();
+}
+
+// Activates a power-up on `pl` — shared by real pickups and Chaos Core's cycling.
+function grantBuff(pl, kind){
+  pl.buffs[kind] = BUFF_DUR[kind];
+  if(kind === 'titanshield') pl.titanShield = 200;
+  else if(kind === 'drone' && pl === player) spawnDrone();
+  else if(kind === 'chaoscore'){ pl.chaosSwitchT = 5; pl.chaosActiveKey = null; }
+  Net.emit({ kind:'buff', targetId: pl.id, text:`${BUFF_META[kind].label} online`, color:BUFF_META[kind].color });
 }
 
 function useMedkit(){
@@ -2051,8 +2170,12 @@ function useMedkit(){
 }
 
 function tryJump(){
-  if(!player.alive || player.z > 0.001) return;
-  player.vz = JUMP_SPEED;
+  if(!player.alive) return;
+  const moonboots = player.buffs.moonboots > 0;
+  if(player.z <= 0.001) player.jumpsUsed = 0;
+  else if(!moonboots || player.jumpsUsed >= 2) return;   // no extra jump without Moon Boots
+  player.vz = JUMP_SPEED * (moonboots ? 1.35 : 1);
+  player.jumpsUsed++;
   Sound.step();
 }
 
@@ -2077,8 +2200,9 @@ function update(dt){
   }
 
   const mag = Math.hypot(fx,fy);
+  player.isMoving = mag > 0.001;
   const sprinting = keys['shift'] && mag > 0 && (keys['w'] || keys['arrowup']);
-  const speedBoost = player.buffs.speed > 0 ? 1.55 : 1;
+  const speedBoost = player.buffs.overdrive > 0 ? 1.5 : 1;
   if(mag > 0.001 && player.alive){
     const analogScale = (!keyboardActive && joyMag > 0.05) ? joyMag : 1;
     const sp = (sprinting ? player.sprint : player.speed) * speedBoost * analogScale * dt;
@@ -2094,17 +2218,19 @@ function update(dt){
 
   // ---------- jump (height above local ground/ramp — traversal only, no combat effect) ----------
   if(player.alive){
-    player.vz -= GRAVITY * dt;
+    const g = player.buffs.moonboots > 0 ? GRAVITY * 0.45 : GRAVITY;
+    player.vz -= g * dt;
     player.z = Math.max(0, player.z + player.vz * dt);
-    if(player.z <= 0) player.vz = 0;
+    if(player.z <= 0){ player.vz = 0; player.jumpsUsed = 0; }
   }
 
   // ---------- weapon ----------
   player.cooldown = Math.max(0, player.cooldown - dt);
   player.kick     = Math.max(0, player.kick - dt*46);
   player.flash    = Math.max(0, player.flash - dt*9);
-  player.shoveCooldown = Math.max(0, player.shoveCooldown - dt);
+  player.phantomRevealT = Math.max(0, (player.phantomRevealT||0) - dt);
   decayBuffs(player.buffs, dt);
+  if(player.buffs.titanshield <= 0) player.titanShield = 0;   // clear a leftover pool once the timer runs out
   if(player.maxShieldCharge > 0 && player.shieldCharge < player.maxShieldCharge){
     player.shieldCharge = Math.min(player.maxShieldCharge, player.shieldCharge + player.shieldRegenRate*dt);
   }
@@ -2118,11 +2244,17 @@ function update(dt){
   if(mouseDown && player.alive){
     if(WEAPONS[player.weapon].auto || !player.firedThisClick){ fire(); player.firedThisClick = true; }
   }
+  updateDrone(dt);
+  updateChaosCore(dt);
+
+  // Bullet Time: the world (hostiles + their projectiles) slows to a crawl —
+  // your own movement/shooting above already ran at full, real-time `dt`.
+  const worldDt = player.buffs.bullettime > 0 ? dt * 0.25 : dt;
 
   // ---------- enemies (host/solo simulate; clients just render the snapshot) ----------
   if(netMode !== 'client'){
-    if((flowTimer -= dt) <= 0){ flowTimer = 0.25; refreshFlowFields(); }
-    for(const e of enemies) updateEnemy(e, dt);
+    if((flowTimer -= worldDt) <= 0){ flowTimer = 0.25; refreshFlowFields(); }
+    for(const e of enemies) updateEnemy(e, worldDt);
     enemies = enemies.filter(e => !(e.dead && e.deadTime > 6));
   }
 
@@ -2131,7 +2263,7 @@ function update(dt){
     for(const b of bolts){
       const steps = 3;                                  // sub-step to avoid tunnelling
       for(let i=0;i<steps;i++){
-        b.x += b.dx*dt/steps; b.y += b.dy*dt/steps;
+        b.x += b.dx*worldDt/steps; b.y += b.dy*worldDt/steps;
         if(solid(b.x,b.y)){ b.life = 0; break; }
         let hitPlayer = false;
         for(const pl of livingPlayers()){
@@ -2139,7 +2271,7 @@ function update(dt){
         }
         if(hitPlayer){ b.life = 0; break; }
       }
-      b.life -= dt;
+      b.life -= worldDt;
     }
     bolts = bolts.filter(b => b.life > 0);
   }
@@ -2184,7 +2316,7 @@ function update(dt){
     player.hurt = Math.max(0, player.hurt - dt*2);
     vig.style.opacity = String(player.hurt * 0.85);
   }
-  vig.classList.toggle('shielded', player.buffs.shield > 0);
+  vig.classList.toggle('shielded', player.titanShield > 0);
 
   // ---------- multiplayer: apply local prediction/reconciliation + net tick ----------
   if(netMode !== 'solo') Net.tick(dt);
@@ -2365,13 +2497,15 @@ const Net = (() => {
     return {
       id, name, x:s[0], y:s[1], a:0, pitch:0, hp:100, alive:true, weapon:'pistol',
       kills:0, deaths:0, buffs:freshBuffs(), skin:(nextSkin++)%SKINS.length,
-      respawnAt:0, animPhase:0, input:{keys:{}}, lastShotAt:0, vx:0, vy:0, shoveCooldown:0,
+      respawnAt:0, animPhase:0, input:{keys:{}}, lastShotAt:0, vx:0, vy:0,
     };
   }
 
   function hostApplyMovement(dt){
     for(const st of otherPlayers.values()){
       decayBuffs(st.buffs, dt);
+      if(st.buffs.titanshield <= 0) st.titanShield = 0;
+      st.phantomRevealT = Math.max(0, (st.phantomRevealT||0) - dt);
       integrateKnockback(st, dt, 0.26);
       if(!st.alive) continue;
       const k = st.input.keys || {};
@@ -2380,8 +2514,9 @@ const Net = (() => {
       if(k.w){ fx+=dirX; fy+=dirY; } if(k.s){ fx-=dirX; fy-=dirY; }
       if(k.d){ fx+=rgtX; fy+=rgtY; } if(k.a){ fx-=rgtX; fy-=rgtY; }
       const mag = Math.hypot(fx,fy);
+      st.isMoving = mag > 0.001;
       if(mag > 0.001){
-        const boost = st.buffs.speed > 0 ? 1.55 : 1;
+        const boost = st.buffs.overdrive > 0 ? 1.5 : 1;
         const sprinting = k.shift && k.w;
         const sp = (sprinting ? player.sprint : player.speed) * boost * dt;
         moveEntity(st, (fx/mag)*sp, (fy/mag)*sp, 0.26);
@@ -2398,22 +2533,18 @@ const Net = (() => {
     } else if(msg.type === 'shot'){
       if(!st.alive) return;
       const w = WEAPONS[msg.weapon] || WEAPONS.pistol;
-      const minGap = Math.max(0.03, (st.buffs.rapid > 0 ? 0.045 : w.rof) * 0.6);
+      const minGap = Math.max(0.03, (st.buffs.frenzy > 0 ? 0.045 : w.rof) * 0.6);
       if(now - st.lastShotAt < minGap) return;
       st.lastShotAt = now;
-      resolveShot(st.x, st.y, msg.a, msg.dmg, st, true, msg.fling);
-    } else if(msg.type === 'shove'){
-      if(!st.alive || st.buffs.fling <= 0) return;
-      if(now - (st.lastShoveAt||0) < 0.5) return;
-      st.lastShoveAt = now;
-      const dirX = Math.cos(st.a), dirY = Math.sin(st.a);
-      resolveFling(st.x, st.y, dirX, dirY, 1.5, 13, st, true);
+      if(st.buffs.phantom > 0) st.phantomRevealT = 0.6;
+      resolveShot(st.x, st.y, msg.a, msg.dmg, st, true, msg.chainShock, msg.boomshot);
     }
   }
 
   function playerSnap(p){
     return { id:p.id, name:p.name, x:p.x, y:p.y, a:p.a, hp:p.hp, alive:p.alive, weapon:p.weapon,
-      kills:p.kills||0, deaths:p.deaths||0, buffs:p.buffs, skin:p.skin, animPhase:p.animPhase||0, z:p.z||0 };
+      kills:p.kills||0, deaths:p.deaths||0, buffs:p.buffs, skin:p.skin, animPhase:p.animPhase||0, z:p.z||0,
+      titanShield:p.titanShield||0 };
   }
   function buildSnapshot(){
     return {
@@ -2448,7 +2579,7 @@ const Net = (() => {
       if(!g){ g = { id:ps.id, x:ps.x, y:ps.y, skin:ps.skin }; otherPlayers.set(ps.id, g); }
       g.netX = ps.x; g.netY = ps.y; g.a = ps.a; g.hp = ps.hp; g.alive = ps.alive; g.weapon = ps.weapon;
       g.kills = ps.kills; g.deaths = ps.deaths; g.buffs = ps.buffs; g.name = ps.name; g.skin = ps.skin;
-      g.animPhase = ps.animPhase; g.z = ps.z||0;
+      g.animPhase = ps.animPhase; g.z = ps.z||0; g.titanShield = ps.titanShield||0;
     }
     for(const id of [...otherPlayers.keys()]) if(!seen.has(id)){ otherPlayers.delete(id); dropVoicePeer(id); }
     meshConnectAll();
@@ -2772,9 +2903,9 @@ function renderScoreboard(){
 function updateBuffHud(){
   const c = el('buffs');
   let html = '';
-  for(const k of ['speed','damage','rapid','shield','fling']){
+  for(const k of BUFF_KEYS){
     const t = player.buffs[k];
-    if(t > 0) html += `<div class="buff ${k}"><b>${BUFF_META[k].label}</b><span>${t.toFixed(1)}s</span></div>`;
+    if(t > 0) html += `<div class="buff" style="color:${BUFF_META[k].color}"><b>${BUFF_META[k].icon} ${BUFF_META[k].label}</b><span>${t.toFixed(1)}s</span></div>`;
   }
   c.innerHTML = html;
 }
@@ -2832,7 +2963,6 @@ addEventListener('keydown', e => {
     if(owned.length > 1) switchWeapon(owned[(i+1) % owned.length]);
   }
   if(k === 'v' && netMode !== 'solo') Net.toggleVoice();
-  if(k === 'f') attemptShove();
   if(k === 'h') useMedkit();
   if(k === ' ') tryJump();
   if(['w','a','s','d',' ','arrowup','arrowleft','arrowdown','arrowright'].includes(k)) e.preventDefault();
@@ -3139,11 +3269,26 @@ const LEGEND = [
   { color:'#ff5a5a', name:'Integrity', desc:'Restores +35 Integrity (HP), up to 100.' },
   { color:'#ffd479', name:'Ammo',      desc:'+40 reserve ammo for your current weapon.' },
   { color:'#f2f6ff', name:'Medkit',    desc:'Carry a medkit — press H to heal on demand.' },
-  { color:BUFF_META.speed.color,  name:BUFF_META.speed.label  + ' (Speed)',  desc:`+55% move & sprint speed for ${BUFF_DUR.speed}s.` },
-  { color:BUFF_META.damage.color, name:BUFF_META.damage.label + ' (Damage)', desc:`2x weapon damage for ${BUFF_DUR.damage}s.` },
-  { color:BUFF_META.rapid.color,  name:BUFF_META.rapid.label  + ' (Fire rate)', desc:`Massively increased fire rate for ${BUFF_DUR.rapid}s.` },
-  { color:BUFF_META.shield.color, name:BUFF_META.shield.label + ' (Shield)', desc:`Full damage immunity for ${BUFF_DUR.shield}s.` },
-  { color:BUFF_META.fling.color,  name:BUFF_META.fling.label  + ' (Shove)',  desc:`Unlocks F — Shove, knocking enemies back, for ${BUFF_DUR.fling}s.` },
+  { color:BUFF_META.overdrive.color,   name:`${BUFF_META.overdrive.icon} ${BUFF_META.overdrive.label}`,
+    desc:`+50% movement speed, instant reloads, and faster weapon swap, for ${BUFF_DUR.overdrive}s.` },
+  { color:BUFF_META.boomshot.color,    name:`${BUFF_META.boomshot.icon} ${BUFF_META.boomshot.label}`,
+    desc:`Every bullet creates a small explosion on impact, for ${BUFF_DUR.boomshot}s.` },
+  { color:BUFF_META.titanshield.color, name:`${BUFF_META.titanshield.icon} ${BUFF_META.titanshield.label}`,
+    desc:`Gain 200 extra shield that absorbs damage, until destroyed or ${BUFF_DUR.titanshield}s.` },
+  { color:BUFF_META.phantom.color,     name:`${BUFF_META.phantom.icon} ${BUFF_META.phantom.label}`,
+    desc:`Become invisible while standing still; attacking briefly reveals you, for ${BUFF_DUR.phantom}s.` },
+  { color:BUFF_META.moonboots.color,   name:`${BUFF_META.moonboots.icon} ${BUFF_META.moonboots.label}`,
+    desc:`Double jump, higher jumps, and low gravity, for ${BUFF_DUR.moonboots}s.` },
+  { color:BUFF_META.frenzy.color,      name:`${BUFF_META.frenzy.icon} ${BUFF_META.frenzy.label}`,
+    desc:`Infinite ammo, faster fire rate, and no reloads, for ${BUFF_DUR.frenzy}s.` },
+  { color:BUFF_META.bullettime.color,  name:`${BUFF_META.bullettime.icon} ${BUFF_META.bullettime.label}`,
+    desc:`Time slows for everyone except you, for ${BUFF_DUR.bullettime}s.` },
+  { color:BUFF_META.chainshock.color,  name:`${BUFF_META.chainshock.icon} ${BUFF_META.chainshock.label}`,
+    desc:`Bullets zap nearby enemies, allowing multi-kills, for ${BUFF_DUR.chainshock}s.` },
+  { color:BUFF_META.drone.color,       name:`${BUFF_META.drone.icon} ${BUFF_META.drone.label}`,
+    desc:`A small drone follows you and shoots nearby enemies, for ${BUFF_DUR.drone}s.` },
+  { color:BUFF_META.chaoscore.color,   name:`${BUFF_META.chaoscore.icon} ${BUFF_META.chaoscore.label}`,
+    desc:`Changes to a random power-up every 5s until it expires, ${BUFF_DUR.chaoscore}s total.` },
 ];
 function renderLegend(){
   el('legendList').innerHTML = LEGEND.map(l => `<li class="legendRow">
@@ -3342,8 +3487,10 @@ function startGame(){
   player.x = spawn[0]; player.y = spawn[1]; player.a = -Math.PI/2; player.pitch = 0;
   player.hp = 100; player.alive = true; player.weapon = 'pistol';
   player.kick = 0; player.flash = 0; player.hurt = 0; player.reloading = 0; player.cooldown = 0;
-  player.vx = 0; player.vy = 0; player.shoveCooldown = 0; player.z = 0; player.vz = 0;
+  player.vx = 0; player.vy = 0; player.z = 0; player.vz = 0; player.jumpsUsed = 0;
   player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0; player.medkits = 0;
+  player.titanShield = 0; player.phantomRevealT = 0; player.chaosSwitchT = 0; player.chaosActiveKey = null;
+  removeDrone();
   for(const key in WEAPONS){ WEAPONS[key].ammo = WEAPONS[key].mag; WEAPONS[key].reserve = WEAPONS[key].maxReserve; }
   const shieldTier = account.ownedUpgrades.get('shield') || 0;
   player.maxShieldCharge = shieldTier * SHIELD_TIER_CHARGE;
