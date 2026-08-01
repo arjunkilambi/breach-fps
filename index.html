@@ -926,6 +926,8 @@ const TYPES = {
             colors:{ body:0x3d5570, trim:0x22303f, head:0x4a6482, eye:0x6fd8ff } },
   brute : { name:'Brute',  hp:170, speed:1.55, dmg:20, range:1.6,  cool:1.55, score:300, radius:.52, scale:1.02,
             colors:{ body:0x6b2f2f, trim:0x3a1a1a, head:0x7d3a3a, eye:0xff7a5c } },
+  boss  : { name:'Warlord', hp:520, speed:1.55, dmg:20, range:11, cool:1.1, score:1000, radius:.62, scale:1.55, ranged:true,
+            colors:{ body:0x6b1f6b, trim:0x371038, head:0x7d2a80, eye:0xff5cf0 } },
 };
 for(const k in TYPES) TYPES[k].key = k;   // lets a network snapshot reference a type by name
 
@@ -1994,8 +1996,17 @@ function nextWave(){
     const ok = !solid(jx, jy) && !solid(jx+.4,jy) && !solid(jx-.4,jy) && !solid(jx,jy+.4) && !solid(jx,jy-.4);
     spawnEnemy(type, ok ? jx : sx, ok ? jy : sy);   // never drop a hostile inside geometry
   }
+  // a boss shows up after each wave from wave 2 on, tougher every time
+  const hasBoss = wave >= 2;
+  if(hasBoss){
+    const boss = { ...TYPES.boss, hp: TYPES.boss.hp + (wave-2)*70, dmg: TYPES.boss.dmg + (wave-2)*1.5 };
+    const [bx,by] = pool[count % pool.length];
+    const jx = bx + rand(.7,-.7), jy = by + rand(.7,-.7);
+    const ok = !solid(jx, jy) && !solid(jx+.4,jy) && !solid(jx-.4,jy) && !solid(jx,jy+.4) && !solid(jx,jy-.4);
+    spawnEnemy(boss, ok ? jx : bx, ok ? jy : by);
+  }
   for(const p of pickups) if(Math.random() < .7) p.taken = false;
-  Net.emit({ kind:'wave', wave, count });
+  Net.emit({ kind:'wave', wave, count, hasBoss });
   updateHUD();
 }
 
@@ -2219,8 +2230,9 @@ function drawMinimap(){
   }
   for(const e of enemies){
     if(e.dead) continue;
-    mg.fillStyle = e.alert ? '#ff5a5a' : 'rgba(255,140,140,.5)';
-    mg.beginPath(); mg.arc(ox+e.x*cell, oy+e.y*cell, 2.2, 0, TAU); mg.fill();
+    const isBoss = e.type.key === 'boss';
+    mg.fillStyle = isBoss ? '#ff5cf0' : e.alert ? '#ff5a5a' : 'rgba(255,140,140,.5)';
+    mg.beginPath(); mg.arc(ox+e.x*cell, oy+e.y*cell, isBoss ? 3.6 : 2.2, 0, TAU); mg.fill();
   }
   if(netMode !== 'solo'){
     for(const op of otherPlayers.values()){
@@ -2319,7 +2331,7 @@ function handleNetEvent(evt){
       }
       break;
     case 'wave':
-      banner(`Wave ${evt.wave}`, `${evt.count} hostiles inbound`);
+      banner(`Wave ${evt.wave}`, evt.hasBoss ? `${evt.count} hostiles inbound — boss incoming` : `${evt.count} hostiles inbound`);
       Sound.wave();
       break;
     case 'gameover':
