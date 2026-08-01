@@ -73,6 +73,13 @@
     text-shadow:0 0 24px rgba(0,220,255,.55);opacity:0;transition:opacity .3s}
   #banner small{display:block;font-size:13px;letter-spacing:.3em;color:var(--dim);margin-top:6px;font-weight:600}
 
+  /* ---------- secret safe zone ---------- */
+  #safeZoneUI{position:absolute;left:50%;top:3%;transform:translateX(-50%);text-align:center;pointer-events:none}
+  #safeZoneTimer{font-size:12px;letter-spacing:.2em;color:var(--dim);font-weight:600;text-transform:uppercase}
+  #safeZoneLabel{font-size:22px;font-weight:800;letter-spacing:.15em;color:#8ef5ff;text-transform:uppercase;
+    text-shadow:0 0 20px rgba(120,230,255,.55);margin-top:2px}
+  #safeZoneLabel.danger{color:#ff5a5a;text-shadow:0 0 20px rgba(255,90,90,.6)}
+
   /* ---------- overlays ---------- */
   .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
     background:radial-gradient(900px 600px at 50% 40%,rgba(10,30,40,.9),rgba(2,5,7,.97));
@@ -209,6 +216,10 @@
   <div id="voiceBtn" class="hide">ENABLE VOICE <small>· V</small></div>
 
   <div id="banner"></div>
+  <div id="safeZoneUI" class="hide">
+    <div id="safeZoneTimer"></div>
+    <div id="safeZoneLabel">Safe Zone</div>
+  </div>
   <div id="buffs"></div>
 
   <div class="hudbar">
@@ -479,6 +490,8 @@ const RAMPS_1 = [
   {x:15,y:1,w:3,h:2.5,axis:'y',dir:1,rampSpan:1.5,height:0.9},
   {x:11,y:19,w:3,h:2.5,axis:'y',dir:-1,rampSpan:1.5,height:0.9},
 ];
+// a secret safe zone tucked in a quiet corner — no marker, just open floor
+const SAFEZONES_1 = [{x:1,y:11,w:2,h:2}];
 
 // 2 — Ring Circuit: symmetric nested rings around a cross-shaped core
 function buildMap2(){
@@ -502,6 +515,7 @@ const PICKUPS_2 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
                     [30.5,13.5,'bullettime'],[12.5,18.5,'chainshock'],[17.5,1.5,'drone'],[9.5,9.5,'chaoscore']];
 // a ramp up to the keep's west doorway, in the ring corridor
 const RAMPS_2 = [{x:5,y:9,w:4,h:3,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
+const SAFEZONES_2 = [{x:24,y:9,w:2,h:2}];
 
 // 3 — The Maze: three staggered wall partitions, wide gaps, tight cover stubs
 function buildMap3(){
@@ -525,6 +539,7 @@ const PICKUPS_3 = [[1.5,22.5,'health'],[30.5,1.5,'health'],[8.5,1.5,'ammo'],
                     [30.5,13.5,'boomshot'],[12.5,19.5,'titanshield'],[10.5,10.5,'phantom'],[17.5,1.5,'moonboots']];
 // a raised deck in the open corner past the last partition row
 const RAMPS_3 = [{x:20,y:19,w:5,h:3.5,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
+const SAFEZONES_3 = [{x:28,y:2,w:2,h:2}];
 
 // 4 — Open Plaza: large open floor, symmetric cover pairs, central metal ring
 function buildMap4(){
@@ -549,6 +564,7 @@ const RAMPS_4 = [
   {x:9,y:3,w:4,h:4,axis:'x',dir:1,rampSpan:2,height:0.9},
   {x:19,y:17,w:3.5,h:4,axis:'x',dir:-1,rampSpan:2,height:0.9},
 ];
+const SAFEZONES_4 = [{x:1,y:1,w:2,h:2}];
 
 // 5 — The Foundry: five parallel warehouse aisles with a cross-corridor
 function buildMap5(){
@@ -576,6 +592,7 @@ const RAMPS_5 = [
   {x:10,y:4,w:3,h:4,axis:'y',dir:1,rampSpan:2,height:0.8},
   {x:20,y:15,w:3,h:4,axis:'y',dir:-1,rampSpan:2,height:0.8},
 ];
+const SAFEZONES_5 = [{x:26,y:4,w:2,h:2}];
 
 // 6 — Crossfire: four asymmetric rooms opening onto a shared center
 function buildMap6(){
@@ -595,6 +612,7 @@ const PICKUPS_6 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
                     [30.5,13.5,'bullettime'],[12.5,18.5,'chainshock'],[17.5,1.5,'drone'],[10.5,10.5,'chaoscore']];
 // a small step up just above the central cover block
 const RAMPS_6 = [{x:14,y:8,w:3,h:1.8,axis:'y',dir:1,rampSpan:1,height:0.7}];
+const SAFEZONES_6 = [{x:14,y:3,w:3,h:3}];
 
 // 7 — The Pit: ring corridor around two symmetric inner chambers
 function buildMap7(){
@@ -614,6 +632,7 @@ const PICKUPS_7 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
                     [30.5,13.5,'boomshot'],[12.5,18.5,'titanshield'],[17.5,1.5,'phantom'],[10.5,9.5,'moonboots']];
 // a ramp up in the west ring corridor, between the corner covers
 const RAMPS_7 = [{x:3,y:8,w:4,h:6,axis:'x',dir:1,rampSpan:3,height:0.9}];
+const SAFEZONES_7 = [{x:1,y:1,w:2,h:2}];
 
 // 8 — The Wastes: a huge open wasteland, four corner compounds, central ruin
 const MAPW_8 = 60, MAPH_8 = 44;
@@ -640,6 +659,7 @@ const RAMPS_8 = [
   {x:8,y:18,w:6,h:6,axis:'x',dir:1,rampSpan:3,height:1.2},
   {x:46,y:18,w:6,h:6,axis:'x',dir:-1,rampSpan:3,height:1.2},
 ];
+const SAFEZONES_8 = [{x:30,y:2,w:3,h:3}];
 
 // 9 — Skyline: a city-block grid of buildings with streets between them
 const SKYLINE_COLS = 8, SKYLINE_ROWS = 6;         // way bigger than the original 5x4 grid
@@ -672,6 +692,7 @@ for(let by=0; by<=SKYLINE_ROWS; by+=2){
 }
 // a ramp up the narrow street between the first two blocks of row 0
 const RAMPS_9 = [{x:11,y:5,w:2.7,h:5,axis:'y',dir:1,rampSpan:3,height:0.9}];
+const SAFEZONES_9 = [{x:84,y:60,w:3,h:3}];
 
 /* ---- map scale-up: existing 32x24 layouts are block-expanded onto a much
    bigger grid (walls, spawns and pickups all scaled by the same integer
@@ -681,6 +702,8 @@ function scalePickups(arr, f){ return arr.map(([x,y,k]) => [x*f, y*f, k]); }
 // ramps/platforms: elevation footprints are grid-space (scale with the map),
 // the height itself is an absolute world height and stays fixed
 function scaleRamps(arr, f){ return arr.map(r => ({ ...r, x:r.x*f, y:r.y*f, w:r.w*f, h:r.h*f, rampSpan:r.rampSpan*f })); }
+// secret safe zones: unmarked floor regions, no new geometry — just scale the footprint
+function scaleSafeZones(arr, f){ return arr.map(z => ({ ...z, x:z.x*f, y:z.y*f, w:z.w*f, h:z.h*f })); }
 function buildScaledMap(baseBuild, baseW, baseH, factor){
   return function(){
     const smallGrid = new Uint8Array(baseW*baseH);
@@ -698,7 +721,7 @@ function buildScaledMap(baseBuild, baseW, baseH, factor){
     }
   };
 }
-function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ramps=[]){
+function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ramps=[], safeZones=[]){
   return {
     name, build: buildScaledMap(build, w0, h0, factor),
     w: w0*factor, h: h0*factor,
@@ -706,29 +729,32 @@ function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ram
     pickups: scalePickups(pickups, factor),
     start: [start[0]*factor, start[1]*factor],
     ramps: scaleRamps(ramps, factor),
+    safeZones: scaleSafeZones(safeZones, factor),
     large: factor > 1,
   };
 }
 const SCALE = 4;   // existing maps quadruple in size — 32x24 -> 128x96
 const MAPS = [
-  scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE, RAMPS_1),
-  scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE, RAMPS_2),
-  scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE, RAMPS_3),
-  scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE, RAMPS_4),
-  scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE, RAMPS_5),
-  scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE, RAMPS_6),
-  scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE, RAMPS_7),
-  { name:'The Wastes', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], ramps:RAMPS_8, large:true },
-  { name:'Skyline',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:RAMPS_9, large:true },
+  scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE, RAMPS_1, SAFEZONES_1),
+  scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE, RAMPS_2, SAFEZONES_2),
+  scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE, RAMPS_3, SAFEZONES_3),
+  scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE, RAMPS_4, SAFEZONES_4),
+  scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE, RAMPS_5, SAFEZONES_5),
+  scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE, RAMPS_6, SAFEZONES_6),
+  scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE, RAMPS_7, SAFEZONES_7),
+  { name:'The Wastes', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], ramps:RAMPS_8, safeZones:SAFEZONES_8, large:true },
+  { name:'Skyline',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:RAMPS_9, safeZones:SAFEZONES_9, large:true },
 ];
 let mapIndex = 0;
 let SPAWNS = MAPS[0].spawns, PICKUPS = MAPS[0].pickups, START = MAPS[0].start, RAMPS = MAPS[0].ramps || [];
+let SAFEZONES = MAPS[0].safeZones || [];
 function selectMap(idx){
   mapIndex = clamp(idx, 0, MAPS.length-1);
   const m = MAPS[mapIndex];
   MAPW = m.w; MAPH = m.h; grid = new Uint8Array(MAPW*MAPH);
   m.build();
   RAMPS = m.ramps || [];
+  SAFEZONES = m.safeZones || [];
   SPAWNS = m.spawns; PICKUPS = m.pickups; START = m.start;
 }
 selectMap(0);
@@ -1018,6 +1044,7 @@ for(const key in WEAPONS) WEAPONS[key].maxReserve = WEAPONS[key].reserve;
 
 const BASE_SPEED = 3.3, BASE_SPRINT = 5.1;
 const JUMP_SPEED = 3.4, GRAVITY = 11;   // player.z is height above local ground/ramp — purely visual/traversal, doesn't affect 2D collision or combat
+const SAFE_ZONE_GRACE = 15, SAFE_ZONE_DRAIN = 40;   // seconds safe, then HP/sec lost if you keep camping
 const SHIELD_TIER_CHARGE = 25, SHIELD_TIER_FAST_RECHARGE = 8, SHIELD_BASE_RECHARGE = 4;
 const player = {
   x:START[0], y:START[1], a:-Math.PI/2, pitch:0,
@@ -1027,7 +1054,7 @@ const player = {
   buffs: freshBuffs(), kills:0, deaths:0, name:'You', skin:0, id:'me',
   vx:0, vy:0, z:0, vz:0, jumpsUsed:0,
   shieldCharge:0, maxShieldCharge:0, shieldRegenRate:4,
-  titanShield:0, phantomRevealT:0, chaosSwitchT:0, chaosActiveKey:null,
+  titanShield:0, phantomRevealT:0, chaosSwitchT:0, chaosActiveKey:null, safeZoneT:0,
   medkits:0,
 };
 const MEDKIT_BASE_CAP = 2, MEDKIT_BONUS_CAP = 2, MEDKIT_HEAL = 50;
@@ -1776,6 +1803,7 @@ function damageEnemy(e, dmg, shooter){
 
 function damagePlayer(dmg, shooter){
   if(!player.alive) return;
+  if(player.inSafeZone && player.safeZoneT <= SAFE_ZONE_GRACE) return;   // untouchable while the zone is still safe
   if(player.titanShield > 0){
     const absorbed = Math.min(player.titanShield, dmg);
     player.titanShield -= absorbed;
@@ -2237,6 +2265,31 @@ function update(dt){
   if(account.ownedUpgrades.has('regen') && player.alive && player.hp > 0 && player.hp < 100){
     player.hp = Math.min(100, player.hp + dt);
   }
+
+  // ---------- secret safe zone: safe for SAFE_ZONE_GRACE, then it hurts to camp ----------
+  const zone = SAFEZONES.find(z => player.x >= z.x && player.x <= z.x+z.w && player.y >= z.y && player.y <= z.y+z.h);
+  player.inSafeZone = !!zone;
+  if(zone && player.alive){
+    const wasOverstaying = player.safeZoneT > SAFE_ZONE_GRACE;
+    player.safeZoneT += dt;
+    if(player.safeZoneT > SAFE_ZONE_GRACE){
+      if(!wasOverstaying) Sound.hurt();          // one cue right as the drain kicks in
+      player.hp -= SAFE_ZONE_DRAIN * dt;
+      player.hurt = Math.max(player.hurt, 0.5);
+      if(player.hp <= 0){
+        player.hp = 0; player.alive = false;
+        if(MODE === 'deathmatch'){
+          player.deaths = (player.deaths||0) + 1; player.respawnAt = now + 3;
+          Net.emit({ kind:'elim', victim: player.name, killer:'the safe zone', targetId: player.id });
+        }
+        die();
+      }
+      updateHUD();
+    }
+  } else {
+    player.safeZoneT = 0;
+  }
+  updateSafeZoneUI();
   if(player.reloading > 0){
     player.reloading -= dt;
     if(player.reloading <= 0){ player.reloading = 0; finishReload(); }
@@ -2909,6 +2962,19 @@ function updateBuffHud(){
   }
   c.innerHTML = html;
 }
+function updateSafeZoneUI(){
+  const box = el('safeZoneUI');
+  if(!player.inSafeZone || !player.alive){ box.classList.add('hide'); return; }
+  box.classList.remove('hide');
+  const timer = el('safeZoneTimer'), label = el('safeZoneLabel');
+  if(player.safeZoneT <= SAFE_ZONE_GRACE){
+    timer.textContent = `Safe for ${Math.ceil(SAFE_ZONE_GRACE - player.safeZoneT)}s`;
+    label.classList.remove('danger');
+  } else {
+    timer.textContent = 'Integrity draining!';
+    label.classList.add('danger');
+  }
+}
 function updateVoiceUI(){
   const b = el('voiceBtn');
   if(!b) return;
@@ -3490,6 +3556,7 @@ function startGame(){
   player.vx = 0; player.vy = 0; player.z = 0; player.vz = 0; player.jumpsUsed = 0;
   player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0; player.medkits = 0;
   player.titanShield = 0; player.phantomRevealT = 0; player.chaosSwitchT = 0; player.chaosActiveKey = null;
+  player.safeZoneT = 0; player.inSafeZone = false;
   removeDrone();
   for(const key in WEAPONS){ WEAPONS[key].ammo = WEAPONS[key].mag; WEAPONS[key].reserve = WEAPONS[key].maxReserve; }
   const shieldTier = account.ownedUpgrades.get('shield') || 0;
