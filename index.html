@@ -1575,7 +1575,7 @@ function spawnExplosionFX(x, y, radius){
     new THREE.MeshBasicMaterial({ color:0xff9a4a, transparent:true, opacity:0.85 }));
   mesh.position.set(x, heightAt(x,y) + 0.5, y);
   scene.add(mesh);
-  activeFX.push({ mesh, age:0, life:0.32, maxScale: Math.max(1, radius*2.2) });
+  activeFX.push({ mesh, age:0, life:0.32, kind:'explosion', maxScale: Math.max(1, radius*2.2) });
 }
 function spawnZapFX(x1, y1, x2, y2){
   const geo = new THREE.BufferGeometry().setFromPoints([
@@ -1584,15 +1584,42 @@ function spawnZapFX(x1, y1, x2, y2){
   ]);
   const mesh = new THREE.Line(geo, new THREE.LineBasicMaterial({ color:0x5ce1ff, transparent:true, opacity:0.9 }));
   scene.add(mesh);
-  activeFX.push({ mesh, age:0, life:0.18, maxScale:1 });
+  activeFX.push({ mesh, age:0, life:0.18, kind:'zap' });
+}
+// A destroyed wall/ramp topples over and sinks away instead of just vanishing.
+// `geometry` is rebuilt fresh per call (never a shared InstancedMesh geometry)
+// so disposing it here can't affect any other still-standing wall.
+function spawnDebrisFX(geometry, material, footX, footY, meshY){
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.y = meshY;
+  const group = new THREE.Group();
+  group.position.set(footX, 0, footY);
+  group.add(mesh);
+  scene.add(group);
+  const tipAxis = Math.random() < 0.5 ? 'x' : 'z';
+  const tipDir = Math.random() < 0.5 ? 1 : -1;
+  activeFX.push({ mesh:group, innerMesh:mesh, age:0, life:1.2, kind:'debris', tipAxis, tipDir });
 }
 function updateFX(dt){
   for(let i=activeFX.length-1; i>=0; i--){
     const f = activeFX[i]; f.age += dt;
     const t = clamp(f.age/f.life, 0, 1);
-    if(f.mesh.geometry.type === 'SphereGeometry') f.mesh.scale.setScalar(1 + t*(f.maxScale-1));
-    f.mesh.material.opacity = 0.9 * (1-t);
-    if(t >= 1){ scene.remove(f.mesh); f.mesh.geometry.dispose(); f.mesh.material.dispose(); activeFX.splice(i,1); }
+    if(f.kind === 'explosion'){
+      f.mesh.scale.setScalar(1 + t*(f.maxScale-1));
+      f.mesh.material.opacity = 0.9 * (1-t);
+    } else if(f.kind === 'zap'){
+      f.mesh.material.opacity = 0.9 * (1-t);
+    } else if(f.kind === 'debris'){
+      f.mesh.rotation[f.tipAxis] = f.tipDir * Math.min(1, t*1.7) * (Math.PI/2 - 0.1);
+      f.mesh.position.y = -Math.max(0, t-0.25) * 1.6;
+      f.innerMesh.material.opacity = t < 0.7 ? 1 : 1 - (t-0.7)/0.3;
+    }
+    if(t >= 1){
+      scene.remove(f.mesh);
+      if(f.kind === 'debris'){ f.innerMesh.geometry.dispose(); f.innerMesh.material.dispose(); }
+      else { f.mesh.geometry.dispose(); f.mesh.material.dispose(); }
+      activeFX.splice(i,1);
+    }
   }
 }
 
@@ -1804,6 +1831,8 @@ function damageBuildingCell(cx, cy, dmg){
   destroyedCells.push(key);
   flowFields.clear();
   spawnExplosionFX(cx+0.5, cy+0.5, 1.6);
+  const debrisMat = wallMats[WALL.BUILDING].clone(); debrisMat.transparent = true;
+  spawnDebrisFX(new THREE.BoxGeometry(1, BUILD_H, 1), debrisMat, cx+0.5, cy+0.5, BUILD_H/2);
   Sound.kill();
   rebuildMapMeshes();
 }
@@ -1830,6 +1859,11 @@ function damageRamp(ramp, x, y, dmg){
   const idx = RAMPS.indexOf(ramp);
   if(idx >= 0) destroyedRampIdx.push(idx);
   Sound.kill();
+  const footX = ramp.x + ramp.w/2, footY = ramp.y + ramp.h/2;
+  const debrisGeo = buildRampGeometry(ramp);
+  debrisGeo.translate(-footX, 0, -footY);
+  const debrisMat = rampMat.clone(); debrisMat.transparent = true;
+  spawnDebrisFX(debrisGeo, debrisMat, footX, footY, 0);
   rebuildMapMeshes();
 }
 
