@@ -2296,6 +2296,11 @@ function gcyl(r,h,mat,x,y,z,rx=0,ry=0,rz=0){
   m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
   return m;
 }
+function gsphere(r,mat,x,y,z){
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r,8,6), mat);
+  m.position.set(x,y,z);
+  return m;
+}
 function makeGunGroup(parts, flashPos){
   const g = new THREE.Group();
   g.add(...parts);
@@ -2304,78 +2309,132 @@ function makeGunGroup(parts, flashPos){
   g.visible = false;
   return g;
 }
+// Every model below is built to the real gun's actual layout, not just a
+// generic block silhouette: an AR-15 reads as an AR-15 because of its split
+// upper/lower receiver, buffer tube + stock, and charging handle; a Glock
+// reads as a Glock because of its slide/frame split and integrated trigger
+// guard; a bolt-action rifle needs its bolt handle; a pump shotgun needs a
+// visible tube magazine under the barrel. Getting those specific landmarks
+// right matters far more than part count.
 const WEAPON_MODELS = {
+  // Glock-style striker-fired pistol: slide over frame, raked grip, no hammer
   pistol: makeGunGroup([
-    gbox(0.045,0.045,0.22, gunSteel, 0, 0.02,-0.10),
-    gbox(0.07, 0.09, 0.16, gunDark,  0,-0.02, 0.04),
-    gbox(0.05, 0.13, 0.05, gunDark,  0,-0.13, 0.11, 0.25),
-    gbox(0.035,0.10, 0.045,gunSteel, 0,-0.15, 0.02, 0.08),
-    gbox(0.012,0.018,0.02, gunSight,  0, 0.05,-0.205),      // front sight post
-    gbox(0.05, 0.014,0.03, gunSight,  0, 0.052,0.005),      // rear sight notch
-    gbox(0.014,0.014,0.014,gunTritium,0, 0.054,-0.205),     // tritium dot
-    gbox(0.012,0.045,0.05, gunDark,   0,-0.055,0.145),      // trigger guard
-  ], new THREE.Vector3(0,0.02,-0.22)),
+    gbox(0.044,0.05, 0.20, gunSteel, 0, 0.038,-0.075),              // slide
+    gbox(0.05, 0.045,0.16, gunDark,  0,-0.005,-0.02),               // frame/dust cover
+    gcyl(0.013,0.03, gunSteel, 0, 0.038,-0.185, Math.PI/2),         // barrel/muzzle tip
+    gbox(0.043,0.13, 0.05, gunDark,  0,-0.10, 0.075, 0.22),         // grip, raked back
+    gbox(0.038,0.02, 0.045,gunSteel, 0,-0.165,0.075),               // magazine base pad
+    gbox(0.012,0.012,0.075,gunDark,  0,-0.048, 0.005),              // trigger guard, front bar
+    gbox(0.012,0.03, 0.012,gunDark,  0,-0.03,-0.03),                // trigger guard, riser
+    gbox(0.011,0.026,0.011,gunSteel, 0,-0.038,-0.005),              // trigger
+    gbox(0.045,0.05, 0.012,gunDark,  0, 0.038, 0.005),              // slide serration ridge
+    gbox(0.045,0.05, 0.012,gunDark,  0, 0.038,-0.015),              // slide serration ridge
+    gbox(0.012,0.018,0.02, gunSight,  0, 0.066,-0.175),             // front sight post
+    gbox(0.05, 0.014,0.03, gunSight,  0, 0.066, 0.01),              // rear sight notch
+    gbox(0.013,0.013,0.013,gunTritium,0, 0.068,-0.175),             // tritium front dot
+  ], new THREE.Vector3(0,0.038,-0.20)),
+
+  // AR-15/M4 carbine: the defining silhouette is the two-part receiver, the
+  // buffer tube + stock riding well behind the grip, and the charging
+  // handle at the rear of the upper — without those three this just reads
+  // as "generic gun", not specifically an AR.
   rifle: makeGunGroup([
-    gbox(0.05, 0.05, 0.42, gunSteel, 0, 0.01,-0.24),
-    gbox(0.08, 0.10, 0.28, gunDark,  0,-0.02, 0.03),
-    gbox(0.05, 0.09, 0.10, gunDark,  0, 0.02, 0.20),
-    gbox(0.015,0.03, 0.02, gunDark,  0, 0.065,-0.42),
-    gbox(0.055,0.15, 0.06, gunDark,  0,-0.13, 0.14, 0.35),
-    gbox(0.04, 0.12, 0.05, gunSteel, 0,-0.15, 0.03, 0.1),
-    gbox(0.055,0.018,0.30, gunRail,  0, 0.075,0.02),        // top picatinny rail
-    gbox(0.02, 0.05, 0.02, gunSight, 0, 0.10,-0.10),        // rear sight riser
-    gbox(0.016,0.05, 0.016,gunSight, 0, 0.10,-0.40),        // front sight post
-    gbox(0.09, 0.03, 0.16, gunDark,  0,-0.01,-0.06, 0,0,0), // handguard vent block
-    gcyl(0.012,0.10, gunSteel, 0.06,-0.02,-0.30, 0,0,Math.PI/2), // gas block pin
-    gbox(0.012,0.012,0.012, gunTritium, 0, 0.125,-0.10),    // tritium sight dot
-  ], new THREE.Vector3(0,0.01,-0.46)),
+    gbox(0.07, 0.075,0.26, gunDark,  0, 0.01,-0.03),                // upper receiver
+    gbox(0.065,0.055,0.20, gunDark,  0,-0.05, 0.02),                // lower receiver
+    gbox(0.028,0.028,0.28, gunSteel, 0, 0.01,-0.34),                // barrel
+    gbox(0.055,0.06, 0.22, gunRail,  0, 0.01,-0.30),                // free-float handguard
+    gbox(0.045,0.05, 0.04, gunSteel, 0, 0.02,-0.42),                // gas block
+    gbox(0.016,0.05, 0.016,gunSight, 0, 0.06,-0.42),                // front sight post
+    gcyl(0.018,0.045,gunSteel, 0, 0.01,-0.475, Math.PI/2),          // muzzle device
+    gbox(0.05, 0.014,0.30, gunRail,  0, 0.06,-0.03),                // full top picatinny rail
+    gbox(0.02, 0.035,0.02, gunSight, 0, 0.08,-0.13),                // rear sight
+    gbox(0.02, 0.02, 0.05, gunSteel, 0, 0.05, 0.11),                // charging handle body
+    gbox(0.036,0.012,0.02, gunSteel, 0, 0.05, 0.14),                // charging handle latch
+    gbox(0.03, 0.20, 0.05, gunSteel, 0,-0.19, 0.0, 0.1),            // curved magazine
+    gbox(0.045,0.15, 0.05, gunDark,  0,-0.14, 0.14, 0.3),           // pistol grip, raked back
+    gbox(0.05, 0.018,0.10, gunDark,  0,-0.075,0.10),                // trigger guard
+    gbox(0.012,0.03, 0.012,gunSteel, 0,-0.085,0.08),                // trigger
+    gcyl(0.022,0.16, gunDark, 0,-0.01, 0.21, Math.PI/2),            // buffer tube
+    gbox(0.055,0.075,0.10, gunDark,  0,-0.02, 0.34),                // carbine stock
+    gbox(0.045,0.02, 0.06, gunDark,  0, 0.03, 0.32),                // stock cheek riser
+    gbox(0.012,0.012,0.012,gunTritium,0, 0.085,-0.13),              // rear sight glow dot
+  ], new THREE.Vector3(0,0.01,-0.495)),
+
+  // Compact submachine gun (MP5-adjacent): shorter barrel/handguard than the
+  // rifle, a distinctly curved magazine forward of the grip, and a
+  // retractable-tube stock instead of a fixed carbine stock.
   smg: makeGunGroup([
-    gbox(0.045,0.045,0.20, gunSteel, 0, 0.01,-0.11),
-    gbox(0.075,0.10, 0.20, gunDark,  0,-0.02, 0.02),
-    gbox(0.05, 0.06, 0.13, gunDark,  0, 0.01, 0.15),
-    gbox(0.05, 0.14, 0.055,gunDark,  0,-0.12, 0.09, 0.35),
-    gbox(0.035,0.17, 0.045,gunSteel, 0,-0.18, -0.01, 0.05),
-    gbox(0.02, 0.02, 0.18, gunRail,  0, 0.055,-0.02),       // low-profile top rail
-    gbox(0.012,0.16, 0.02, gunSteel, 0,-0.16, 0.28, -0.35), // folding stock strut
-    gbox(0.05, 0.05, 0.03, gunDark,  0,-0.15, 0.36),        // stock plate
-    gbox(0.01, 0.01, 0.01, gunTritium, 0, 0.068,-0.02),     // tritium sight dot
-  ], new THREE.Vector3(0,0.01,-0.22)),
+    gbox(0.06, 0.075,0.20, gunDark,  0, 0.0,  0.0),                 // receiver
+    gbox(0.03, 0.03, 0.16, gunSteel, 0, 0.0, -0.18),                // barrel
+    gbox(0.05, 0.05, 0.12, gunRail,  0,-0.005,-0.14),               // handguard
+    gbox(0.014,0.03, 0.014,gunSight, 0, 0.05,-0.24),                // front sight
+    gbox(0.025,0.02, 0.02, gunSight, 0, 0.05, 0.08),                // rear sight
+    gbox(0.03, 0.18, 0.05, gunSteel, 0,-0.16,-0.02, 0.15),          // curved magazine
+    gbox(0.04, 0.13, 0.045,gunDark,  0,-0.12, 0.10, 0.25),          // pistol grip
+    gbox(0.04, 0.015,0.07, gunDark,  0,-0.045,0.08),                // trigger guard
+    gbox(0.01, 0.025,0.01, gunSteel, 0,-0.055,0.06),                // trigger
+    gcyl(0.014,0.14, gunSteel, 0, 0.0, 0.16, Math.PI/2),            // retractable stock tube
+    gbox(0.04, 0.06, 0.03, gunDark,  0, 0.0, 0.24),                 // stock shoulder plate
+    gbox(0.01, 0.01, 0.01, gunTritium, 0, 0.052,-0.24),             // tritium front dot
+  ], new THREE.Vector3(0,0.0,-0.22)),
+
+  // Pump-action shotgun (Remington 870-style): the tube magazine riding
+  // under the barrel and the pump foregrip sliding on it are the two
+  // landmarks that make this read as a pump gun rather than any other long gun.
   shotgun: makeGunGroup([
-    gcyl(0.032, 0.46, gunSteel, 0, 0.0,-0.20, Math.PI/2),
-    gbox(0.06, 0.10, 0.14, gunWood, 0,-0.02, 0.10),
-    gbox(0.055,0.10, 0.16, gunWood, 0, 0.0, 0.24),
-    gbox(0.06, 0.05, 0.20, gunDark, 0,-0.07,-0.10),
-    gcyl(0.038,0.20, gunWood, 0,-0.045,-0.28, 0,0,Math.PI/2), // pump foregrip
-    gbox(0.015,0.015,0.02, gunSight, 0, 0.045,-0.42),         // bead front sight
-    gbox(0.05, 0.08, 0.16, gunWood, 0,-0.03, 0.32),           // stock
-    gbox(0.011,0.011,0.011, gunTritium, 0, 0.053,-0.42),      // bright bead tip
-  ], new THREE.Vector3(0,0.0,-0.44)),
+    gcyl(0.028,0.42, gunSteel, 0, 0.03,-0.20, Math.PI/2),           // barrel
+    gcyl(0.02, 0.36, gunSteel, 0,-0.015,-0.22, Math.PI/2),          // tube magazine
+    gbox(0.065,0.09, 0.14, gunDark, 0, 0.0,  0.06),                 // receiver
+    gcyl(0.037,0.16, gunWood, 0,-0.015,-0.24, Math.PI/2),           // pump foregrip
+    gbox(0.045,0.015,0.08, gunDark, 0,-0.05, 0.10),                 // trigger guard
+    gbox(0.01, 0.025,0.01, gunSteel,0,-0.06, 0.08),                 // trigger
+    gbox(0.05, 0.08, 0.20, gunWood, 0,-0.01, 0.28),                 // stock
+    gbox(0.055,0.09, 0.02, gunDark, 0,-0.01, 0.38),                 // stock butt plate
+    gbox(0.014,0.014,0.014,gunSight, 0, 0.05,-0.40),                // bead front sight
+    gbox(0.01, 0.01, 0.01, gunTritium, 0, 0.052,-0.40),             // bright bead tip
+  ], new THREE.Vector3(0,0.03,-0.41)),
+
+  // Bolt-action sniper rifle: the bolt handle sticking out to the side of
+  // the receiver is THE landmark that says "bolt-action" rather than any
+  // other rifle — everything else is a heavy barrel and a full-size scope.
   sniper: makeGunGroup([
-    gbox(0.04, 0.04, 0.56, gunSteel, 0, 0.01,-0.30),
-    gbox(0.07, 0.09, 0.24, gunDark,  0,-0.02, 0.06),
-    gbox(0.05, 0.10, 0.14, gunDark,  0, 0.02, 0.24),
-    gcyl(0.028,0.16, gunGlass, 0, 0.075,-0.18, Math.PI/2),
-    gbox(0.045,0.14, 0.05, gunDark,  0,-0.13, 0.16, 0.3),
-    gbox(0.03, 0.09, 0.04, gunSteel, 0,-0.14, 0.08, 0.05),
-    gcyl(0.036,0.06, gunDark,  0, 0.075,-0.11, 0,0,Math.PI/2), // scope objective bell
-    gcyl(0.036,0.05, gunDark,  0, 0.075,-0.25, 0,0,Math.PI/2), // scope ocular bell
-    gcyl(0.006,0.16, gunSteel, 0,-0.10,-0.36, 0,0,0.9),        // bipod leg (left)
-    gcyl(0.006,0.16, gunSteel, 0,-0.10,-0.24, 0,0,-0.9),       // bipod leg (right)
-    gbox(0.05, 0.05, 0.16, gunDark, 0,-0.01, 0.34),            // cheek riser / stock
-  ], new THREE.Vector3(0,0.01,-0.58)),
+    gbox(0.036,0.036,0.50, gunSteel, 0, 0.01,-0.28),                // heavy barrel
+    gbox(0.06, 0.08, 0.20, gunDark,  0, 0.0,  0.06),                // receiver
+    gcyl(0.012,0.09, gunSteel, 0.045,-0.01, 0.08, 0,0,Math.PI/2-0.3), // bolt handle
+    gsphere(0.017, gunSteel, 0.09,-0.035,0.075),                    // bolt knob
+    gbox(0.045,0.012,0.20, gunRail, 0, 0.05, 0.0),                  // scope rail
+    gcyl(0.024,0.20, gunDark, 0, 0.09,-0.05, Math.PI/2),            // scope tube
+    gcyl(0.032,0.05, gunDark, 0, 0.09,-0.14, Math.PI/2),            // scope objective bell
+    gcyl(0.03, 0.045,gunDark, 0, 0.09, 0.04, Math.PI/2),            // scope ocular bell
+    gcyl(0.026,0.01, gunGlass,0, 0.09,-0.165,Math.PI/2),            // objective lens
+    gbox(0.05, 0.05, 0.20, gunDark,  0,-0.01, 0.28),                // stock
+    gbox(0.035,0.025,0.10, gunDark,  0, 0.02, 0.24),                // cheek riser
+    gbox(0.045,0.015,0.08, gunDark,  0,-0.05, 0.11),                // trigger guard
+    gbox(0.01, 0.025,0.01, gunSteel, 0,-0.06, 0.09),                // trigger
+    gcyl(0.006,0.18, gunSteel, -0.03,-0.10,-0.38, 0,0,0.85),        // bipod leg (left)
+    gcyl(0.006,0.18, gunSteel,  0.03,-0.10,-0.38, 0,0,-0.85),       // bipod leg (right)
+    gcyl(0.024,0.05, gunSteel, 0, 0.01,-0.535, Math.PI/2),          // muzzle brake
+  ], new THREE.Vector3(0,0.01,-0.56)),
+
+  // Light machine gun (SAW-adjacent): top-mounted feed tray cover, a drum
+  // under the receiver, a carry handle over the barrel, and a bipod are
+  // what separate a belt-fed support gun from an oversized rifle.
   lmg: makeGunGroup([
-    gbox(0.06, 0.06, 0.44, gunSteel, 0, 0.0,-0.22),
-    gbox(0.10, 0.13, 0.30, gunDark,  0,-0.02, 0.04),
-    gbox(0.05, 0.09, 0.14, gunDark,  0, 0.0, 0.22),
-    gcyl(0.07, 0.05, gunSteel, 0,-0.15, 0.06, Math.PI/2),
-    gbox(0.05, 0.045,0.20, gunDark, -0.05,-0.06,-0.14, 0,0, 0.2),
-    gbox(0.05, 0.045,0.20, gunDark,  0.05,-0.06,-0.14, 0,0,-0.2),
-    gcyl(0.10, 0.13, gunDark,   0,-0.16, 0.14, 0,0,0),          // ammo drum under receiver
-    gbox(0.02, 0.06, 0.16, gunRail,  0, 0.10, 0.04),            // carry handle
-    gcyl(0.007,0.20, gunSteel, -0.03,-0.13,-0.34, 0,0,0.85),    // bipod leg (left)
-    gcyl(0.007,0.20, gunSteel,  0.03,-0.13,-0.34, 0,0,-0.85),   // bipod leg (right)
-    gbox(0.012,0.012,0.012, gunTritium, 0, 0.135, 0.04),        // tritium sight dot
-  ], new THREE.Vector3(0,0.0,-0.46)),
+    gbox(0.075,0.09, 0.30, gunDark,  0, 0.0, 0.0),                  // receiver
+    gbox(0.036,0.036,0.34, gunSteel, 0, 0.0,-0.30),                 // barrel
+    gbox(0.05, 0.05, 0.24, gunDark,  0, 0.0,-0.24),                 // heat shield
+    gbox(0.016,0.05, 0.016,gunSight, 0, 0.05,-0.42),                // front sight post
+    gbox(0.06, 0.03, 0.14, gunRail,  0, 0.065,-0.02),               // feed tray cover
+    gbox(0.018,0.05, 0.14, gunSteel, 0, 0.11,-0.14),                // carry handle
+    gcyl(0.09, 0.11, gunDark, 0,-0.15, 0.06, 0,0,0),                // ammo drum
+    gbox(0.045,0.14, 0.05, gunDark,  0,-0.13, 0.16, 0.25),          // pistol grip
+    gbox(0.05, 0.018,0.09, gunDark,  0,-0.06, 0.13),                // trigger guard
+    gbox(0.012,0.03, 0.012,gunSteel, 0,-0.07, 0.11),                // trigger
+    gbox(0.05, 0.06, 0.16, gunDark,  0,-0.01, 0.32),                // stock
+    gcyl(0.007,0.20, gunSteel, -0.03,-0.12,-0.36, 0,0,0.85),        // bipod leg (left)
+    gcyl(0.007,0.20, gunSteel,  0.03,-0.12,-0.36, 0,0,-0.85),       // bipod leg (right)
+    gbox(0.012,0.012,0.012,gunTritium, 0, 0.09,-0.02),              // tritium sight dot
+  ], new THREE.Vector3(0,0.0,-0.47)),
 };
 for(const key in WEAPON_MODELS) camera.add(WEAPON_MODELS[key]);
 let weaponModel = WEAPON_MODELS.pistol;
