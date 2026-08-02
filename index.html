@@ -369,8 +369,15 @@
     <div id="lobbyRoomWrap" class="hide">
       <div class="lbl">Room Code</div>
       <div class="roomcode" id="lobbyCode">----</div>
+      <div class="lbl" style="text-align:center;margin-top:10px">Squad Size</div>
+      <div class="mrow" style="justify-content:center;align-items:center;gap:14px">
+        <div class="mbtn small" id="lobbySizeDown">−</div>
+        <div class="roomcode" id="lobbySizeVal" style="font-size:20px;padding:8px 18px">8</div>
+        <div class="mbtn small" id="lobbySizeUp">+</div>
+      </div>
     </div>
     <div class="lbl" id="lobbyMapLabel" style="text-align:center"></div>
+    <div class="lbl" id="lobbyProgress" style="text-align:center"></div>
     <ul class="lobbylist" id="lobbyList"></ul>
     <div id="netmsg2"></div>
     <div class="mbtn hide" id="btnStartMatch">Start Match</div>
@@ -3460,6 +3467,22 @@ function hitMarker(){
 // Host is authoritative for enemies, pickups, waves, and every OTHER player's
 // position/hp/buffs. Each device predicts its own local player for feel and
 // reconciles toward whatever the host last reported.
+//
+// PeerJS's own default RTCPeerConnection config only ships STUN servers, no
+// TURN — that's enough to connect two peers on the same LAN (or the "same
+// computer" case, which is really just loopback) since a direct or
+// STUN-reflexive path always exists there, but it silently fails to connect
+// across most real-world networks (symmetric NATs, many corporate/mobile
+// networks) where a relay is required. Adding a TURN server (the Open Relay
+// Project's free public one — no signup, shared credentials, intended for
+// exactly this) fixes cross-network play; STUN is kept too since it's
+// cheaper/faster when a direct path is actually available.
+const ICE_SERVERS = [
+  { urls:'stun:stun.l.google.com:19302' },
+  { urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject' },
+  { urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject' },
+  { urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject' },
+];
 function handleNetEvent(evt){
   switch(evt.kind){
     case 'hit':
@@ -3512,6 +3535,7 @@ function handleNetEvent(evt){
 
 const Net = (() => {
   let peer = null, hostConn = null;
+  let hostMaxPlayers = 8;                 // host-chosen squad size (7-12) — the room can't fill past it, and the host can't start short of it
   const clientConns = new Map();          // host-side: peerId -> DataConnection
 
   function shortCode(){
@@ -3637,7 +3661,7 @@ const Net = (() => {
     const beat = () => {
       fetch(LOBBY_API, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code, mode, hostName: player.name, players: 1+otherPlayers.size, maxPlayers: 8,
+        body: JSON.stringify({ code, mode, hostName: player.name, players: 1+otherPlayers.size, maxPlayers: hostMaxPlayers,
           mapName: MAPS[mapIndex].name }),
       }).catch(()=>{});
     };
@@ -3651,9 +3675,17 @@ const Net = (() => {
 
   function wireHostConnection(conn){
     conn.on('open', () => {
+      // the room is capped at the host's chosen squad size — a latecomer past
+      // that gets a polite rejection instead of being silently let in over it
+      if(1 + otherPlayers.size >= hostMaxPlayers){
+        safeSend(conn, { type:'full' });
+        setTimeout(() => { try{ conn.close(); }catch(err){} }, 250);
+        return;
+      }
       clientConns.set(conn.peer, conn);
       otherPlayers.set(conn.peer, makeRemotePlayer(conn.peer, 'Player'));
       meshConnectAll();
+      updateLobbyGate();
     });
     conn.on('data', msg => {
       if(msg.type === 'hello'){
@@ -3672,8 +3704,21 @@ const Net = (() => {
       otherPlayers.delete(conn.peer);
       dropVoicePeer(conn.peer);
       renderLobbyList();
+      updateLobbyGate();
       if(st) Net.emit({ kind:'leave', name: st.name });
     });
+  }
+  // Recomputes whether the lobby has reached the host's chosen squad size —
+  // Start Match only ever becomes visible once it has — and lets connected
+  // clients know how the count stands via a lightweight broadcast.
+  function updateLobbyGate(){
+    if(netMode !== 'host') return;
+    const count = 1 + otherPlayers.size;
+    const sizeEl = el('lobbySizeVal'); if(sizeEl) sizeEl.textContent = hostMaxPlayers;
+    const progEl = el('lobbyProgress');
+    if(progEl) progEl.textContent = `${count} / ${hostMaxPlayers} joined`;
+    el('btnStartMatch').classList.toggle('hide', count < hostMaxPlayers);
+    broadcast({ type:'lobbyinfo', count, max:hostMaxPlayers });
   }
 
   /* --------------------------------- voice --------------------------------- */
@@ -3754,18 +3799,19 @@ const Net = (() => {
       MODE = mode; netMode = 'host';
       player.name = name || 'Host';
       otherPlayers.clear();
+      hostMaxPlayers = 8;
       const code = shortCode();
       setNetMsg('Opening room…');
-      peer = new Peer('breach-' + code);
+      peer = new Peer('breach-' + code, { config:{ iceServers:ICE_SERVERS } });
       peer.on('open', id => {
         myId = id; player.id = id;          // real PeerJS id (== 'breach-CODE'), needed so other clients can voice-call the host directly
         roomCode = code;
         el('lobbyCode').textContent = code;
         el('lobbyRoomWrap').classList.remove('hide');
-        el('btnStartMatch').classList.remove('hide');
         el('lobbyMapLabel').textContent = 'Map: ' + MAPS[mapIndex].name;
         setNetMsg('Share this code with your squad — or it\'s already listed under Browse Games.');
         renderLobbyList();
+        updateLobbyGate();
         startLobbyHeartbeat(code, mode);
       });
       peer.on('connection', wireHostConnection);
@@ -3776,7 +3822,7 @@ const Net = (() => {
     joinRoom(code){
       netMode = 'client'; myId = null;
       player.name = 'Guest' + (10 + ((Math.random()*90)|0));
-      peer = new Peer();
+      peer = new Peer({ config:{ iceServers:ICE_SERVERS } });
       peer.on('open', id => {
         myId = id; player.id = id;
         hostConn = peer.connect('breach-' + code.toUpperCase(), { reliable:true });
@@ -3792,6 +3838,8 @@ const Net = (() => {
           else if(msg.type === 'state') applySnapshot(msg);
           else if(msg.type === 'event') handleNetEvent(msg.evt);
           else if(msg.type === 'start') beginMatch();
+          else if(msg.type === 'full'){ setNetMsg('That squad is already full.'); }
+          else if(msg.type === 'lobbyinfo'){ el('lobbyProgress').textContent = `${msg.count} / ${msg.max} joined — waiting for the host to start…`; }
         });
         hostConn.on('close', () => setNetMsg('Host disconnected.'));
       });
@@ -3799,7 +3847,13 @@ const Net = (() => {
       peer.on('error', err => setNetMsg('Could not connect: ' + ((err && err.type) || err)));
     },
 
-    beginAsHost(){ stopLobbyHeartbeat(roomCode); broadcast({ type:'start' }); beginMatch(); },
+    beginAsHost(){
+      if(1 + otherPlayers.size < hostMaxPlayers) return;   // defense in depth — button is hidden until this is true anyway
+      stopLobbyHeartbeat(roomCode); broadcast({ type:'start' }); beginMatch();
+    },
+
+    get maxPlayers(){ return hostMaxPlayers; },
+    setMaxPlayers(n){ hostMaxPlayers = clamp(n, 7, 12); updateLobbyGate(); },
 
     send(msg){ sendToHost(msg); },
 
@@ -4536,6 +4590,8 @@ el('joinCode').addEventListener('input', () => {
 });
 el('btnStartMatch').addEventListener('click', () => Net.beginAsHost());
 el('btnLeaveLobby').addEventListener('click', () => Net.leaveToMenu());
+el('lobbySizeDown').addEventListener('click', () => Net.setMaxPlayers(Net.maxPlayers - 1));
+el('lobbySizeUp').addEventListener('click', () => Net.setMaxPlayers(Net.maxPlayers + 1));
 
 function startGame(){
   selectMap(mapIndex);
