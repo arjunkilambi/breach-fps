@@ -1334,9 +1334,29 @@ const Sound = (()=>{
     g.gain.exponentialRampToValueAtTime(0.001, c.currentTime+dur);
     s.connect(f); f.connect(g); g.connect(master); s.start();
   }
+  // one distinct report per weapon instead of a single heavy/light split —
+  // each pairs a noise "crack" (burst) with a tonal "thump" (blip); sniper
+  // gets a second, longer low-frequency burst layered in for a rumbling tail
+  const GUN_VOICE = {
+    pistol:  { burst:[.08, 1400, 2.5, .22], blip:[220,.07,'square',  .14,-90] },
+    rifle:   { burst:[.11,  950, 1.3, .30], blip:[140,.09,'sawtooth',.18,-80] },
+    smg:     { burst:[.06, 1700, 2.8, .20], blip:[260,.05,'square',  .13,-60] },
+    shotgun: { burst:[.22,  380, 0.9, .40], blip:[70, .18,'sawtooth',.22,-40] },
+    sniper:  { burst:[.05, 2200, 3.0, .40], blip:[90, .30,'sawtooth',.20,-30], tail:[.35,250,.7,.18] },
+    lmg:     { burst:[.13,  750, 1.1, .32], blip:[100,.10,'sawtooth',.19,-70] },
+  };
   const api = {
     resume(){ ctx(); },
-    shoot(heavy){ burst(heavy?.16:.09, heavy?900:1500, heavy?1.2:2.2, heavy?.34:.24); blip(heavy?110:170,.09,'sawtooth',.16,-70); },
+    shoot(weaponOrHeavy){
+      const v = GUN_VOICE[weaponOrHeavy];
+      if(v){
+        burst(...v.burst); blip(...v.blip);
+        if(v.tail) burst(...v.tail);
+        return;
+      }
+      const heavy = !!weaponOrHeavy;                  // legacy boolean fallback
+      burst(heavy?.16:.09, heavy?900:1500, heavy?1.2:2.2, heavy?.34:.24); blip(heavy?110:170,.09,'sawtooth',.16,-70);
+    },
     dry(){ blip(180,.05,'square',.09); },
     reload(){ blip(320,.06,'square',.1); setTimeout(()=>blip(240,.08,'square',.1),110); },
     hit(){ blip(880,.05,'square',.12,-300); },
@@ -1369,19 +1389,29 @@ const camera = new THREE.PerspectiveCamera(78, 1, 0.05, 60);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 
+// recoilKick: added to camera pitch (radians) per shot, decaying automatically
+// (see the recoil decay in update()) — this is a VIEW/aim offset, never the
+// player's own stored pitch, so it settles back without fighting mouse input.
+// recoilSpread: matching per-shot random horizontal (yaw) kick, both ways.
 const WEAPONS = {
   pistol : { name:'Pistol',  dmg:24, rof:.20,  mag:12, ammo:12, reserve:Infinity, reload:1.05,
-             spread:.006, kick:5.5,  heavy:false, auto:false, cost:0 },
+             spread:.006, kick:5.5,  heavy:false, auto:false, cost:0, muzzleVel:95,
+             recoilKick:0.014, recoilSpread:0.006 },
   rifle  : { name:'Rifle',   dmg:17, rof:.085, mag:30, ammo:30, reserve:90,  reload:1.55,
-             spread:.022, kick:3.2,  heavy:true,  auto:true,  cost:0 },
+             spread:.022, kick:3.2,  heavy:true,  auto:true,  cost:0, muzzleVel:110,
+             recoilKick:0.009, recoilSpread:0.005 },
   smg    : { name:'SMG',     dmg:11, rof:.06,  mag:35, ammo:35, reserve:140, reload:1.3,
-             spread:.03,  kick:2.2,  heavy:false, auto:true,  cost:250 },
+             spread:.03,  kick:2.2,  heavy:false, auto:true,  cost:250, muzzleVel:85,
+             recoilKick:0.006, recoilSpread:0.006 },
   shotgun: { name:'Shotgun', dmg:9,  rof:.75,  mag:6,  ammo:6,  reserve:24,  reload:2.2,
-             spread:.09,  kick:9,    heavy:true,  auto:false, cost:400, pellets:8 },
+             spread:.09,  kick:9,    heavy:true,  auto:false, cost:400, pellets:8, muzzleVel:70,
+             recoilKick:0.032, recoilSpread:0.01 },
   sniper : { name:'Sniper',  dmg:95, rof:1.1,  mag:5,  ammo:5,  reserve:20,  reload:2.6,
-             spread:.001, kick:14,   heavy:true,  auto:false, cost:650, zoom:true },
+             spread:.001, kick:14,   heavy:true,  auto:false, cost:650, zoom:true, muzzleVel:190,
+             recoilKick:0.05, recoilSpread:0.004 },
   lmg    : { name:'LMG',     dmg:15, rof:.11,  mag:75, ammo:75, reserve:225, reload:3.2,
-             spread:.028, kick:3.6,  heavy:true,  auto:true,  cost:800 },
+             spread:.028, kick:3.6,  heavy:true,  auto:true,  cost:800, muzzleVel:100,
+             recoilKick:0.007, recoilSpread:0.006 },
 };
 const WEAPON_ORDER = ['pistol','rifle','smg','shotgun','sniper','lmg'];
 for(const key in WEAPONS) WEAPONS[key].maxReserve = WEAPONS[key].reserve;
@@ -1396,7 +1426,7 @@ const player = {
   bob:0, kick:0, flash:0, hurt:0, weapon:'pistol',
   reloading:0, cooldown:0, stepTimer:0,
   buffs: freshBuffs(), kills:0, deaths:0, name:'You', skin:0, id:'me',
-  vx:0, vy:0, z:0, vz:0, jumpsUsed:0, jumpApex:0,
+  vx:0, vy:0, z:0, vz:0, jumpsUsed:0, jumpApex:0, recoilPitch:0, recoilYaw:0,
   shieldCharge:0, maxShieldCharge:0, shieldRegenRate:4,
   titanShield:0, phantomRevealT:0, chaosSwitchT:0, chaosActiveKey:null, safeZoneT:0,
   medkits:0,
@@ -1953,6 +1983,20 @@ function spawnZapFX(x1, y1, x2, y2){
   scene.add(mesh);
   activeFX.push({ mesh, age:0, life:0.18, kind:'zap' });
 }
+// A visible bullet flying from muzzle to impact over its real travel time
+// (see resolveShot's `muzzleVel` handling) — a short bright segment sliding
+// along the path, sagging slightly at the midpoint (more for slower rounds)
+// so heavier/slower weapons visibly arc while the sniper still reads flat.
+function spawnTracerFX(x1, y1, x2, y2, duration){
+  const h1 = heightAt(x1,y1) + EYE_H, h2 = heightAt(x2,y2) + 0.5;
+  const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x1,h1,y1), new THREE.Vector3(x1,h1,y1)]);
+  const mesh = new THREE.Line(geo, new THREE.LineBasicMaterial({ color:0xfff2c0, transparent:true, opacity:0.95 }));
+  scene.add(mesh);
+  activeFX.push({
+    mesh, age:0, life:Math.max(duration,0.02), kind:'tracer',
+    x1, y1, h1, x2, y2, h2, sag: Math.min(0.6, duration*0.4),
+  });
+}
 // A destroyed wall/ramp topples over unevenly and settles as rubble on the
 // ground, staying there (moved into the persistent rubbleGroup) instead of
 // vanishing. `geometry` is rebuilt fresh per call (never a shared
@@ -1992,6 +2036,14 @@ function updateFX(dt){
       f.mesh.material.opacity = 0.9 * (1-t);
     } else if(f.kind === 'zap'){
       f.mesh.material.opacity = 0.9 * (1-t);
+    } else if(f.kind === 'tracer'){
+      const head = t, tail = Math.max(0, head - 0.15);
+      const sagAt = u => f.sag * 4*u*(1-u);           // parabolic dip, peaks mid-flight
+      const pos = f.mesh.geometry.attributes.position;
+      pos.setXYZ(0, lerp(f.x1,f.x2,tail), lerp(f.h1,f.h2,tail) - sagAt(tail), lerp(f.y1,f.y2,tail));
+      pos.setXYZ(1, lerp(f.x1,f.x2,head), lerp(f.h1,f.h2,head) - sagAt(head), lerp(f.y1,f.y2,head));
+      pos.needsUpdate = true;
+      f.mesh.material.opacity = 0.95 * (1 - t*0.4);
     } else if(f.kind === 'debris'){
       const fall = Math.min(1, t*1.6);            // settles before life runs out, then just sits there
       f.mesh.rotation[f.primaryAxis]   = f.primaryAngle * fall;
@@ -2087,11 +2139,14 @@ function updateDrone(dt){
 }
 
 /* ---- first-person weapon viewmodels: one distinct silhouette per gun ------- */
-const gunSteel = new THREE.MeshStandardMaterial({ color:0x2a3138, roughness:0.4, metalness:0.55 });
-const gunDark  = new THREE.MeshStandardMaterial({ color:0x14181c, roughness:0.6 });
-const gunWood  = new THREE.MeshStandardMaterial({ color:0x5a3a22, roughness:0.85 });
-const gunGlass = new THREE.MeshStandardMaterial({ color:0x2a3a44, roughness:0.2, metalness:0.3,
+const gunSteel  = new THREE.MeshStandardMaterial({ color:0x2a3138, roughness:0.4, metalness:0.55 });
+const gunDark   = new THREE.MeshStandardMaterial({ color:0x14181c, roughness:0.6 });
+const gunWood   = new THREE.MeshStandardMaterial({ color:0x5a3a22, roughness:0.85 });
+const gunGlass  = new THREE.MeshStandardMaterial({ color:0x2a3a44, roughness:0.2, metalness:0.3,
   emissive:0x1a2a33, emissiveIntensity:0.35 });
+const gunRail   = new THREE.MeshStandardMaterial({ color:0x1c2024, roughness:0.5, metalness:0.5 });
+const gunSight  = new THREE.MeshStandardMaterial({ color:0x9aa0a6, roughness:0.35, metalness:0.7 });
+const gunTritium= new THREE.MeshStandardMaterial({ color:0x5cff8a, emissive:0x5cff8a, emissiveIntensity:0.9 });
 function gbox(w,h,d,mat,x,y,z,rx=0,ry=0,rz=0){
   const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
   m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
@@ -2116,6 +2171,10 @@ const WEAPON_MODELS = {
     gbox(0.07, 0.09, 0.16, gunDark,  0,-0.02, 0.04),
     gbox(0.05, 0.13, 0.05, gunDark,  0,-0.13, 0.11, 0.25),
     gbox(0.035,0.10, 0.045,gunSteel, 0,-0.15, 0.02, 0.08),
+    gbox(0.012,0.018,0.02, gunSight,  0, 0.05,-0.205),      // front sight post
+    gbox(0.05, 0.014,0.03, gunSight,  0, 0.052,0.005),      // rear sight notch
+    gbox(0.014,0.014,0.014,gunTritium,0, 0.054,-0.205),     // tritium dot
+    gbox(0.012,0.045,0.05, gunDark,   0,-0.055,0.145),      // trigger guard
   ], new THREE.Vector3(0,0.02,-0.22)),
   rifle: makeGunGroup([
     gbox(0.05, 0.05, 0.42, gunSteel, 0, 0.01,-0.24),
@@ -2124,6 +2183,12 @@ const WEAPON_MODELS = {
     gbox(0.015,0.03, 0.02, gunDark,  0, 0.065,-0.42),
     gbox(0.055,0.15, 0.06, gunDark,  0,-0.13, 0.14, 0.35),
     gbox(0.04, 0.12, 0.05, gunSteel, 0,-0.15, 0.03, 0.1),
+    gbox(0.055,0.018,0.30, gunRail,  0, 0.075,0.02),        // top picatinny rail
+    gbox(0.02, 0.05, 0.02, gunSight, 0, 0.10,-0.10),        // rear sight riser
+    gbox(0.016,0.05, 0.016,gunSight, 0, 0.10,-0.40),        // front sight post
+    gbox(0.09, 0.03, 0.16, gunDark,  0,-0.01,-0.06, 0,0,0), // handguard vent block
+    gcyl(0.012,0.10, gunSteel, 0.06,-0.02,-0.30, 0,0,Math.PI/2), // gas block pin
+    gbox(0.012,0.012,0.012, gunTritium, 0, 0.125,-0.10),    // tritium sight dot
   ], new THREE.Vector3(0,0.01,-0.46)),
   smg: makeGunGroup([
     gbox(0.045,0.045,0.20, gunSteel, 0, 0.01,-0.11),
@@ -2131,12 +2196,20 @@ const WEAPON_MODELS = {
     gbox(0.05, 0.06, 0.13, gunDark,  0, 0.01, 0.15),
     gbox(0.05, 0.14, 0.055,gunDark,  0,-0.12, 0.09, 0.35),
     gbox(0.035,0.17, 0.045,gunSteel, 0,-0.18, -0.01, 0.05),
+    gbox(0.02, 0.02, 0.18, gunRail,  0, 0.055,-0.02),       // low-profile top rail
+    gbox(0.012,0.16, 0.02, gunSteel, 0,-0.16, 0.28, -0.35), // folding stock strut
+    gbox(0.05, 0.05, 0.03, gunDark,  0,-0.15, 0.36),        // stock plate
+    gbox(0.01, 0.01, 0.01, gunTritium, 0, 0.068,-0.02),     // tritium sight dot
   ], new THREE.Vector3(0,0.01,-0.22)),
   shotgun: makeGunGroup([
     gcyl(0.032, 0.46, gunSteel, 0, 0.0,-0.20, Math.PI/2),
     gbox(0.06, 0.10, 0.14, gunWood, 0,-0.02, 0.10),
     gbox(0.055,0.10, 0.16, gunWood, 0, 0.0, 0.24),
     gbox(0.06, 0.05, 0.20, gunDark, 0,-0.07,-0.10),
+    gcyl(0.038,0.20, gunWood, 0,-0.045,-0.28, 0,0,Math.PI/2), // pump foregrip
+    gbox(0.015,0.015,0.02, gunSight, 0, 0.045,-0.42),         // bead front sight
+    gbox(0.05, 0.08, 0.16, gunWood, 0,-0.03, 0.32),           // stock
+    gbox(0.011,0.011,0.011, gunTritium, 0, 0.053,-0.42),      // bright bead tip
   ], new THREE.Vector3(0,0.0,-0.44)),
   sniper: makeGunGroup([
     gbox(0.04, 0.04, 0.56, gunSteel, 0, 0.01,-0.30),
@@ -2145,6 +2218,11 @@ const WEAPON_MODELS = {
     gcyl(0.028,0.16, gunGlass, 0, 0.075,-0.18, Math.PI/2),
     gbox(0.045,0.14, 0.05, gunDark,  0,-0.13, 0.16, 0.3),
     gbox(0.03, 0.09, 0.04, gunSteel, 0,-0.14, 0.08, 0.05),
+    gcyl(0.036,0.06, gunDark,  0, 0.075,-0.11, 0,0,Math.PI/2), // scope objective bell
+    gcyl(0.036,0.05, gunDark,  0, 0.075,-0.25, 0,0,Math.PI/2), // scope ocular bell
+    gcyl(0.006,0.16, gunSteel, 0,-0.10,-0.36, 0,0,0.9),        // bipod leg (left)
+    gcyl(0.006,0.16, gunSteel, 0,-0.10,-0.24, 0,0,-0.9),       // bipod leg (right)
+    gbox(0.05, 0.05, 0.16, gunDark, 0,-0.01, 0.34),            // cheek riser / stock
   ], new THREE.Vector3(0,0.01,-0.58)),
   lmg: makeGunGroup([
     gbox(0.06, 0.06, 0.44, gunSteel, 0, 0.0,-0.22),
@@ -2153,6 +2231,11 @@ const WEAPON_MODELS = {
     gcyl(0.07, 0.05, gunSteel, 0,-0.15, 0.06, Math.PI/2),
     gbox(0.05, 0.045,0.20, gunDark, -0.05,-0.06,-0.14, 0,0, 0.2),
     gbox(0.05, 0.045,0.20, gunDark,  0.05,-0.06,-0.14, 0,0,-0.2),
+    gcyl(0.10, 0.13, gunDark,   0,-0.16, 0.14, 0,0,0),          // ammo drum under receiver
+    gbox(0.02, 0.06, 0.16, gunRail,  0, 0.10, 0.04),            // carry handle
+    gcyl(0.007,0.20, gunSteel, -0.03,-0.13,-0.34, 0,0,0.85),    // bipod leg (left)
+    gcyl(0.007,0.20, gunSteel,  0.03,-0.13,-0.34, 0,0,-0.85),   // bipod leg (right)
+    gbox(0.012,0.012,0.012, gunTritium, 0, 0.135, 0.04),        // tritium sight dot
   ], new THREE.Vector3(0,0.0,-0.46)),
 };
 for(const key in WEAPON_MODELS) camera.add(WEAPON_MODELS[key]);
@@ -2178,8 +2261,12 @@ function updateWeaponView(){
    renderWorld()/renderWeapon() pair ------------------------------------------ */
 function render3D(dt){
   camera.position.set(player.x, heightAt(player.x,player.y) + player.z + EYE_H + Math.sin(player.bob)*0.012, player.y);
-  camera.rotation.y = -player.a - Math.PI/2;
-  camera.rotation.x = player.pitch;
+  // recoil is an additive offset on top of the player's own mouse-controlled
+  // aim (player.a/pitch never get mutated by it) — it decays back to zero on
+  // its own (see decayBuffs-adjacent recoil decay in update()), simulating
+  // muzzle climb settling rather than fighting the player's next mouse move
+  camera.rotation.y = -(player.a + (player.recoilYaw||0)) - Math.PI/2;
+  camera.rotation.x = clamp(player.pitch + (player.recoilPitch||0), -1.45, 1.45);
   headlamp.intensity = 0.85 + player.flash*0.4;
 
   syncEnemyMeshes(dt);
@@ -2329,13 +2416,12 @@ function damageRamp(ramp, x, y, dmg){
   rebuildMapMeshes();
 }
 
-// Traces one shot from (px,py) along `ang` against enemies (always) and, in
-// deathmatch, every other living player. `authoritative` performs the actual
-// damage; otherwise it only reports what WOULD be hit (used for a client's
-// optimistic hit-marker while the host resolves the real outcome). Always
-// returns the impact point (even a bare wall hit) so on-hit power-ups like
-// Boomshot can trigger regardless of what — if anything — was actually hit.
-function resolveShot(px, py, ang, dmg, shooter, authoritative, chainShock, boomshot){
+// Pure targeting math — who/what a shot from (px,py) along `ang` would hit,
+// against enemies (always) and, in deathmatch, every other living player.
+// No side effects, so it's safe to call once at fire time and use the result
+// both for the immediate hit-marker and for a damage application delayed by
+// travel time (see resolveShot below).
+function computeShotHit(px, py, ang, shooter){
   const dx = Math.cos(ang), dy = Math.sin(ang);
   const wallRay = castRay(px, py, dx, dy, VIEW*1.4);
   let best = null, bestT = wallRay.dist, bestKind = null;
@@ -2358,16 +2444,49 @@ function resolveShot(px, py, ang, dmg, shooter, authoritative, chainShock, booms
     }
   }
   const hitX = px + dx*bestT, hitY = py + dy*bestT;
-  if(authoritative){
+  return { dx, dy, wallRay, best, bestT, bestKind, hitX, hitY };
+}
+// Pending damage applications waiting on bullet travel time — {readyAt, apply}
+let pendingShots = [];
+function updatePendingShots(){
+  for(let i=pendingShots.length-1; i>=0; i--){
+    if(now >= pendingShots[i].readyAt){ pendingShots[i].apply(); pendingShots.splice(i,1); }
+  }
+}
+// Traces one shot from (px,py) along `ang`. `authoritative` performs the
+// actual damage; otherwise it only reports what WOULD be hit (used for a
+// client's optimistic hit-marker while the host resolves the real outcome).
+// The hit itself is still determined instantly from current positions (like
+// any hitscan), but with a `muzzleVel` given, the damage/impact FX are
+// delayed by travel time and a visible tracer flies from muzzle to impact —
+// bullet ballistics without touching multiplayer's authoritative resolution.
+// Always returns the impact point (even a bare wall hit) so on-hit power-ups
+// like Boomshot can trigger regardless of what — if anything — was actually hit.
+function resolveShot(px, py, ang, dmg, shooter, authoritative, chainShock, boomshot, muzzleVel){
+  const { dx, dy, wallRay, best, bestT, bestKind, hitX, hitY } = computeShotHit(px, py, ang, shooter);
+  const apply = () => {
+    // the travel-time delay means the target can die (to a faster shot, or
+    // this same volley's own pellet) before this one lands — a bullet
+    // arriving after the fact shouldn't deal damage to a corpse or re-credit a kill
+    if(bestKind === 'enemy' && best.dead) return;
+    if(bestKind === 'player' && !best.alive) return;
     if(bestKind === 'enemy'){
       damageEnemy(best, dmg, shooter);
       if(chainShock) chainShockZap(hitX, hitY, Math.round(dmg*0.5), best, shooter);
     } else if(bestKind === 'player'){
       damageOtherPlayer(best, dmg, shooter);
-    } else if(wallRay.tile === WALL.BUILDING){
+    } else if(wallRay.tile === WALL.BUILDING && at(wallRay.mapX, wallRay.mapY) === WALL.BUILDING){
       damageBuildingCell(wallRay.mapX, wallRay.mapY, dmg, px, py);
     }
     if(boomshot) boomshotExplosion(hitX, hitY, dmg, bestKind === 'enemy' ? best : null, shooter);
+  };
+  if(authoritative){
+    if(muzzleVel > 0){
+      spawnTracerFX(px, py, hitX, hitY, bestT/muzzleVel);
+      pendingShots.push({ readyAt: now + bestT/muzzleVel, apply });
+    } else {
+      apply();
+    }
   }
   return { kind: bestKind, x: hitX, y: hitY };
 }
@@ -2383,7 +2502,7 @@ function fire(){
   player.kick = Math.min(player.kick + w.kick, 16);
   player.flash = 1;
   if(player.buffs.phantom > 0) player.phantomRevealT = 0.6;   // attacking briefly reveals a Phantom
-  Sound.shoot(w.heavy);
+  Sound.shoot(player.weapon);
 
   const spread = w.spread * (1 + player.kick*0.06);
   const dmg = w.dmg;
@@ -2391,11 +2510,14 @@ function fire(){
   const boomshot = player.buffs.boomshot > 0;
   const authoritative = netMode !== 'client';
   const pellets = w.pellets || 1;
+  const recoilYawNow = player.recoilYaw||0;   // this shot aims through whatever recoil the PREVIOUS shot left behind
+  player.recoilPitch = Math.min(0.4, (player.recoilPitch||0) + w.recoilKick);
+  player.recoilYaw = (player.recoilYaw||0) + rand(w.recoilSpread,-w.recoilSpread);
 
   let anyHit = false;
   for(let i=0;i<pellets;i++){
-    const ang = player.a + rand(spread,-spread);
-    const result = resolveShot(player.x, player.y, ang, dmg, player, authoritative, chainShock, boomshot);
+    const ang = player.a + recoilYawNow + rand(spread,-spread);
+    const result = resolveShot(player.x, player.y, ang, dmg, player, authoritative, chainShock, boomshot, w.muzzleVel);
     if(result.kind) anyHit = true;
     if(!authoritative) Net.send({ type:'shot', a: ang, dmg, chainShock, boomshot });
   }
@@ -2896,6 +3018,10 @@ function update(dt){
   player.cooldown = Math.max(0, player.cooldown - dt);
   player.kick     = Math.max(0, player.kick - dt*46);
   player.flash    = Math.max(0, player.flash - dt*9);
+  // recoil settles back toward zero on its own (muzzle climb recovering) —
+  // an offset on top of the player's real aim, never mutating it directly
+  player.recoilPitch = lerp(player.recoilPitch||0, 0, Math.min(1, dt*7));
+  player.recoilYaw   = lerp(player.recoilYaw||0,   0, Math.min(1, dt*7));
   player.phantomRevealT = Math.max(0, (player.phantomRevealT||0) - dt);
   decayBuffs(player.buffs, dt);
   if(player.buffs.titanshield <= 0) player.titanShield = 0;   // clear a leftover pool once the timer runs out
@@ -2968,6 +3094,9 @@ function update(dt){
     }
     bolts = bolts.filter(b => b.life > 0);
   }
+
+  // ---------- pending gunshot damage (bullet travel time, see resolveShot) ----------
+  if(netMode !== 'client') updatePendingShots();
 
   // ---------- pickups (host/solo authoritative; clients mirror via snapshot) ----------
   if(netMode !== 'client'){
@@ -3236,7 +3365,7 @@ const Net = (() => {
       if(now - st.lastShotAt < minGap) return;
       st.lastShotAt = now;
       if(st.buffs.phantom > 0) st.phantomRevealT = 0.6;
-      resolveShot(st.x, st.y, msg.a, msg.dmg, st, true, msg.chainShock, msg.boomshot);
+      resolveShot(st.x, st.y, msg.a, msg.dmg, st, true, msg.chainShock, msg.boomshot, w.muzzleVel);
     }
   }
 
@@ -4210,13 +4339,14 @@ function startGame(){
   applyWorldTheme(MAPS[mapIndex].theme || 'facility');
   clearRubble();
   rebuildMapMeshes();
-  enemies = []; bolts = []; nextEnemyId = 1;
+  enemies = []; bolts = []; pendingShots = []; nextEnemyId = 1;
   wave = 0; kills = 0; score = 0; spawning = false; waveTimer = 0; lastAlive = -1;
   const spawn = MODE === 'deathmatch' ? SPAWNS[(Math.random()*SPAWNS.length)|0] : START;
   player.x = spawn[0]; player.y = spawn[1]; player.a = -Math.PI/2; player.pitch = 0;
   player.hp = 100; player.alive = true; player.weapon = 'pistol';
   player.kick = 0; player.flash = 0; player.hurt = 0; player.reloading = 0; player.cooldown = 0;
   player.vx = 0; player.vy = 0; player.z = 0; player.vz = 0; player.jumpsUsed = 0; player.jumpApex = 0;
+  player.recoilPitch = 0; player.recoilYaw = 0;
   player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0; player.medkits = 0;
   player.titanShield = 0; player.phantomRevealT = 0; player.chaosSwitchT = 0; player.chaosActiveKey = null;
   player.safeZoneT = 0; player.inSafeZone = false;
@@ -4269,9 +4399,6 @@ updateHUD();
 drawMinimap();
 
 window.__setNetMode = m => { netMode = m; };
-window.__testHooks = { WALL, at, MAPW: () => MAPW, MAPH: () => MAPH, damageBuildingCell,
-  heightAt, rubblePlatforms: () => rubblePlatforms, fallDirFor,
-  tick(dt=0.016){ update(dt); render3D(dt); } };
 Object.defineProperty(window, '__breach', { configurable:true, get(){ return {
   player, enemies, bolts, pickups, otherPlayers, account, supa, WEAPONS, WEAPON_ORDER, MAPS, mapIndex,
   grid, MAPW, MAPH, running, paused, gameOver, netMode, MODE, wave, kills, score, myId, zoomed,
