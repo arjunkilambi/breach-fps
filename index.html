@@ -805,9 +805,9 @@ function buildScaledMap(baseBuild, baseW, baseH, factor){
     }
   };
 }
-function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ramps=[], safeZones=[]){
+function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ramps=[], safeZones=[], theme='facility'){
   return {
-    name, build: buildScaledMap(build, w0, h0, factor),
+    name, theme, build: buildScaledMap(build, w0, h0, factor),
     w: w0*factor, h: h0*factor,
     spawns: scaleSpawns(spawns, factor),
     pickups: scalePickups(pickups, factor),
@@ -819,15 +819,15 @@ function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ram
 }
 const SCALE = 4;   // existing maps quadruple in size — 32x24 -> 128x96
 const MAPS = [
-  scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE, RAMPS_1, SAFEZONES_1),
-  scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE, RAMPS_2, SAFEZONES_2),
-  scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE, RAMPS_3, SAFEZONES_3),
-  scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE, RAMPS_4, SAFEZONES_4),
-  scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE, RAMPS_5, SAFEZONES_5),
-  scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE, RAMPS_6, SAFEZONES_6),
-  scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE, RAMPS_7, SAFEZONES_7),
-  { name:'The Wastes', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], ramps:RAMPS_8, safeZones:SAFEZONES_8, large:true },
-  { name:'Skyline',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:RAMPS_9, safeZones:SAFEZONES_9, large:true },
+  scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE, RAMPS_1, SAFEZONES_1, 'jungle'),
+  scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE, RAMPS_2, SAFEZONES_2, 'ice'),
+  scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE, RAMPS_3, SAFEZONES_3, 'toxic'),
+  scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE, RAMPS_4, SAFEZONES_4, 'desert'),
+  scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE, RAMPS_5, SAFEZONES_5, 'volcanic'),
+  scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE, RAMPS_6, SAFEZONES_6, 'jungle'),
+  scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE, RAMPS_7, SAFEZONES_7, 'toxic'),
+  { name:'The Wastes', theme:'desert', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], ramps:RAMPS_8, safeZones:SAFEZONES_8, large:true },
+  { name:'Skyline',    theme:'ice',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:RAMPS_9, safeZones:SAFEZONES_9, large:true },
   { name:'Dust Canyon', theme:'desert',   build:buildMap10, w:MAPW_10, h:MAPH_10, spawns:SPAWNS_10, pickups:PICKUPS_10, start:SPAWNS_10[0], ramps:RAMPS_10, safeZones:SAFEZONES_10, large:true },
   { name:'Frostspire',  theme:'ice',      build:buildMap11, w:MAPW_11, h:MAPH_11, spawns:SPAWNS_11, pickups:PICKUPS_11, start:SPAWNS_11[0], ramps:RAMPS_11, safeZones:SAFEZONES_11, large:true },
   { name:'Emberfall',   theme:'volcanic', build:buildMap12, w:MAPW_12, h:MAPH_12, spawns:SPAWNS_12, pickups:PICKUPS_12, start:SPAWNS_12[0], ramps:RAMPS_12, safeZones:SAFEZONES_12, large:true },
@@ -1220,7 +1220,93 @@ function buildVolcanicTextures(){
     }),
   };
 }
-const THEME_TEXTURES = { desert: buildDesertTextures(), ice: buildIceTextures(), volcanic: buildVolcanicTextures() };
+function buildJungleTextures(){
+  const S = THEME_TS;
+  const mossyRock = (base, moss) => makeTexAt(S, g=>{
+    g.fillStyle = base; g.fillRect(0,0,S,S);
+    for(let row=0; row<S; row+=S/16){
+      const t = 0.75+Math.random()*0.4;
+      g.fillStyle = `rgb(${(60*t)|0},${(70*t)|0},${(45*t)|0})`;
+      g.fillRect(0,row,S,S/16*(0.5+Math.random()*0.6));
+    }
+    speckle(g, S, S*S*0.12, S*0.03, ()=>moss);
+    for(let i=0;i<5;i++) jaggedLine(g, Math.random()*S,0, Math.random()*S,S, 8, S*0.03, 'rgba(20,15,8,.4)', 1.2);
+  });
+  return {
+    [WALL.BRICK]: mossyRock('#3a4a2c', 'rgba(90,150,60,.45)'),
+    [WALL.STONE]: mossyRock('#465538', 'rgba(110,170,75,.5)'),
+    [WALL.METAL]: makeTexAt(S, g=>{                 // rusted, vine-choked metal
+      const grd = g.createLinearGradient(0,0,0,S); grd.addColorStop(0,'#4a5a3a'); grd.addColorStop(.5,'#33422a'); grd.addColorStop(1,'#4a5a3a');
+      g.fillStyle = grd; g.fillRect(0,0,S,S);
+      g.fillStyle='rgba(20,15,8,.45)'; g.fillRect(0,S*0.46,S,S*0.035);
+      speckle(g, S, S*3, S*0.022, ()=>'rgba(100,150,70,.5)');
+    }),
+    [WALL.TECH]: makeTexAt(S, g=>{                  // overgrown bioluminescent relic
+      g.fillStyle='#16220f'; g.fillRect(0,0,S,S);
+      g.fillStyle='#1e301a'; g.fillRect(S*0.06,0,S*0.88,S);
+      for(let y=S*0.1;y<S;y+=S*0.22){
+        g.fillStyle='rgba(140,255,160,.85)'; g.fillRect(S*0.16,y,S*0.68,S*0.05);
+        g.fillStyle='rgba(140,255,160,.2)'; g.fillRect(S*0.1,y-S*0.03,S*0.8,S*0.11);
+      }
+      speckle(g, S, S*2, S*0.015, ()=>'rgba(30,50,20,.4)');
+    }),
+    [WALL.BUILDING]: mossyRock('#354529', 'rgba(95,155,65,.5)'),
+    5: makeTexAt(S, g=>{                            // leaf litter / mossy jungle floor
+      g.fillStyle='#2c3a1e'; g.fillRect(0,0,S,S);
+      speckle(g, S, S*S*0.3, S*0.016, ()=>{
+        const t=0.6+Math.random()*0.6; return `rgba(${(70*t)|0},${(95*t)|0},${(45*t)|0},.55)`;
+      });
+      speckle(g, S, S*S*0.05, S*0.02, ()=>'rgba(120,90,40,.5)');   // fallen leaves/twigs
+    }),
+    6: skyTex(S, '#bfe8a0', '#7fbf6a', '#3a5c2e', g=>{
+      speckle(g, S, 60, S*0.02, ()=>'rgba(40,70,30,.5)');          // canopy gaps
+    }),
+  };
+}
+function buildToxicTextures(){
+  const S = THEME_TS;
+  const decay = (base, stain) => makeTexAt(S, g=>{
+    g.fillStyle = base; g.fillRect(0,0,S,S);
+    for(let row=0; row<4; row++) for(let col=0; col<4; col++){
+      const t = 0.7+Math.random()*0.35, x=col*S/4, y=row*S/4;
+      g.fillStyle=`rgb(${(70*t)|0},${(80*t)|0},${(40*t)|0})`;
+      g.fillRect(x+1,y+1,S/4-2,S/4-2);
+    }
+    speckle(g, S, S*4, S*0.03, ()=>stain);
+    for(let i=0;i<6;i++) jaggedLine(g, Math.random()*S,Math.random()*S, Math.random()*S,Math.random()*S, 6, S*0.02, stain, S*0.01);
+  });
+  return {
+    [WALL.BRICK]: decay('#3a4020', 'rgba(154,255,58,.4)'),
+    [WALL.STONE]: decay('#333a1c', 'rgba(154,255,58,.35)'),
+    [WALL.METAL]: makeTexAt(S, g=>{                 // corroded toxic-stained panel
+      const grd = g.createLinearGradient(0,0,0,S); grd.addColorStop(0,'#4a5522'); grd.addColorStop(.5,'#333a14'); grd.addColorStop(1,'#4a5522');
+      g.fillStyle = grd; g.fillRect(0,0,S,S);
+      g.fillStyle='rgba(154,255,58,.35)'; g.fillRect(0,S*0.46,S,S*0.04);
+      speckle(g, S, S*4, S*0.025, ()=>'rgba(120,140,40,.5)');
+    }),
+    [WALL.TECH]: makeTexAt(S, g=>{                  // leaking toxic core
+      g.fillStyle='#141a08'; g.fillRect(0,0,S,S);
+      g.fillStyle='#1e260c'; g.fillRect(S*0.06,0,S*0.88,S);
+      for(let y=S*0.1;y<S;y+=S*0.22){
+        g.fillStyle='rgba(180,255,60,.9)'; g.fillRect(S*0.16,y,S*0.68,S*0.05);
+        g.fillStyle='rgba(180,255,60,.25)'; g.fillRect(S*0.1,y-S*0.03,S*0.8,S*0.11);
+      }
+    }),
+    [WALL.BUILDING]: decay('#2e341a', 'rgba(154,255,58,.4)'),
+    5: makeTexAt(S, g=>{                            // cracked toxic ground, glowing sludge seams
+      g.fillStyle='#262c14'; g.fillRect(0,0,S,S);
+      speckle(g, S, S*S*0.3, S*0.014, ()=>{
+        const v=(Math.random()*40)|0; return `rgba(${v+30},${v+40},${v},.5)`;
+      });
+      for(let i=0;i<10;i++) jaggedLine(g, Math.random()*S,Math.random()*S, Math.random()*S,Math.random()*S, 6, S*0.02, 'rgba(154,255,58,.65)', S*0.01);
+    }),
+    6: skyTex(S, '#aacf4a', '#7a9c2e', '#4a5c1a', g=>{
+      speckle(g, S, 50, S*0.012, ()=>'rgba(180,255,90,.4)');
+    }),
+  };
+}
+const THEME_TEXTURES = { desert: buildDesertTextures(), ice: buildIceTextures(), volcanic: buildVolcanicTextures(),
+  jungle: buildJungleTextures(), toxic: buildToxicTextures() };
 
 const WORLD_THEMES = {
   facility: { fogColor:0x05080a, fogNear:3, fogFarMul:1, bg:0x05080a,
@@ -1258,6 +1344,24 @@ const WORLD_THEMES = {
       [WALL.METAL]:  { roughness:0.6,  metalness:0.5, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.TECH]:   { roughness:0.55, metalness:0, emissive:0xff5010, emissiveIntensity:0.7, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.7, metalness:0.1, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
+    } },
+  jungle: { fogColor:0x3a5c2e, fogNear:2.8, fogFarMul:0.75, bg:0x4a6e3a,
+    ambient:{color:0x8fdb6a, i:0.5}, hemi:{sky:0x9fe080, ground:0x1a3010, i:0.45}, sun:{color:0xc8ffb0, i:0.8},
+    mats: {
+      [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.6,  metalness:0.35, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.65, metalness:0, emissive:0x7fffa0, emissiveIntensity:0.4, repeat:[1,1] },
+      [WALL.BUILDING]:{ roughness:0.85,metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
+    } },
+  toxic: { fogColor:0x5a6e2a, fogNear:2.6, fogFarMul:0.85, bg:0x4a5a1e,
+    ambient:{color:0x9aff5a, i:0.45}, hemi:{sky:0x8aff4a, ground:0x2a3a0a, i:0.5}, sun:{color:0xb0ff60, i:0.7},
+    mats: {
+      [WALL.BRICK]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.STONE]:  { roughness:0.85, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.55, metalness:0.4, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.6,  metalness:0, emissive:0x9aff3a, emissiveIntensity:0.55, repeat:[1,1] },
+      [WALL.BUILDING]:{ roughness:0.8, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
 };
 let activeTheme = null;
@@ -1997,6 +2101,32 @@ function spawnTracerFX(x1, y1, x2, y2, duration){
     x1, y1, h1, x2, y2, h2, sag: Math.min(0.6, duration*0.4),
   });
 }
+const shellMat = new THREE.MeshStandardMaterial({ color:0xd4af37, roughness:0.35, metalness:0.75, transparent:true });
+// A spent casing ejecting sideways from the gun and falling — real ballistic
+// arc (not just an animated t-fraction like the other FX) since it needs to
+// keep falling/spinning consistently regardless of its random lifespan.
+function spawnShellFX(px, py, ang){
+  const side = ang + Math.PI/2;
+  const ex = px + Math.cos(side)*0.12, ey = py + Math.sin(side)*0.12;
+  const baseY = heightAt(px,py) + EYE_H - 0.08;
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.022,0.012,0.045), shellMat.clone());
+  mesh.position.set(ex, baseY, ey);
+  scene.add(mesh);
+  activeFX.push({
+    mesh, age:0, life:rand(0.9,0.6), kind:'shell', baseX:ex, baseZ:ey, baseY,
+    vx:Math.cos(side)*rand(1.3,0.7), vz:Math.sin(side)*rand(1.3,0.7), vy:rand(2.0,1.3),
+    spinX:rand(24,10)*(Math.random()<0.5?1:-1), spinZ:rand(18,6)*(Math.random()<0.5?1:-1),
+  });
+}
+// A brief puff of muzzle smoke at the barrel tip, expanding and drifting up.
+function spawnMuzzleSmokeFX(px, py, ang){
+  const sx = px + Math.cos(ang)*0.5, sy = py + Math.sin(ang)*0.5;
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6),
+    new THREE.MeshBasicMaterial({ color:0xaaaaaa, transparent:true, opacity:0.32 }));
+  mesh.position.set(sx, heightAt(sx,sy) + EYE_H, sy);
+  scene.add(mesh);
+  activeFX.push({ mesh, age:0, life:0.4, kind:'smoke', driftY:rand(0.5,0.25) });
+}
 // A destroyed wall/ramp topples over unevenly and settles as rubble on the
 // ground, staying there (moved into the persistent rubbleGroup) instead of
 // vanishing. `geometry` is rebuilt fresh per call (never a shared
@@ -2044,6 +2174,15 @@ function updateFX(dt){
       pos.setXYZ(1, lerp(f.x1,f.x2,head), lerp(f.h1,f.h2,head) - sagAt(head), lerp(f.y1,f.y2,head));
       pos.needsUpdate = true;
       f.mesh.material.opacity = 0.95 * (1 - t*0.4);
+    } else if(f.kind === 'shell'){
+      const g = 9;                                  // real ballistic arc, not an animated fraction
+      f.mesh.position.set(f.baseX + f.vx*f.age, Math.max(0.015, f.baseY + f.vy*f.age - 0.5*g*f.age*f.age), f.baseZ + f.vz*f.age);
+      f.mesh.rotation.x += f.spinX*dt; f.mesh.rotation.z += f.spinZ*dt;
+      f.mesh.material.opacity = t > 0.7 ? 1 - (t-0.7)/0.3 : 1;
+    } else if(f.kind === 'smoke'){
+      f.mesh.scale.setScalar(1 + t*2.4);
+      f.mesh.position.y += f.driftY*dt;
+      f.mesh.material.opacity = 0.32 * (1-t);
     } else if(f.kind === 'debris'){
       const fall = Math.min(1, t*1.6);            // settles before life runs out, then just sits there
       f.mesh.rotation[f.primaryAxis]   = f.primaryAngle * fall;
@@ -2503,8 +2642,13 @@ function fire(){
   player.flash = 1;
   if(player.buffs.phantom > 0) player.phantomRevealT = 0.6;   // attacking briefly reveals a Phantom
   Sound.shoot(player.weapon);
+  spawnShellFX(player.x, player.y, player.a);
+  spawnMuzzleSmokeFX(player.x, player.y, player.a);
 
-  const spread = w.spread * (1 + player.kick*0.06);
+  // real shooters are least accurate airborne, noticeably worse sprinting,
+  // a bit worse just walking, and tightest standing still
+  const moveMult = player.z > 0.05 ? 1.6 : player.isMoving ? (keys['shift'] ? 1.7 : 1.25) : 1;
+  const spread = w.spread * (1 + player.kick*0.06) * moveMult;
   const dmg = w.dmg;
   const chainShock = player.buffs.chainshock > 0;
   const boomshot = player.buffs.boomshot > 0;
