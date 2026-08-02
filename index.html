@@ -694,6 +694,90 @@ for(let by=0; by<=SKYLINE_ROWS; by+=2){
 const RAMPS_9 = [{x:11,y:5,w:2.7,h:5,axis:'y',dir:1,rampSpan:3,height:0.9}];
 const SAFEZONES_9 = [{x:84,y:60,w:3,h:3}];
 
+/* ---- three "different worlds" maps: same grid/wall/ramp systems as every
+   other map, but selectMap()->startGame() calls applyWorldTheme() with each
+   one's `theme` field, repainting the wall/floor/ceiling textures and scene
+   fog/lighting so each reads as its own planet instead of the indoor
+   facility look every other map uses. ------------------------------------ */
+
+// 10 — Dust Canyon: a desert world, winding canyon corridor between two mesa compounds
+const MAPW_10 = 58, MAPH_10 = 42;
+function buildMap10(){
+  grid.fill(WALL.NONE);
+  outline(0,0,58,42,WALL.BRICK);
+  // staggered canyon rock outcrops down the middle — offset so there's always
+  // clear open ground around each one, never a wall spanning the full map
+  fill(18,4,3,14,WALL.STONE); fill(37,20,3,14,WALL.STONE);
+  // mesa compounds, walkable inside
+  outline(4,4,12,9,WALL.BUILDING);   carve([9,13],[10,13]);
+  outline(42,4,12,9,WALL.BUILDING);  carve([47,13],[48,13]);
+  outline(23,31,12,8,WALL.BUILDING); carve([28,31],[29,31]);
+  fill(6,18,2,2,WALL.METAL); fill(50,18,2,2,WALL.METAL); fill(28,6,2,2,WALL.METAL);
+  fill(6,30,2,2,WALL.TECH);  fill(50,30,2,2,WALL.TECH);
+  fill(9,36,2,2,WALL.STONE); fill(47,36,2,2,WALL.STONE);
+}
+const SPAWNS_10 = [[2.5,2.5],[55.5,2.5],[2.5,39.5],[55.5,39.5],[29.5,20.5],
+                    [10.5,20.5],[47.5,20.5],[29.5,4.5],[29.5,37.5]];
+const PICKUPS_10 = [[2.5,2.5,'health'],[55.5,2.5,'ammo'],[2.5,39.5,'ammo'],
+                     [55.5,39.5,'health'],[29.5,20.5,'medkit'],[10.5,20.5,'overdrive'],
+                     [47.5,20.5,'moonboots'],[29.5,4.5,'frenzy'],[29.5,37.5,'boomshot'],
+                     [50.5,37.5,'chainshock']];
+const RAMPS_10 = [
+  {x:8,y:26,w:6,h:5,axis:'x',dir:1,rampSpan:3,height:1.1},
+  {x:44,y:22,w:6,h:5,axis:'x',dir:-1,rampSpan:3,height:1.1},
+];
+const SAFEZONES_10 = [{x:28,y:19,w:3,h:3}];
+
+// 11 — Frostspire: an ice moon, a shattered glacier tower at the center of a frozen field
+const MAPW_11 = 56, MAPH_11 = 40;
+function buildMap11(){
+  grid.fill(WALL.NONE);
+  outline(0,0,56,40,WALL.BRICK);
+  outline(22,13,12,14,WALL.BUILDING);   // central ice tower, walkable inside
+  carve([27,13],[28,13],[27,26],[28,26],[22,19],[22,20],[33,19],[33,20]);
+  outline(3,3,10,8,WALL.STONE);   carve([8,10],[9,10]);
+  outline(43,3,10,8,WALL.STONE);  carve([44,10],[45,10]);
+  outline(3,29,10,8,WALL.STONE);  carve([8,29],[9,29]);
+  outline(43,29,10,8,WALL.STONE); carve([44,29],[45,29]);
+  fill(6,6,2,2,WALL.METAL); fill(48,32,2,2,WALL.METAL);
+  fill(16,6,2,2,WALL.TECH); fill(38,32,2,2,WALL.TECH);
+}
+const SPAWNS_11 = [[2.5,2.5],[53.5,2.5],[2.5,37.5],[53.5,37.5],[27.5,19.5],
+                    [8.5,19.5],[47.5,19.5],[27.5,3.5],[27.5,36.5]];
+const PICKUPS_11 = [[2.5,2.5,'ammo'],[53.5,2.5,'health'],[2.5,37.5,'health'],
+                     [53.5,37.5,'ammo'],[27.5,19.5,'chaoscore'],[8.5,19.5,'titanshield'],
+                     [47.5,19.5,'bullettime'],[27.5,3.5,'drone'],[27.5,36.5,'medkit'],
+                     [15.5,3.5,'frenzy'],[40.5,36.5,'phantom']];
+const RAMPS_11 = [
+  {x:11,y:16,w:6,h:6,axis:'x',dir:1,rampSpan:3,height:1.0},
+  {x:39,y:16,w:6,h:6,axis:'x',dir:-1,rampSpan:3,height:1.0},
+];
+const SAFEZONES_11 = [{x:26.5,y:18.5,w:3,h:3}];
+
+// 12 — Emberfall: a volcanic world, twin obsidian spires either side of an ash flat
+const MAPW_12 = 54, MAPH_12 = 40;
+function buildMap12(){
+  grid.fill(WALL.NONE);
+  outline(0,0,54,40,WALL.BRICK);
+  outline(4,15,11,10,WALL.BUILDING);  carve([9,25],[10,25]);
+  outline(39,15,11,10,WALL.BUILDING); carve([44,15],[45,15]);
+  outline(21,4,12,9,WALL.BUILDING);   carve([26,4],[27,4]);
+  fill(16,18,2,2,WALL.STONE); fill(36,18,2,2,WALL.STONE);
+  fill(6,6,2,2,WALL.METAL); fill(46,6,2,2,WALL.METAL);
+  fill(26,20,2,2,WALL.TECH);
+}
+const SPAWNS_12 = [[2.5,2.5],[51.5,2.5],[2.5,37.5],[51.5,37.5],[26.5,19.5],
+                    [12.5,32.5],[41.5,32.5],[26.5,34.5],[26.5,10.5]];
+const PICKUPS_12 = [[2.5,2.5,'health'],[51.5,2.5,'ammo'],[2.5,37.5,'ammo'],
+                     [51.5,37.5,'health'],[26.5,19.5,'boomshot'],[12.5,32.5,'chainshock'],
+                     [41.5,32.5,'overdrive'],[26.5,34.5,'medkit'],[26.5,10.5,'frenzy'],
+                     [9.5,10.5,'moonboots'],[44.5,10.5,'titanshield']];
+const RAMPS_12 = [
+  {x:12,y:26,w:6,h:5,axis:'x',dir:1,rampSpan:3,height:1.0},
+  {x:36,y:26,w:6,h:5,axis:'x',dir:-1,rampSpan:3,height:1.0},
+];
+const SAFEZONES_12 = [{x:25,y:33,w:3,h:3}];
+
 /* ---- map scale-up: existing 32x24 layouts are block-expanded onto a much
    bigger grid (walls, spawns and pickups all scaled by the same integer
    factor), so "big maps" is achieved without hand-redesigning each layout. */
@@ -744,6 +828,9 @@ const MAPS = [
   scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE, RAMPS_7, SAFEZONES_7),
   { name:'The Wastes', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], ramps:RAMPS_8, safeZones:SAFEZONES_8, large:true },
   { name:'Skyline',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:RAMPS_9, safeZones:SAFEZONES_9, large:true },
+  { name:'Dust Canyon', theme:'desert',   build:buildMap10, w:MAPW_10, h:MAPH_10, spawns:SPAWNS_10, pickups:PICKUPS_10, start:SPAWNS_10[0], ramps:RAMPS_10, safeZones:SAFEZONES_10, large:true },
+  { name:'Frostspire',  theme:'ice',      build:buildMap11, w:MAPW_11, h:MAPH_11, spawns:SPAWNS_11, pickups:PICKUPS_11, start:SPAWNS_11[0], ramps:RAMPS_11, safeZones:SAFEZONES_11, large:true },
+  { name:'Emberfall',   theme:'volcanic', build:buildMap12, w:MAPW_12, h:MAPH_12, spawns:SPAWNS_12, pickups:PICKUPS_12, start:SPAWNS_12[0], ramps:RAMPS_12, safeZones:SAFEZONES_12, large:true },
 ];
 let mapIndex = 0;
 let SPAWNS = MAPS[0].spawns, PICKUPS = MAPS[0].pickups, START = MAPS[0].start, RAMPS = MAPS[0].ramps || [];
@@ -951,11 +1038,254 @@ function buildTextures(){
   });
 }
 buildTextures();
+// snapshot the original indoor-facility canvases so the 'facility' theme
+// (every pre-existing map) can be restored instantly with no repainting
+const FACILITY_TEXTURES = { [WALL.BRICK]:textures[WALL.BRICK], [WALL.STONE]:textures[WALL.STONE],
+  [WALL.METAL]:textures[WALL.METAL], [WALL.TECH]:textures[WALL.TECH], [WALL.BUILDING]:textures[WALL.BUILDING],
+  5:textures[5], 6:textures[6] };
 
 function roundRect(g,x,y,w,h,r){                   // still used by the ceiling texture above
   g.beginPath();
   g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
   g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); g.fill();
+}
+
+/* ---- procedural "realistic" world terrain (no external image assets — this
+   is a single static HTML file with no build step, so surfaces are built
+   from layered noise/gradients/cracks at higher resolution than the original
+   64px facility tiles). Each theme repaints the same WALL.BRICK/STONE/METAL/
+   TECH/BUILDING + floor/ceiling slots the renderer already knows how to draw,
+   so none of the instancing/rendering code needs to change — only what gets
+   painted onto those textures, and the scene's fog/lighting mood. ---------- */
+const THEME_TS = 128;
+function makeTexAt(size, paint){
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  paint(c.getContext('2d'));
+  return c;
+}
+function speckle(g, size, count, radiusMax, colorFn){
+  for(let i=0;i<count;i++){
+    g.fillStyle = colorFn();
+    g.beginPath(); g.arc(Math.random()*size, Math.random()*size, Math.random()*radiusMax, 0, TAU); g.fill();
+  }
+}
+function jaggedLine(g, x0,y0,x1,y1, segments, jitter, color, width){
+  g.strokeStyle = color; g.lineWidth = width; g.beginPath(); g.moveTo(x0,y0);
+  for(let i=1;i<=segments;i++){
+    const t = i/segments;
+    g.lineTo(lerp(x0,x1,t)+rand(jitter,-jitter), lerp(y0,y1,t)+rand(jitter,-jitter));
+  }
+  g.stroke();
+}
+function skyTex(size, top, mid, bot, extra){
+  return makeTexAt(size, g=>{
+    const grd = g.createLinearGradient(0,0,0,size);
+    grd.addColorStop(0,top); grd.addColorStop(0.55,mid); grd.addColorStop(1,bot);
+    g.fillStyle = grd; g.fillRect(0,0,size,size);
+    extra?.(g);
+  });
+}
+
+function buildDesertTextures(){
+  const S = THEME_TS;
+  const rock = (base, band, crack) => makeTexAt(S, g=>{
+    g.fillStyle = base; g.fillRect(0,0,S,S);
+    for(let y=0;y<S;y+=S/22){
+      const t = 0.75+Math.random()*0.5, h = S/22*(0.5+Math.random()*0.7);
+      g.fillStyle = band(t); g.fillRect(0,y,S,h);
+    }
+    for(let i=0;i<7;i++) jaggedLine(g, Math.random()*S,0, Math.random()*S,S, 8, S*0.03, crack, 1.5);
+    speckle(g, S, S*6, S*0.02, ()=>`rgba(${100+((Math.random()*70)|0)},${60+((Math.random()*50)|0)},${30+((Math.random()*30)|0)},.45)`);
+  });
+  return {
+    [WALL.BRICK]: rock('#8a5638', t=>`rgb(${(168*t)|0},${(104*t)|0},${(64*t)|0})`, 'rgba(45,22,10,.5)'),
+    [WALL.STONE]: rock('#a9784a', t=>`rgb(${(196*t)|0},${(142*t)|0},${(88*t)|0})`, 'rgba(60,32,14,.45)'),
+    [WALL.METAL]: makeTexAt(S, g=>{               // rusted wreckage panel
+      const grd = g.createLinearGradient(0,0,0,S); grd.addColorStop(0,'#8a5a3a'); grd.addColorStop(.5,'#6b4028'); grd.addColorStop(1,'#8a5a3a');
+      g.fillStyle = grd; g.fillRect(0,0,S,S);
+      g.fillStyle='rgba(30,15,6,.5)'; g.fillRect(0,S*0.46,S,S*0.05); g.fillRect(S*0.46,0,S*0.05,S);
+      speckle(g, S, S*4, S*0.025, ()=>`rgba(${90+((Math.random()*80)|0)},${40+((Math.random()*40)|0)},${15+((Math.random()*20)|0)},.5)`);
+    }),
+    [WALL.TECH]: makeTexAt(S, g=>{                 // old solar/tech relic, glowing amber
+      g.fillStyle='#2a1e14'; g.fillRect(0,0,S,S);
+      g.fillStyle='#3a2a1c'; g.fillRect(S*0.06,0,S*0.88,S);
+      for(let y=S*0.1;y<S;y+=S*0.22){
+        g.fillStyle='rgba(255,170,50,.85)'; g.fillRect(S*0.16,y,S*0.68,S*0.05);
+        g.fillStyle='rgba(255,170,50,.2)'; g.fillRect(S*0.1,y-S*0.03,S*0.8,S*0.11);
+      }
+      speckle(g, S, S*2, S*0.015, ()=>'rgba(0,0,0,.4)');
+    }),
+    [WALL.BUILDING]: rock('#7a4a30', t=>`rgb(${(150*t)|0},${(92*t)|0},${(55*t)|0})`, 'rgba(40,18,8,.5)'),
+    5: makeTexAt(S, g=>{                           // sand
+      g.fillStyle='#c9a25f'; g.fillRect(0,0,S,S);
+      speckle(g, S, S*S*0.35, S*0.014, ()=>{
+        const t = 0.7+Math.random()*0.5; return `rgba(${(214*t)|0},${(174*t)|0},${(112*t)|0},.5)`;
+      });
+      for(let i=0;i<10;i++){                       // wind ripples
+        g.strokeStyle='rgba(120,88,48,.3)'; g.lineWidth=S*0.012; g.beginPath();
+        const y0 = Math.random()*S; g.moveTo(0,y0);
+        for(let x=0;x<=S;x+=S*0.1) g.lineTo(x, y0+Math.sin(x*0.2)*S*0.02+rand(3,-3));
+        g.stroke();
+      }
+    }),
+    6: skyTex(S, '#fbe2a8', '#e8a35c', '#b9622f', g=>{
+      g.fillStyle='rgba(255,244,214,.9)'; g.beginPath(); g.arc(S*0.72,S*0.28,S*0.09,0,TAU); g.fill();
+      g.fillStyle='rgba(255,230,180,.25)'; g.beginPath(); g.arc(S*0.72,S*0.28,S*0.16,0,TAU); g.fill();
+    }),
+  };
+}
+function buildIceTextures(){
+  const S = THEME_TS;
+  const ice = (base, crack) => makeTexAt(S, g=>{
+    const grd = g.createLinearGradient(0,0,S,S); grd.addColorStop(0,base[0]); grd.addColorStop(1,base[1]);
+    g.fillStyle = grd; g.fillRect(0,0,S,S);
+    for(let i=0;i<9;i++) jaggedLine(g, Math.random()*S,0, Math.random()*S,S, 7, S*0.025, crack, 1.2);
+    speckle(g, S, S*4, S*0.018, ()=>'rgba(255,255,255,.55)');
+  });
+  return {
+    [WALL.BRICK]: ice(['#d8f0fb','#a8d8ec'], 'rgba(150,205,230,.65)'),
+    [WALL.STONE]: makeTexAt(S, g=>{                // frosted rock
+      g.fillStyle='#4a5a66'; g.fillRect(0,0,S,S);
+      for(let row=0;row<4;row++) for(let col=0;col<4;col++){
+        const t=0.7+Math.random()*0.4, x=col*S/4, y=row*S/4;
+        g.fillStyle=`rgb(${(70*t)|0},${(84*t)|0},${(96*t)|0})`; g.fillRect(x+2,y+2,S/4-4,S/4-4);
+        g.fillStyle='rgba(255,255,255,.35)'; g.fillRect(x+2,y+2,S/4-4,S*0.03);
+      }
+      speckle(g, S, S*3, S*0.02, ()=>'rgba(255,255,255,.6)');
+    }),
+    [WALL.METAL]: makeTexAt(S, g=>{                // frozen wreckage, icy sheen
+      const grd = g.createLinearGradient(0,0,0,S); grd.addColorStop(0,'#7a92a0'); grd.addColorStop(.5,'#4c6270'); grd.addColorStop(1,'#7a92a0');
+      g.fillStyle = grd; g.fillRect(0,0,S,S);
+      g.fillStyle='rgba(255,255,255,.3)'; g.fillRect(0,S*0.46,S,S*0.04);
+      speckle(g, S, S*3, S*0.02, ()=>'rgba(230,250,255,.5)');
+    }),
+    [WALL.TECH]: makeTexAt(S, g=>{                 // frozen relic glowing through the ice
+      g.fillStyle='#0f2430'; g.fillRect(0,0,S,S);
+      g.fillStyle='#16323f'; g.fillRect(S*0.06,0,S*0.88,S);
+      for(let y=S*0.1;y<S;y+=S*0.22){
+        g.fillStyle='rgba(90,235,255,.85)'; g.fillRect(S*0.16,y,S*0.68,S*0.05);
+        g.fillStyle='rgba(90,235,255,.22)'; g.fillRect(S*0.1,y-S*0.03,S*0.8,S*0.11);
+      }
+      speckle(g, S, S*2, S*0.015, ()=>'rgba(255,255,255,.4)');
+    }),
+    [WALL.BUILDING]: ice(['#eaf7fd','#bfe4f2'], 'rgba(140,195,222,.6)'),
+    5: makeTexAt(S, g=>{                           // packed snow / ice sheet
+      g.fillStyle='#e4f2f8'; g.fillRect(0,0,S,S);
+      speckle(g, S, S*S*0.25, S*0.012, ()=>{
+        const t=0.85+Math.random()*0.3; return `rgba(${(220*t)|0},${(238*t)|0},${(246*t)|0},.5)`;
+      });
+      for(let i=0;i<8;i++) jaggedLine(g, Math.random()*S,Math.random()*S, Math.random()*S,Math.random()*S, 5, S*0.02, 'rgba(150,205,225,.4)', 1);
+    }),
+    6: skyTex(S, '#eef8ff', '#d4ecf7', '#a8cfe0', g=>{
+      g.strokeStyle='rgba(140,255,220,.35)'; g.lineWidth=S*0.02;
+      for(let i=0;i<3;i++){ g.beginPath(); const y=S*(0.2+i*0.12); g.moveTo(0,y);
+        for(let x=0;x<=S;x+=S*0.08) g.lineTo(x,y+Math.sin(x*0.15+i)*S*0.03); g.stroke(); }
+    }),
+  };
+}
+function buildVolcanicTextures(){
+  const S = THEME_TS;
+  const basalt = (base, glow) => makeTexAt(S, g=>{
+    g.fillStyle = base; g.fillRect(0,0,S,S);
+    speckle(g, S, S*5, S*0.022, ()=>`rgba(${(Math.random()*30)|0},${(Math.random()*20)|0},${(Math.random()*20)|0},.5)`);
+    for(let i=0;i<6;i++) jaggedLine(g, Math.random()*S,Math.random()*S, Math.random()*S,Math.random()*S, 6, S*0.025, glow, S*0.018);
+  });
+  return {
+    [WALL.BRICK]: basalt('#211815', 'rgba(255,110,30,.75)'),
+    [WALL.STONE]: basalt('#2a1e1a', 'rgba(255,140,40,.6)'),
+    [WALL.METAL]: makeTexAt(S, g=>{                // scorched wreckage
+      const grd = g.createLinearGradient(0,0,0,S); grd.addColorStop(0,'#463430'); grd.addColorStop(.5,'#2a1e1a'); grd.addColorStop(1,'#463430');
+      g.fillStyle = grd; g.fillRect(0,0,S,S);
+      g.fillStyle='rgba(255,110,40,.4)'; g.fillRect(0,S*0.46,S,S*0.035);
+      speckle(g, S, S*3, S*0.02, ()=>'rgba(20,10,8,.6)');
+    }),
+    [WALL.TECH]: makeTexAt(S, g=>{                 // molten-core relic
+      g.fillStyle='#1a0e0a'; g.fillRect(0,0,S,S);
+      g.fillStyle='#241410'; g.fillRect(S*0.06,0,S*0.88,S);
+      for(let y=S*0.1;y<S;y+=S*0.22){
+        g.fillStyle='rgba(255,90,20,.9)'; g.fillRect(S*0.16,y,S*0.68,S*0.05);
+        g.fillStyle='rgba(255,90,20,.3)'; g.fillRect(S*0.1,y-S*0.03,S*0.8,S*0.11);
+      }
+    }),
+    [WALL.BUILDING]: basalt('#241713', 'rgba(255,120,30,.65)'),
+    5: makeTexAt(S, g=>{                           // cracked ash ground, glowing seams
+      g.fillStyle='#241a16'; g.fillRect(0,0,S,S);
+      speckle(g, S, S*S*0.3, S*0.014, ()=>{
+        const v=(Math.random()*40)|0; return `rgba(${v+20},${v},${v},.5)`;
+      });
+      for(let i=0;i<12;i++) jaggedLine(g, Math.random()*S,Math.random()*S, Math.random()*S,Math.random()*S, 6, S*0.02, 'rgba(255,100,20,.7)', S*0.012);
+    }),
+    6: skyTex(S, '#7a2c14', '#4a160c', '#200a06', g=>{
+      speckle(g, S, 40, S*0.006, ()=>'rgba(255,170,90,.8)');
+    }),
+  };
+}
+const THEME_TEXTURES = { desert: buildDesertTextures(), ice: buildIceTextures(), volcanic: buildVolcanicTextures() };
+
+const WORLD_THEMES = {
+  facility: { fogColor:0x05080a, fogNear:3, fogFarMul:1, bg:0x05080a,
+    ambient:{color:0x9fd0e8, i:0.55}, hemi:{sky:0xbfe8ff, ground:0x05080a, i:0.35}, sun:{color:0xffffff, i:0},
+    mats: {
+      [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.5,  metalness:0.4, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.7,  metalness:0, emissive:0x3fc8ff, emissiveIntensity:0.35, repeat:[1,1] },
+      [WALL.BUILDING]:{ roughness:0.8, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,3] },
+    } },
+  desert: { fogColor:0xc07840, fogNear:3, fogFarMul:1, bg:0xd89a5c,
+    ambient:{color:0xffdba0, i:0.65}, hemi:{sky:0xffd9a0, ground:0x7a4a28, i:0.55}, sun:{color:0xffe8c0, i:1.3},
+    mats: {
+      [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.55, metalness:0.5, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.6,  metalness:0, emissive:0xffaa33, emissiveIntensity:0.4, repeat:[1,1] },
+      [WALL.BUILDING]:{ roughness:0.88,metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
+    } },
+  ice: { fogColor:0xaad4e8, fogNear:3, fogFarMul:1, bg:0xbfe0f0,
+    ambient:{color:0xdff3ff, i:0.7}, hemi:{sky:0xe8f8ff, ground:0x30506a, i:0.5}, sun:{color:0xeaffff, i:1.0},
+    mats: {
+      [WALL.BRICK]:  { roughness:0.25, metalness:0.05, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.STONE]:  { roughness:0.8,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.35, metalness:0.6, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.4,  metalness:0, emissive:0x66eaff, emissiveIntensity:0.5, repeat:[1,1] },
+      [WALL.BUILDING]:{ roughness:0.3, metalness:0.1, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
+    } },
+  volcanic: { fogColor:0x4a1a12, fogNear:2.4, fogFarMul:0.82, bg:0x3a140c,
+    ambient:{color:0xff8a4a, i:0.5}, hemi:{sky:0xff6a3a, ground:0x1a0805, i:0.6}, sun:{color:0xff7040, i:0.9},
+    mats: {
+      [WALL.BRICK]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.STONE]:  { roughness:0.5,  metalness:0.2, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.6,  metalness:0.5, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.55, metalness:0, emissive:0xff5010, emissiveIntensity:0.7, repeat:[1,1] },
+      [WALL.BUILDING]:{ roughness:0.7, metalness:0.1, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
+    } },
+};
+let activeTheme = null;
+function applyWorldTheme(theme){
+  if(theme === activeTheme) return;
+  activeTheme = theme;
+  const set = theme === 'facility' ? FACILITY_TEXTURES : THEME_TEXTURES[theme];
+  const cfg = WORLD_THEMES[theme];
+  for(const k of [WALL.BRICK, WALL.STONE, WALL.METAL, WALL.TECH, WALL.BUILDING]){
+    textures[k] = set[k];
+    const m = wallMats[k], mc = cfg.mats[k];
+    if(m.map) m.map.dispose();
+    m.map = makeCanvasTex(textures[k], mc.repeat[0], mc.repeat[1]);
+    m.roughness = mc.roughness; m.metalness = mc.metalness;
+    m.emissive.set(mc.emissive); m.emissiveIntensity = mc.emissiveIntensity;
+    m.needsUpdate = true;
+  }
+  textures[5] = set[5]; textures[6] = set[6];   // picked up by refreshFloorCeilTex() on next rebuild
+  scene.fog.color.set(cfg.fogColor); scene.fog.near = cfg.fogNear; scene.fog.far = VIEW * cfg.fogFarMul;
+  scene.background = new THREE.Color(cfg.bg);
+  ambientLight.color.set(cfg.ambient.color); ambientLight.intensity = cfg.ambient.i;
+  hemiLight.color.set(cfg.hemi.sky); hemiLight.groundColor.set(cfg.hemi.ground); hemiLight.intensity = cfg.hemi.i;
+  sunLight.color.set(cfg.sun.color); sunLight.intensity = cfg.sun.i;
+  rampMat.map?.dispose();
+  rampMat.color.set(theme === 'facility' ? 0xffffff : 0xffffff);
+  rampMat.map = makeCanvasTex(textures[WALL.STONE], 2, 2);
+  rampMat.roughness = cfg.mats[WALL.STONE].roughness;
+  rampMat.needsUpdate = true;
 }
 
 /* -------------------------------- NPC types -------------------------------- */
@@ -1066,7 +1396,7 @@ const player = {
   bob:0, kick:0, flash:0, hurt:0, weapon:'pistol',
   reloading:0, cooldown:0, stepTimer:0,
   buffs: freshBuffs(), kills:0, deaths:0, name:'You', skin:0, id:'me',
-  vx:0, vy:0, z:0, vz:0, jumpsUsed:0,
+  vx:0, vy:0, z:0, vz:0, jumpsUsed:0, jumpApex:0,
   shieldCharge:0, maxShieldCharge:0, shieldRegenRate:4,
   titanShield:0, phantomRevealT:0, chaosSwitchT:0, chaosActiveKey:null, safeZoneT:0,
   medkits:0,
@@ -1150,8 +1480,10 @@ const BUILD_H = WALL_H * 3;                         // tall-building walls reach
 const CEIL_H = BUILD_H + 0.4;                       // global ceiling raised above the tallest structure so buildings don't poke through it
 
 scene.fog = new THREE.Fog(0x05080a, 3, VIEW);
-scene.add(new THREE.AmbientLight(0x9fd0e8, 0.55));
-scene.add(new THREE.HemisphereLight(0xbfe8ff, 0x05080a, 0.35));
+const ambientLight = new THREE.AmbientLight(0x9fd0e8, 0.55); scene.add(ambientLight);
+const hemiLight = new THREE.HemisphereLight(0xbfe8ff, 0x05080a, 0.35); scene.add(hemiLight);
+// outdoor worlds get a directional "sun" too (indoor facility maps leave it dim/off)
+const sunLight = new THREE.DirectionalLight(0xffffff, 0); sunLight.position.set(-12, 20, -8); scene.add(sunLight);
 const headlamp = new THREE.PointLight(0xcfeeff, 0.85, 9, 2); camera.add(headlamp);
 const muzzleLight = new THREE.PointLight(0xffcf8a, 0, 6, 2); camera.add(muzzleLight);
 
@@ -2537,7 +2869,11 @@ function update(dt){
   if(mag > 0.001 && player.alive){
     const analogScale = (!keyboardActive && joyMag > 0.05) ? joyMag : 1;
     const sp = (sprinting ? player.sprint : player.speed) * speedBoost * analogScale * dt;
-    moveEntity(player, (fx/mag)*sp, (fy/mag)*sp, 0.26, heightAt(player.x, player.y) + (player.z||0));
+    // Use the jump's apex, not just this instant's z, so releasing forward at
+    // the exact peak (a very natural reaction to bumping into rubble) doesn't
+    // waste the jump — any push during the whole hang time still climbs it.
+    const climbHeight = Math.max(player.z||0, player.jumpApex||0);
+    moveEntity(player, (fx/mag)*sp, (fy/mag)*sp, 0.26, heightAt(player.x, player.y) + climbHeight);
     player.bob += dt * (sprinting ? 13 : 9);
     player.animPhase = (player.animPhase||0) + dt * (sprinting ? 13 : 9);
     player.stepTimer -= dt * (sprinting ? 1.5 : 1);
@@ -2552,7 +2888,8 @@ function update(dt){
     const g = player.buffs.moonboots > 0 ? GRAVITY * 0.45 : GRAVITY;
     player.vz -= g * dt;
     player.z = Math.max(0, player.z + player.vz * dt);
-    if(player.z <= 0){ player.vz = 0; player.jumpsUsed = 0; }
+    if(player.z <= 0){ player.vz = 0; player.jumpsUsed = 0; player.jumpApex = 0; }
+    else player.jumpApex = Math.max(player.jumpApex||0, player.z);
   }
 
   // ---------- weapon ----------
@@ -3870,6 +4207,7 @@ el('btnLeaveLobby').addEventListener('click', () => Net.leaveToMenu());
 
 function startGame(){
   selectMap(mapIndex);
+  applyWorldTheme(MAPS[mapIndex].theme || 'facility');
   clearRubble();
   rebuildMapMeshes();
   enemies = []; bolts = []; nextEnemyId = 1;
@@ -3878,7 +4216,7 @@ function startGame(){
   player.x = spawn[0]; player.y = spawn[1]; player.a = -Math.PI/2; player.pitch = 0;
   player.hp = 100; player.alive = true; player.weapon = 'pistol';
   player.kick = 0; player.flash = 0; player.hurt = 0; player.reloading = 0; player.cooldown = 0;
-  player.vx = 0; player.vy = 0; player.z = 0; player.vz = 0; player.jumpsUsed = 0;
+  player.vx = 0; player.vy = 0; player.z = 0; player.vz = 0; player.jumpsUsed = 0; player.jumpApex = 0;
   player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0; player.medkits = 0;
   player.titanShield = 0; player.phantomRevealT = 0; player.chaosSwitchT = 0; player.chaosActiveKey = null;
   player.safeZoneT = 0; player.inSafeZone = false;
@@ -3931,6 +4269,9 @@ updateHUD();
 drawMinimap();
 
 window.__setNetMode = m => { netMode = m; };
+window.__testHooks = { WALL, at, MAPW: () => MAPW, MAPH: () => MAPH, damageBuildingCell,
+  heightAt, rubblePlatforms: () => rubblePlatforms, fallDirFor,
+  tick(dt=0.016){ update(dt); render3D(dt); } };
 Object.defineProperty(window, '__breach', { configurable:true, get(){ return {
   player, enemies, bolts, pickups, otherPlayers, account, supa, WEAPONS, WEAPON_ORDER, MAPS, mapIndex,
   grid, MAPW, MAPH, running, paused, gameOver, netMode, MODE, wave, kills, score, myId, zoomed,
