@@ -184,7 +184,6 @@
   .legendSwatch{width:14px;height:14px;border-radius:4px;flex-shrink:0;margin-top:2px;box-shadow:0 0 6px currentColor}
   .legendText b{display:block;color:#fff;font-size:13px}
   .legendText span{display:block;font-size:12px;color:#9fd8e6;opacity:.85;margin-top:1px}
-  .weaponIcon{width:60px;height:26px;border-radius:4px;border:1px solid var(--line);background:rgba(0,0,0,.3);flex-shrink:0}
   #netmsg,#loginMsg,#friendMsg{font-size:12px;color:var(--dim);min-height:16px;letter-spacing:.06em}
   #loginEmail,#friendEmail,#chatInput{pointer-events:auto;font:inherit;font-size:15px;text-align:left;color:#fff;
     background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;padding:12px;width:100%}
@@ -309,8 +308,6 @@
 
   <div class="panelbox hide" id="menuArmory" style="min-width:360px">
     <div class="lbl">Armory — Coins: <b id="armoryCoins">0</b></div>
-    <div class="lbl" style="margin-top:6px">Weapons</div>
-    <ul class="lobbylist" id="armoryWeaponsList"></ul>
     <div class="lbl" style="margin-top:6px">Shield</div>
     <ul class="lobbylist" id="armoryShieldList"></ul>
     <div class="lbl" style="margin-top:6px">Power-ups</div>
@@ -490,7 +487,7 @@ const SPAWNS_1  = [[6.5,5.5],[25.5,5.5],[6.5,18.5],[25.5,18.5],[16.5,12.5],
                  [16.5,2.5],[2.5,12.5],[29.5,12.5],[16.5,21.5]];
 const PICKUPS_1 = [[4.5,4.5,'health'],[27.5,4.5,'ammo'],[4.5,19.5,'ammo'],
                  [27.5,19.5,'health'],[16.5,12.5,'medkit'],[16.5,6.5,'health'],
-                 [14.5,4.5,'overdrive'],[18.5,19.5,'boomshot'],[8.5,13.5,'titanshield'],[23.5,13.5,'phantom'],
+                 [14.5,4.5,'weapon','rifle'],[18.5,19.5,'weapon','smg'],[8.5,13.5,'weapon','shotgun'],[23.5,13.5,'phantom'],
                  [16.5,9.5,'moonboots']];
 // ramp-up decks between the bunkers, clear of the central building
 const RAMPS_1 = [
@@ -518,8 +515,8 @@ function buildMap2(){
 const SPAWNS_2 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_2 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'frenzy'],
-                    [30.5,13.5,'bullettime'],[12.5,18.5,'chainshock'],[17.5,1.5,'drone'],[9.5,9.5,'chaoscore']];
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'weapon','rifle'],
+                    [30.5,13.5,'weapon','smg'],[12.5,18.5,'weapon','sniper'],[17.5,1.5,'drone'],[9.5,9.5,'chaoscore']];
 // a ramp up to the keep's west doorway, in the ring corridor
 const RAMPS_2 = [{x:5,y:9,w:4,h:3,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 const SAFEZONES_2 = [{x:24,y:9,w:2,h:2}];
@@ -542,8 +539,8 @@ function buildMap3(){
 const SPAWNS_3 = [[1.5,22.5],[30.5,1.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,19.5],[10.5,10.5]];
 const PICKUPS_3 = [[1.5,22.5,'health'],[30.5,1.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'overdrive'],
-                    [30.5,13.5,'boomshot'],[12.5,19.5,'titanshield'],[10.5,10.5,'phantom'],[17.5,1.5,'moonboots']];
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'weapon','rifle'],
+                    [30.5,13.5,'weapon','smg'],[12.5,19.5,'titanshield'],[10.5,10.5,'weapon','shotgun'],[17.5,1.5,'moonboots']];
 // a raised deck in the open corner past the last partition row
 const RAMPS_3 = [{x:20,y:19,w:5,h:3.5,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 const SAFEZONES_3 = [{x:28,y:2,w:2,h:2}];
@@ -564,8 +561,8 @@ function buildMap4(){
 const SPAWNS_4 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_4 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'frenzy'],
-                    [30.5,13.5,'bullettime'],[12.5,18.5,'chainshock'],[17.5,1.5,'drone'],[10.5,9.5,'chaoscore']];
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'weapon','rifle'],
+                    [30.5,13.5,'bullettime'],[12.5,18.5,'weapon','smg'],[17.5,1.5,'weapon','lmg'],[10.5,9.5,'chaoscore']];
 // raised decks near the tower, in the open quadrants beside it
 const RAMPS_4 = [
   {x:9,y:3,w:4,h:4,axis:'x',dir:1,rampSpan:2,height:0.9},
@@ -592,8 +589,8 @@ function buildMap5(){
 const SPAWNS_5 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[12.5,14.5],
                    [1.5,10.5],[23.5,10.5],[18.5,1.5],[30.5,16.5]];
 const PICKUPS_5 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[12.5,14.5,'medkit'],[1.5,10.5,'overdrive'],
-                    [23.5,10.5,'boomshot'],[18.5,1.5,'titanshield'],[30.5,16.5,'phantom'],[10.5,22.5,'moonboots']];
+                    [23.5,22.5,'ammo'],[12.5,14.5,'medkit'],[1.5,10.5,'weapon','rifle'],
+                    [23.5,10.5,'boomshot'],[18.5,1.5,'weapon','smg'],[30.5,16.5,'phantom'],[10.5,22.5,'weapon','shotgun']];
 // ramps up in the side aisles, on either end of the cross-corridor
 const RAMPS_5 = [
   {x:10,y:4,w:3,h:4,axis:'y',dir:1,rampSpan:2,height:0.8},
@@ -615,8 +612,8 @@ function buildMap6(){
 const SPAWNS_6 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_6 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'frenzy'],
-                    [30.5,13.5,'bullettime'],[12.5,18.5,'chainshock'],[17.5,1.5,'drone'],[10.5,10.5,'chaoscore']];
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'weapon','rifle'],
+                    [30.5,13.5,'weapon','smg'],[12.5,18.5,'chainshock'],[17.5,1.5,'drone'],[10.5,10.5,'weapon','sniper']];
 // a small step up just above the central cover block
 const RAMPS_6 = [{x:14,y:8,w:3,h:1.8,axis:'y',dir:1,rampSpan:1,height:0.7}];
 const SAFEZONES_6 = [{x:14,y:3,w:3,h:3}];
@@ -635,8 +632,8 @@ function buildMap7(){
 const SPAWNS_7 = [[30.5,1.5],[1.5,22.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,18.5],[17.5,1.5]];
 const PICKUPS_7 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
-                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'overdrive'],
-                    [30.5,13.5,'boomshot'],[12.5,18.5,'titanshield'],[17.5,1.5,'phantom'],[10.5,9.5,'moonboots']];
+                    [23.5,22.5,'ammo'],[19.5,9.5,'medkit'],[1.5,10.5,'weapon','rifle'],
+                    [30.5,13.5,'weapon','smg'],[12.5,18.5,'titanshield'],[17.5,1.5,'phantom'],[10.5,9.5,'weapon','shotgun']];
 // a ramp up in the west ring corridor, between the corner covers
 const RAMPS_7 = [{x:3,y:8,w:4,h:6,axis:'x',dir:1,rampSpan:3,height:0.9}];
 const SAFEZONES_7 = [{x:1,y:1,w:2,h:2}];
@@ -659,8 +656,8 @@ function buildMap8(){
 const SPAWNS_8 = [[2.5,2.5],[57.5,2.5],[2.5,41.5],[57.5,41.5],[29.5,21.5],
                    [20.5,2.5],[39.5,41.5],[6.5,21.5],[53.5,21.5]];
 const PICKUPS_8 = [[2.5,2.5,'health'],[57.5,2.5,'ammo'],[2.5,41.5,'ammo'],
-                    [57.5,41.5,'health'],[29.5,21.5,'medkit'],[20.5,8.5,'frenzy'],
-                    [39.5,34.5,'bullettime'],[20.5,34.5,'chainshock'],[39.5,8.5,'drone'],[29.5,29.5,'chaoscore']];
+                    [57.5,41.5,'health'],[29.5,21.5,'medkit'],[20.5,8.5,'weapon','rifle'],
+                    [39.5,34.5,'bullettime'],[20.5,34.5,'weapon','smg'],[39.5,8.5,'weapon','lmg'],[29.5,29.5,'chaoscore']];
 // a raised dune deck in the open wasteland, clear of the compounds and ruin
 const RAMPS_8 = [
   {x:8,y:18,w:6,h:6,axis:'x',dir:1,rampSpan:3,height:1.2},
@@ -686,15 +683,18 @@ function buildMap9(){
     }
   }
 }
-// spawns/pickups sit at street intersections between the city blocks, spread across the whole grid
-const SKYLINE_KINDS = ['health','ammo','medkit','overdrive','boomshot','titanshield','phantom',
-                       'moonboots','frenzy','bullettime','chainshock','drone','chaoscore'];
+// spawns/pickups sit at street intersections between the city blocks, spread across the whole grid.
+// Weapon chests are interspersed at chest-loot rarity — rifle/smg common, shotgun less so, sniper/lmg rarest.
+const SKYLINE_KINDS = ['health','ammo','medkit','overdrive','weapon-rifle','boomshot','titanshield',
+                       'weapon-smg','phantom','moonboots','frenzy','weapon-shotgun','bullettime',
+                       'chainshock','weapon-sniper','drone','chaoscore','weapon-lmg','weapon-rifle','weapon-smg'];
 const SPAWNS_9 = [], PICKUPS_9 = [];
 for(let by=0; by<=SKYLINE_ROWS; by+=2){
   for(let bx=0; bx<=SKYLINE_COLS; bx+=2){
     const x = 4 + bx*10 - 1.5, y = 4 + by*10 - 1.5;
     SPAWNS_9.push([x, y]);
-    PICKUPS_9.push([x, y, SKYLINE_KINDS[(SPAWNS_9.length-1) % SKYLINE_KINDS.length]]);
+    const k = SKYLINE_KINDS[(SPAWNS_9.length-1) % SKYLINE_KINDS.length];
+    PICKUPS_9.push(k.startsWith('weapon-') ? [x, y, 'weapon', k.slice(7)] : [x, y, k]);
   }
 }
 // a ramp up the narrow street between the first two blocks of row 0
@@ -726,9 +726,9 @@ function buildMap10(){
 const SPAWNS_10 = [[2.5,2.5],[55.5,2.5],[2.5,39.5],[55.5,39.5],[29.5,20.5],
                     [10.5,20.5],[47.5,20.5],[29.5,4.5],[29.5,37.5]];
 const PICKUPS_10 = [[2.5,2.5,'health'],[55.5,2.5,'ammo'],[2.5,39.5,'ammo'],
-                     [55.5,39.5,'health'],[29.5,20.5,'medkit'],[10.5,20.5,'overdrive'],
-                     [47.5,20.5,'moonboots'],[29.5,4.5,'frenzy'],[29.5,37.5,'boomshot'],
-                     [50.5,37.5,'chainshock']];
+                     [55.5,39.5,'health'],[29.5,20.5,'medkit'],[10.5,20.5,'weapon','rifle'],
+                     [47.5,20.5,'moonboots'],[29.5,4.5,'weapon','smg'],[29.5,37.5,'boomshot'],
+                     [50.5,37.5,'weapon','sniper']];
 const RAMPS_10 = [
   {x:8,y:26,w:6,h:5,axis:'x',dir:1,rampSpan:3,height:1.1},
   {x:44,y:22,w:6,h:5,axis:'x',dir:-1,rampSpan:3,height:1.1},
@@ -752,9 +752,9 @@ function buildMap11(){
 const SPAWNS_11 = [[2.5,2.5],[53.5,2.5],[2.5,37.5],[53.5,37.5],[27.5,19.5],
                     [8.5,19.5],[47.5,19.5],[27.5,3.5],[27.5,36.5]];
 const PICKUPS_11 = [[2.5,2.5,'ammo'],[53.5,2.5,'health'],[2.5,37.5,'health'],
-                     [53.5,37.5,'ammo'],[27.5,19.5,'chaoscore'],[8.5,19.5,'titanshield'],
-                     [47.5,19.5,'bullettime'],[27.5,3.5,'drone'],[27.5,36.5,'medkit'],
-                     [15.5,3.5,'frenzy'],[40.5,36.5,'phantom']];
+                     [53.5,37.5,'ammo'],[27.5,19.5,'weapon','rifle'],[8.5,19.5,'titanshield'],
+                     [47.5,19.5,'weapon','shotgun'],[27.5,3.5,'weapon','sniper'],[27.5,36.5,'medkit'],
+                     [15.5,3.5,'weapon','smg'],[40.5,36.5,'phantom']];
 const RAMPS_11 = [
   {x:11,y:16,w:6,h:6,axis:'x',dir:1,rampSpan:3,height:1.0},
   {x:39,y:16,w:6,h:6,axis:'x',dir:-1,rampSpan:3,height:1.0},
@@ -776,8 +776,8 @@ function buildMap12(){
 const SPAWNS_12 = [[2.5,2.5],[51.5,2.5],[2.5,37.5],[51.5,37.5],[26.5,19.5],
                     [12.5,32.5],[41.5,32.5],[26.5,34.5],[26.5,10.5]];
 const PICKUPS_12 = [[2.5,2.5,'health'],[51.5,2.5,'ammo'],[2.5,37.5,'ammo'],
-                     [51.5,37.5,'health'],[26.5,19.5,'boomshot'],[12.5,32.5,'chainshock'],
-                     [41.5,32.5,'overdrive'],[26.5,34.5,'medkit'],[26.5,10.5,'frenzy'],
+                     [51.5,37.5,'health'],[26.5,19.5,'weapon','rifle'],[12.5,32.5,'weapon','lmg'],
+                     [41.5,32.5,'weapon','smg'],[26.5,34.5,'medkit'],[26.5,10.5,'weapon','shotgun'],
                      [9.5,10.5,'moonboots'],[44.5,10.5,'titanshield']];
 const RAMPS_12 = [
   {x:12,y:26,w:6,h:5,axis:'x',dir:1,rampSpan:3,height:1.0},
@@ -789,7 +789,7 @@ const SAFEZONES_12 = [{x:25,y:33,w:3,h:3}];
    bigger grid (walls, spawns and pickups all scaled by the same integer
    factor), so "big maps" is achieved without hand-redesigning each layout. */
 function scaleSpawns(arr, f){ return arr.map(([x,y]) => [x*f, y*f]); }
-function scalePickups(arr, f){ return arr.map(([x,y,k]) => [x*f, y*f, k]); }
+function scalePickups(arr, f){ return arr.map(([x,y,k,extra]) => extra===undefined ? [x*f, y*f, k] : [x*f, y*f, k, extra]); }
 // ramps/platforms: elevation footprints are grid-space (scale with the map),
 // the height itself is an absolute world height and stays fixed
 function scaleRamps(arr, f){ return arr.map(r => ({ ...r, x:r.x*f, y:r.y*f, w:r.w*f, h:r.h*f, rampSpan:r.rampSpan*f })); }
@@ -1506,25 +1506,30 @@ scene.add(camera);
 // recoilSpread: matching per-shot random horizontal (yaw) kick, both ways.
 const WEAPONS = {
   pistol : { name:'Pistol',  dmg:24, rof:.20,  mag:12, ammo:12, reserve:Infinity, reload:1.05,
-             spread:.006, kick:5.5,  heavy:false, auto:false, cost:0, muzzleVel:95,
+             spread:.006, kick:5.5,  heavy:false, auto:false, muzzleVel:95,
              recoilKick:0.014, recoilSpread:0.006 },
   rifle  : { name:'Rifle',   dmg:17, rof:.085, mag:30, ammo:30, reserve:90,  reload:1.55,
-             spread:.022, kick:3.2,  heavy:true,  auto:true,  cost:0, muzzleVel:110,
+             spread:.022, kick:3.2,  heavy:true,  auto:true,  muzzleVel:110,
              recoilKick:0.009, recoilSpread:0.005 },
   smg    : { name:'SMG',     dmg:11, rof:.06,  mag:35, ammo:35, reserve:140, reload:1.3,
-             spread:.03,  kick:2.2,  heavy:false, auto:true,  cost:250, muzzleVel:85,
+             spread:.03,  kick:2.2,  heavy:false, auto:true,  muzzleVel:85,
              recoilKick:0.006, recoilSpread:0.006 },
   shotgun: { name:'Shotgun', dmg:9,  rof:.75,  mag:6,  ammo:6,  reserve:24,  reload:2.2,
-             spread:.09,  kick:9,    heavy:true,  auto:false, cost:400, pellets:8, muzzleVel:70,
+             spread:.09,  kick:9,    heavy:true,  auto:false, pellets:8, muzzleVel:70,
              recoilKick:0.032, recoilSpread:0.01 },
   sniper : { name:'Sniper',  dmg:95, rof:1.1,  mag:5,  ammo:5,  reserve:20,  reload:2.6,
-             spread:.001, kick:14,   heavy:true,  auto:false, cost:650, zoom:true, muzzleVel:190,
+             spread:.001, kick:14,   heavy:true,  auto:false, zoom:true, muzzleVel:190,
              recoilKick:0.05, recoilSpread:0.004 },
   lmg    : { name:'LMG',     dmg:15, rof:.11,  mag:75, ammo:75, reserve:225, reload:3.2,
-             spread:.028, kick:3.6,  heavy:true,  auto:true,  cost:800, muzzleVel:100,
+             spread:.028, kick:3.6,  heavy:true,  auto:true,  muzzleVel:100,
              recoilKick:0.007, recoilSpread:0.006 },
 };
 const WEAPON_ORDER = ['pistol','rifle','smg','shotgun','sniper','lmg'];
+// Chest loot colors, one per weapon — also used as a visual rarity cue (grayer =
+// more common, gold = rarest). Pistol has none: it's the guaranteed starting
+// sidearm, never a chest drop; every map's chest placements favor rifle/smg over
+// the rarer shotgun/sniper/lmg finds.
+const WEAPON_RARITY_COLOR = { rifle:'#cfd6dc', smg:'#7cfc8a', shotgun:'#5aa8ff', sniper:'#b26aff', lmg:'#ffb347' };
 for(const key in WEAPONS) WEAPONS[key].maxReserve = WEAPONS[key].reserve;
 
 const BASE_SPEED = 3.3, BASE_SPRINT = 5.1;
@@ -2009,14 +2014,17 @@ function syncPlayerMeshes(dt){
 
 /* ---- pickups (static per-map pool, just toggled/animated) + bolts -------- */
 const pickupGeo = new THREE.OctahedronGeometry(0.17, 0);
+const chestGeo = new THREE.BoxGeometry(0.32, 0.22, 0.22);
 function pickupMat(color){ return new THREE.MeshStandardMaterial({ color, emissive:color, emissiveIntensity:0.65, roughness:0.35 }); }
 const pickupMats = { health: pickupMat('#ff5a5a'), ammo: pickupMat('#ffd479'), medkit: pickupMat('#f2f6ff') };
 for(const k of BUFF_KEYS) pickupMats[k] = pickupMat(BUFF_META[k].color);
+const weaponChestMats = Object.fromEntries(Object.entries(WEAPON_RARITY_COLOR).map(([k,c]) => [k, pickupMat(c)]));
 let pickupMeshes = [];
 function rebuildPickupMeshes(){
   for(const m of pickupMeshes) scene.remove(m);
   pickupMeshes = pickups.map(p => {
-    const mesh = new THREE.Mesh(pickupGeo, pickupMats[p.kind]);
+    const isChest = p.kind === 'weapon';
+    const mesh = new THREE.Mesh(isChest ? chestGeo : pickupGeo, isChest ? weaponChestMats[p.weaponKey] : pickupMats[p.kind]);
     mesh.position.set(p.x, 0.4, p.y);
     scene.add(mesh);
     return mesh;
@@ -3117,7 +3125,7 @@ function nextWave(){
 }
 
 function resetPickups(){
-  pickups = PICKUPS.map(([x,y,kind]) => ({ x, y, kind, taken:false, respawnAt:0 }));
+  pickups = PICKUPS.map(([x,y,kind,weaponKey]) => ({ x, y, kind, weaponKey, taken:false, respawnAt:0 }));
   rebuildPickupMeshes();
 }
 
@@ -3140,6 +3148,9 @@ function applyPickup(pl, p){
     Net.emit({ kind:'pickup', targetId: pl.id, text:'+1 medkit', color:'#f2f6ff' });
   } else if(p.kind === 'ammo'){
     Net.emit({ kind:'ammo', targetId: pl.id, text:'+40 rifle ammo', color:'#ffd479' });
+  } else if(p.kind === 'weapon'){
+    const w = WEAPONS[p.weaponKey];
+    Net.emit({ kind:'weaponfound', targetId: pl.id, weaponKey:p.weaponKey, text:`${w.name} acquired`, color:WEAPON_RARITY_COLOR[p.weaponKey] });
   } else {
     grantBuff(pl, p.kind);
   }
@@ -3395,7 +3406,8 @@ function drawMinimap(){
   }
   for(const p of pickups){
     if(p.taken) continue;
-    mg.fillStyle = p.kind==='health' ? '#ff6b6b' : p.kind==='ammo' ? '#ffd479' : p.kind==='medkit' ? '#f2f6ff' : BUFF_META[p.kind].color;
+    mg.fillStyle = p.kind==='health' ? '#ff6b6b' : p.kind==='ammo' ? '#ffd479' : p.kind==='medkit' ? '#f2f6ff'
+      : p.kind==='weapon' ? WEAPON_RARITY_COLOR[p.weaponKey] : BUFF_META[p.kind].color;
     mg.fillRect(ox+p.x*cell-1.5, oy+p.y*cell-1.5, 3, 3);
   }
   for(const e of enemies){
@@ -3524,6 +3536,14 @@ function handleNetEvent(evt){
       feed(evt.text, evt.color);
       if(evt.targetId === myId){
         const r = WEAPONS.rifle; r.reserve = Math.min(180, r.reserve + 40); Sound.pickup(); updateHUD();
+      }
+      break;
+    case 'weaponfound':
+      feed(evt.text, evt.color);
+      if(evt.targetId === myId){
+        account.ownedWeapons.add(evt.weaponKey);
+        switchWeapon(evt.weaponKey);
+        Sound.pickup();
       }
       break;
     case 'wave':
@@ -4202,7 +4222,7 @@ const SUPABASE_URL = 'https://nvhxlrxqzrwhrhqwcurp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_rwgWfjbg_AFsheYPlYme5g_ldlDpHJC';
 const supa = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
-const DEFAULT_OWNED_WEAPONS = ['pistol','rifle'];
+const DEFAULT_OWNED_WEAPONS = ['pistol'];
 let account = { user:null, coins:0, ownedWeapons:new Set(DEFAULT_OWNED_WEAPONS), ownedUpgrades:new Map(), pendingCoins:0 };
 
 function renderAccountStatus(){
@@ -4245,13 +4265,11 @@ async function flushPendingCoins(){
 async function loadProfile(){
   if(!supa || !account.user) return;
   const uid = account.user.id;
-  const [{data:profile}, {data:weapons}, {data:upgrades}] = await Promise.all([
+  const [{data:profile}, {data:upgrades}] = await Promise.all([
     supa.from('profiles').select('coins').eq('id', uid).maybeSingle(),
-    supa.from('owned_weapons').select('weapon_key').eq('user_id', uid),
     supa.from('owned_upgrades').select('upgrade_key,tier').eq('user_id', uid),
   ]);
   account.coins = profile?.coins ?? 0;
-  account.ownedWeapons = new Set([...DEFAULT_OWNED_WEAPONS, ...(weapons||[]).map(w=>w.weapon_key)]);
   account.ownedUpgrades = new Map((upgrades||[]).map(u=>[u.upgrade_key,u.tier]));
   renderAccountStatus(); renderLoginPanel(); refreshCoinHud();
   subscribeFriendRequests();
@@ -4290,38 +4308,6 @@ el('btnLoginSend').addEventListener('click', async () => {
 el('btnSignOut').addEventListener('click', async () => { if(supa) await supa.auth.signOut(); showPanel('menuMain'); });
 
 /* -------------------------------- armory / shop -------------------------------- */
-function renderWeaponIcon(key){
-  const cv = document.createElement('canvas');
-  cv.width = 60; cv.height = 26;
-  const g = cv.getContext('2d');
-  g.fillStyle = '#8ef5ff';
-  const cy = 13;
-  const bar = (x,w,h=4) => g.fillRect(x, cy-h/2, w, h);
-  const low = (x,w,h) => g.fillRect(x, cy+2, w, h);
-  const stock = (x,w) => g.fillRect(x, cy-2, w, 4);
-  switch(key){
-    case 'smg':
-      bar(6, 28, 5); stock(38, 12); low(16, 6, 10);
-      break;
-    case 'shotgun':
-      bar(4, 32, 7); low(32, 9, 4); low(42, 6, 10); stock(46, 9);
-      break;
-    case 'sniper':
-      bar(2, 42, 3); g.fillRect(18, cy-8, 13, 5); low(32, 6, 9); stock(45, 11);
-      break;
-    case 'lmg':
-      bar(2, 38, 6); stock(42, 13); low(20, 6, 10);
-      g.beginPath(); g.arc(26, cy+8, 5, 0, TAU); g.fill();
-      g.strokeStyle = '#8ef5ff'; g.lineWidth = 1.5;
-      g.beginPath(); g.moveTo(6,cy+3); g.lineTo(2,cy+10); g.moveTo(10,cy+3); g.lineTo(14,cy+10); g.stroke();
-      break;
-    default:
-      bar(16, 20, 5); low(22, 6, 10);
-  }
-  return cv.toDataURL();
-}
-const WEAPON_ICONS = Object.fromEntries(WEAPON_ORDER.map(k => [k, renderWeaponIcon(k)]));
-const SHOP_WEAPONS = WEAPON_ORDER.filter(k => WEAPONS[k].cost > 0);
 const SHIELD_TIERS = [
   { tier:1, name:'Aegis Cell I',   cost:300, desc:'+25 shield charge' },
   { tier:2, name:'Aegis Cell II',  cost:500, desc:'+25 more shield charge (50 total)' },
@@ -4335,13 +4321,6 @@ const POWERUPS = [
 ];
 function renderArmory(){
   el('armoryCoins').textContent = account.coins;
-  el('armoryWeaponsList').innerHTML = SHOP_WEAPONS.map(key => {
-    const w = WEAPONS[key], owned = account.ownedWeapons.has(key);
-    return `<li class="roomrow"><img class="weaponIcon" src="${WEAPON_ICONS[key]}" alt="" />
-      <span>${escapeHtml(w.name)} <small>(${w.cost} coins)</small></span>
-      ${owned ? '<span class="mbtn small" style="pointer-events:none;opacity:.6">Owned</span>'
-              : `<span class="mbtn small buyWeaponBtn" data-key="${key}">Buy</span>`}</li>`;
-  }).join('');
   const shieldTier = account.ownedUpgrades.get('shield') || 0;
   el('armoryShieldList').innerHTML = SHIELD_TIERS.map(t => {
     const owned = shieldTier >= t.tier, buyable = shieldTier === t.tier - 1;
@@ -4356,16 +4335,6 @@ function renderArmory(){
       ${owned ? '<span class="mbtn small" style="pointer-events:none;opacity:.6">Owned</span>'
               : `<span class="mbtn small buyUpgradeBtn" data-key="${p.key}" data-cost="${p.cost}">Buy</span>`}</li>`;
   }).join('');
-}
-async function purchaseWeapon(key){
-  const w = WEAPONS[key];
-  if(!account.user){ el('armoryMsg').textContent = 'Sign in first.'; return; }
-  if(account.ownedWeapons.has(key) || account.coins < w.cost) return;
-  account.coins -= w.cost; account.ownedWeapons.add(key);
-  refreshCoinHud(); renderAccountStatus(); renderArmory();
-  const { error } = await supa.from('owned_weapons').upsert({ user_id: account.user.id, weapon_key: key });
-  if(!error) await supa.from('profiles').update({ coins: account.coins }).eq('id', account.user.id);
-  else { account.coins += w.cost; account.ownedWeapons.delete(key); refreshCoinHud(); renderArmory(); el('armoryMsg').textContent = 'Purchase failed.'; }
 }
 async function purchaseShieldTier(tier, cost){
   if(!account.user){ el('armoryMsg').textContent = 'Sign in first.'; return; }
@@ -4396,6 +4365,14 @@ const LEGEND = [
   { color:'#ff5a5a', name:'Integrity', desc:'Restores +35 Integrity (HP), up to 100.' },
   { color:'#ffd479', name:'Ammo',      desc:'+40 reserve ammo for your current weapon.' },
   { color:'#f2f6ff', name:'Medkit',    desc:'Carry a medkit — press H to heal on demand.' },
+  { color:WEAPON_RARITY_COLOR.rifle,   name:'Weapon Chest — Rifle/SMG',
+    desc:'Common finds. You start every match with only the pistol — everything else must be looted from a chest.' },
+  { color:WEAPON_RARITY_COLOR.shotgun, name:'Weapon Chest — Shotgun',
+    desc:'Uncommon find, devastating up close.' },
+  { color:WEAPON_RARITY_COLOR.sniper,  name:'Weapon Chest — Sniper',
+    desc:'Rare find — near one-shot-kill damage.' },
+  { color:WEAPON_RARITY_COLOR.lmg,     name:'Weapon Chest — LMG',
+    desc:'Rarest find — a huge sustained-fire magazine.' },
   { color:BUFF_META.overdrive.color,   name:`${BUFF_META.overdrive.icon} ${BUFF_META.overdrive.label}`,
     desc:`+50% movement speed, instant reloads, and faster weapon swap, for ${BUFF_DUR.overdrive}s.` },
   { color:BUFF_META.boomshot.color,    name:`${BUFF_META.boomshot.icon} ${BUFF_META.boomshot.label}`,
@@ -4425,9 +4402,6 @@ function renderLegend(){
 }
 el('btnLegend').addEventListener('click', () => { showPanel('menuLegend'); renderLegend(); });
 el('btnBackLegend').addEventListener('click', () => showPanel('menuMain'));
-el('armoryWeaponsList').addEventListener('click', e => {
-  const btn = e.target.closest('.buyWeaponBtn'); if(!btn) return; purchaseWeapon(btn.dataset.key);
-});
 el('armoryShieldList').addEventListener('click', e => {
   const btn = e.target.closest('.buyShieldBtn'); if(!btn) return; purchaseShieldTier(+btn.dataset.tier, +btn.dataset.cost);
 });
@@ -4617,6 +4591,7 @@ function startGame(){
   const spawn = MODE === 'deathmatch' ? SPAWNS[(Math.random()*SPAWNS.length)|0] : START;
   player.x = spawn[0]; player.y = spawn[1]; player.a = -Math.PI/2; player.pitch = 0;
   player.hp = 100; player.alive = true; player.weapon = 'pistol';
+  account.ownedWeapons = new Set(DEFAULT_OWNED_WEAPONS);   // fresh loadout each match — everything past the pistol must be found in a chest
   player.kick = 0; player.flash = 0; player.hurt = 0; player.reloading = 0; player.cooldown = 0;
   player.vx = 0; player.vy = 0; player.z = 0; player.vz = 0; player.jumpsUsed = 0; player.jumpApex = 0;
   player.recoilPitch = 0; player.recoilYaw = 0;
@@ -4678,7 +4653,7 @@ Object.defineProperty(window, '__breach', { configurable:true, get(){ return {
   joyActive, joyVec, keys, mouseDown, camera, scene, renderer, weaponModel, wallGroup, floorMesh,
   friendState, activeChat, at, solid, selectMap, nextWave, startGame, showPanel, showMapPicker,
   switchWeapon, tryReload, damageEnemy, damagePlayer, handleNetEvent, awardCoins, flushPendingCoins,
-  purchaseWeapon, purchaseShieldTier, purchaseUpgrade, sendFriendRequest, respondToRequest, openChat,
+  purchaseShieldTier, purchaseUpgrade, sendFriendRequest, respondToRequest, openChat,
   sendChatMessage, loadFriendsData, renderArmory, update, render3D, setZoom, resetJoy, el, escapeHtml,
   refreshFlowFields, rebuildMapMeshes, spawnEnemy, makeCharacter, TYPES, SKINS, characterTemplate,
   nextEnemyId, enemyMeshes, playerMeshes, useMedkit, medkitCap, MEDKIT_BASE_CAP, MEDKIT_BONUS_CAP, MEDKIT_HEAL,
