@@ -756,8 +756,8 @@ function buildMap10(){
   // clear open ground around each one, never a wall spanning the full map
   fill(18,4,3,14,WALL.STONE); fill(37,20,3,14,WALL.STONE);
   // mesa compounds, walkable inside
-  outline(4,4,12,9,WALL.BUILDING);   carve([9,13],[10,13]);
-  outline(42,4,12,9,WALL.BUILDING);  carve([47,13],[48,13]);
+  outline(4,4,12,9,WALL.BUILDING);   carve([9,12],[10,12]);
+  outline(42,4,12,9,WALL.BUILDING);  carve([47,12],[48,12]);
   outline(23,31,12,8,WALL.BUILDING); carve([28,31],[29,31]);
   fill(6,18,2,2,WALL.METAL); fill(50,18,2,2,WALL.METAL); fill(28,6,2,2,WALL.METAL);
   fill(6,30,2,2,WALL.TECH);  fill(50,30,2,2,WALL.TECH);
@@ -808,7 +808,7 @@ const MAPW_12 = 54, MAPH_12 = 40;
 function buildMap12(){
   grid.fill(WALL.NONE);
   outline(0,0,54,40,WALL.BRICK);
-  outline(4,15,11,10,WALL.BUILDING);  carve([9,25],[10,25]);
+  outline(4,15,11,10,WALL.BUILDING);  carve([9,24],[10,24]);
   outline(39,15,11,10,WALL.BUILDING); carve([44,15],[45,15]);
   outline(21,4,12,9,WALL.BUILDING);   carve([26,4],[27,4]);
   fill(16,18,2,2,WALL.STONE); fill(36,18,2,2,WALL.STONE);
