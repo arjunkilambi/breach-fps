@@ -337,6 +337,7 @@
   <div class="panelbox hide" id="menuMulti">
     <div class="mbtn" id="btnHostCoop">Host — Co-op</div>
     <div class="mbtn" id="btnHostDM">Host — Deathmatch</div>
+    <div class="mbtn" id="btnHostTeams">Host — Teams</div>
     <div class="mbtn" id="btnBrowse">Browse Games</div>
     <div class="mbtn" id="btnShowJoin">Join by Code</div>
     <div class="mbtn ghost small" id="btnBackMulti">Back</div>
@@ -366,11 +367,32 @@
     <div id="lobbyRoomWrap" class="hide">
       <div class="lbl">Room Code</div>
       <div class="roomcode" id="lobbyCode">----</div>
-      <div class="lbl" style="text-align:center;margin-top:10px">Squad Size</div>
-      <div class="mrow" style="justify-content:center;align-items:center;gap:14px">
-        <div class="mbtn small" id="lobbySizeDown">−</div>
-        <div class="roomcode" id="lobbySizeVal" style="font-size:20px;padding:8px 18px">8</div>
-        <div class="mbtn small" id="lobbySizeUp">+</div>
+      <div id="lobbySquadWrap">
+        <div class="lbl" style="text-align:center;margin-top:10px">Squad Size</div>
+        <div class="mrow" style="justify-content:center;align-items:center;gap:14px">
+          <div class="mbtn small" id="lobbySizeDown">−</div>
+          <div class="roomcode" id="lobbySizeVal" style="font-size:20px;padding:8px 18px">8</div>
+          <div class="mbtn small" id="lobbySizeUp">+</div>
+        </div>
+      </div>
+      <div id="lobbyTeamWrap" class="hide">
+        <div class="mrow" style="justify-content:center;gap:8px;margin-top:10px">
+          <div class="mbtn small" id="btnPreset1v1">1v1</div>
+          <div class="mbtn small" id="btnPreset2v2">2v2</div>
+          <div class="mbtn small" id="btnPreset3v3">3v3</div>
+        </div>
+        <div class="lbl" style="text-align:center;margin-top:10px">Teams</div>
+        <div class="mrow" style="justify-content:center;align-items:center;gap:14px">
+          <div class="mbtn small" id="teamCountDown">−</div>
+          <div class="roomcode" id="teamCountVal" style="font-size:20px;padding:8px 18px">2</div>
+          <div class="mbtn small" id="teamCountUp">+</div>
+        </div>
+        <div class="lbl" style="text-align:center;margin-top:10px">Players Per Team</div>
+        <div class="mrow" style="justify-content:center;align-items:center;gap:14px">
+          <div class="mbtn small" id="teamSizeDown">−</div>
+          <div class="roomcode" id="teamSizeVal" style="font-size:20px;padding:8px 18px">2</div>
+          <div class="mbtn small" id="teamSizeUp">+</div>
+        </div>
       </div>
     </div>
     <div class="lbl" id="lobbyMapLabel" style="text-align:center"></div>
@@ -1541,7 +1563,7 @@ const player = {
   hp:100, alive:true, speed:BASE_SPEED, sprint:BASE_SPRINT,
   bob:0, kick:0, flash:0, hurt:0, weapon:'pistol',
   reloading:0, cooldown:0, stepTimer:0,
-  buffs: freshBuffs(), kills:0, deaths:0, name:'You', skin:0, id:'me',
+  buffs: freshBuffs(), kills:0, deaths:0, name:'You', skin:0, id:'me', team:0,
   vx:0, vy:0, z:0, vz:0, jumpsUsed:0, jumpApex:0, recoilPitch:0, recoilYaw:0,
   shieldCharge:0, maxShieldCharge:0, shieldRegenRate:4,
   titanShield:0, phantomRevealT:0, chaosSwitchT:0, chaosActiveKey:null, safeZoneT:0,
@@ -2646,9 +2668,10 @@ function computeShotHit(px, py, ang, shooter){
     const perp = Math.hypot(ex - dx*t, ey - dy*t);
     if(perp <= e.type.radius + 0.05){ best = e; bestT = t; bestKind = 'enemy'; }
   }
-  if(MODE === 'deathmatch'){
+  if(MODE === 'deathmatch' || MODE === 'teams'){
     for(const op of allPlayers()){
       if(op === shooter || !op.alive) continue;
+      if(MODE === 'teams' && shooter && op.team === shooter.team) continue;   // no friendly fire
       const ex = op.x-px, ey = op.y-py;
       const t = ex*dx + ey*dy;
       if(t <= 0 || t >= bestT) continue;
@@ -2794,11 +2817,12 @@ function damagePlayer(dmg, shooter){
   if(player.hp <= 0){
     player.hp = 0;
     player.alive = false;
-    if(MODE === 'deathmatch'){
+    if(MODE === 'deathmatch' || MODE === 'teams'){
       player.deaths = (player.deaths||0) + 1;
       player.respawnAt = now + 3;
       if(shooter) shooter.kills = (shooter.kills||0) + 1;
-      Net.emit({ kind:'elim', victim: player.name, killer: shooter ? shooter.name : '???', targetId: player.id });
+      Net.emit({ kind:'elim', victim: player.name, killer: shooter ? shooter.name : '???', targetId: player.id,
+        victimTeam: player.team, killerTeam: shooter ? shooter.team : null });
     }
     die();
   } else if(shooter){
@@ -2823,14 +2847,55 @@ function damageOtherPlayer(target, dmg, shooter){
     target.alive = false; target.deaths = (target.deaths||0) + 1;
     target.respawnAt = now + 3;
     if(shooter) shooter.kills = (shooter.kills||0) + 1;
-    Net.emit({ kind:'elim', victim: target.name, killer: shooter ? shooter.name : '???', targetId: target.id });
+    Net.emit({ kind:'elim', victim: target.name, killer: shooter ? shooter.name : '???', targetId: target.id,
+      victimTeam: target.team, killerTeam: shooter ? shooter.team : null });
   } else {
     Net.emit({ kind:'hit', targetId: target.id });
   }
 }
 
+// Splits the current map's SPAWNS into `teamCount` geographically-separate
+// clusters via greedy farthest-point seeding, so opposing teams in Teams mode
+// spawn on distinct sides of the map instead of interleaved at random. Cheap
+// enough (a handful of points) to recompute on every spawn pick rather than
+// cache/invalidate — always reflects whatever map is currently loaded.
+function computeTeamSpawnGroups(teamCount){
+  const pts = SPAWNS;
+  if(!pts.length || teamCount <= 1) return [pts];
+  const n = Math.min(teamCount, pts.length);
+  const seeds = [pts[0]];
+  while(seeds.length < n){
+    let bestPt = null, bestDist = -1;
+    for(const p of pts){
+      let dMin = Infinity;
+      for(const s of seeds) dMin = Math.min(dMin, (p[0]-s[0])**2 + (p[1]-s[1])**2);
+      if(dMin > bestDist){ bestDist = dMin; bestPt = p; }
+    }
+    seeds.push(bestPt);
+  }
+  const groups = seeds.map(() => []);
+  for(const p of pts){
+    let bi = 0, bd = Infinity;
+    for(let i=0;i<seeds.length;i++){
+      const d = (p[0]-seeds[i][0])**2 + (p[1]-seeds[i][1])**2;
+      if(d < bd){ bd = d; bi = i; }
+    }
+    groups[bi].push(p);
+  }
+  while(groups.length < teamCount) groups.push(groups[groups.length % n]);
+  return groups;
+}
+function pickSpawnFor(team){
+  if(MODE === 'teams' && SPAWNS.length){
+    const groups = computeTeamSpawnGroups(Net.teamCount);
+    const grp = groups[(team||0) % groups.length];
+    if(grp && grp.length) return grp[(Math.random()*grp.length)|0];
+  }
+  return SPAWNS[(Math.random()*SPAWNS.length)|0];
+}
+
 function respawnDM(p){
-  const s = SPAWNS[(Math.random()*SPAWNS.length)|0];
+  const s = MODE === 'teams' ? pickSpawnFor(p.team) : SPAWNS[(Math.random()*SPAWNS.length)|0];
   p.x = s[0]; p.y = s[1]; p.hp = 100; p.alive = true; p.respawnAt = 0;
   p.buffs = freshBuffs(); p.vx = 0; p.vy = 0;
   if(p === player){ vig.style.opacity = '0'; banner('Redeployed'); }
@@ -3265,9 +3330,9 @@ function update(dt){
       player.hurt = Math.max(player.hurt, 0.5);
       if(player.hp <= 0){
         player.hp = 0; player.alive = false;
-        if(MODE === 'deathmatch'){
+        if(MODE === 'deathmatch' || MODE === 'teams'){
           player.deaths = (player.deaths||0) + 1; player.respawnAt = now + 3;
-          Net.emit({ kind:'elim', victim: player.name, killer:'the safe zone', targetId: player.id });
+          Net.emit({ kind:'elim', victim: player.name, killer:'the safe zone', targetId: player.id, victimTeam: player.team, killerTeam: null });
         }
         die();
       }
@@ -3334,9 +3399,9 @@ function update(dt){
     }
   }
 
-  // ---------- wave flow (campaign / co-op only — deathmatch has no waves) ----------
+  // ---------- wave flow (campaign / co-op only — deathmatch & teams have no waves) ----------
   const aliveCount = enemies.filter(e => !e.dead).length;
-  if(netMode !== 'client' && MODE !== 'deathmatch'){
+  if(netMode !== 'client' && MODE !== 'deathmatch' && MODE !== 'teams'){
     if(aliveCount === 0 && livingPlayers().length > 0){
       if(!spawning){ spawning = true; waveTimer = wave === 0 ? 0.6 : 4; }
       waveTimer -= dt;
@@ -3347,8 +3412,8 @@ function update(dt){
     }
   }
 
-  // ---------- deathmatch respawns (host/solo only) ----------
-  if(netMode !== 'client' && MODE === 'deathmatch'){
+  // ---------- deathmatch/teams respawns (host/solo only) ----------
+  if(netMode !== 'client' && (MODE === 'deathmatch' || MODE === 'teams')){
     for(const p of allPlayers()){
       if(!p.alive && p.respawnAt && now >= p.respawnAt) respawnDM(p);
     }
@@ -3512,7 +3577,7 @@ function handleNetEvent(evt){
       break;
     case 'shieldblock': Sound.shieldBlock(); break;
     case 'elim':
-      feed(`${evt.victim} eliminated by ${evt.killer}`, '#ff9a6a');
+      feed(`${evt.victim} eliminated by ${evt.killer}`, evt.killerTeam != null ? SKINS[evt.killerTeam % SKINS.length].body : '#ff9a6a');
       Sound.kill();
       break;
     case 'kill':
@@ -3566,6 +3631,7 @@ function handleNetEvent(evt){
 const Net = (() => {
   let peer = null, hostConn = null;
   let hostMaxPlayers = 8;                 // host-chosen squad size (7-12) — the room can't fill past it, and the host can't start short of it
+  let hostTeamCount = 2, hostTeamSize = 2;  // Teams mode only — hostMaxPlayers is derived as their product
   const clientConns = new Map();          // host-side: peerId -> DataConnection
 
   function shortCode(){
@@ -3577,11 +3643,24 @@ const Net = (() => {
   function broadcast(msg){ for(const c of clientConns.values()) safeSend(c, msg); }
   function sendToHost(msg){ safeSend(hostConn, msg); }
 
-  function makeRemotePlayer(id, name){
-    const s = SPAWNS[(Math.random()*SPAWNS.length)|0];
+  // Balances new joiners onto whichever team currently has the fewest players
+  // (the host, connecting first, always lands on team 0).
+  function pickTeamForNewPlayer(){
+    if(MODE !== 'teams') return 0;
+    const counts = new Array(hostTeamCount).fill(0);
+    counts[player.team||0]++;
+    for(const st of otherPlayers.values()) counts[st.team||0]++;
+    let best = 0;
+    for(let t=1;t<hostTeamCount;t++) if(counts[t] < counts[best]) best = t;
+    return best;
+  }
+
+  function makeRemotePlayer(id, name, team){
+    team = team||0;
+    const s = MODE === 'teams' ? pickSpawnFor(team) : SPAWNS[(Math.random()*SPAWNS.length)|0];
     return {
-      id, name, x:s[0], y:s[1], a:0, pitch:0, hp:100, alive:true, weapon:'pistol',
-      kills:0, deaths:0, buffs:freshBuffs(), skin:(nextSkin++)%SKINS.length,
+      id, name, x:s[0], y:s[1], a:0, pitch:0, hp:100, alive:true, weapon:'pistol', team,
+      kills:0, deaths:0, buffs:freshBuffs(), skin: MODE === 'teams' ? team % SKINS.length : (nextSkin++)%SKINS.length,
       respawnAt:0, animPhase:0, input:{keys:{}}, lastShotAt:0, vx:0, vy:0,
     };
   }
@@ -3629,7 +3708,7 @@ const Net = (() => {
   function playerSnap(p){
     return { id:p.id, name:p.name, x:p.x, y:p.y, a:p.a, hp:p.hp, alive:p.alive, weapon:p.weapon,
       kills:p.kills||0, deaths:p.deaths||0, buffs:p.buffs, skin:p.skin, animPhase:p.animPhase||0, z:p.z||0,
-      titanShield:p.titanShield||0 };
+      titanShield:p.titanShield||0, team:p.team||0 };
   }
   function buildSnapshot(){
     return {
@@ -3672,14 +3751,14 @@ const Net = (() => {
       seen.add(ps.id);
       if(ps.id === myId){
         player.hp = ps.hp; player.alive = ps.alive; player.kills = ps.kills; player.deaths = ps.deaths;
-        player.buffs = ps.buffs; player.netX = ps.x; player.netY = ps.y;
+        player.buffs = ps.buffs; player.netX = ps.x; player.netY = ps.y; player.team = ps.team||0;
         continue;
       }
       let g = otherPlayers.get(ps.id);
       if(!g){ g = { id:ps.id, x:ps.x, y:ps.y, skin:ps.skin }; otherPlayers.set(ps.id, g); }
       g.netX = ps.x; g.netY = ps.y; g.a = ps.a; g.hp = ps.hp; g.alive = ps.alive; g.weapon = ps.weapon;
       g.kills = ps.kills; g.deaths = ps.deaths; g.buffs = ps.buffs; g.name = ps.name; g.skin = ps.skin;
-      g.animPhase = ps.animPhase; g.z = ps.z||0; g.titanShield = ps.titanShield||0;
+      g.animPhase = ps.animPhase; g.z = ps.z||0; g.titanShield = ps.titanShield||0; g.team = ps.team||0;
     }
     for(const id of [...otherPlayers.keys()]) if(!seen.has(id)){ otherPlayers.delete(id); dropVoicePeer(id); }
     meshConnectAll();
@@ -3692,7 +3771,8 @@ const Net = (() => {
       fetch(LOBBY_API, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ code, mode, hostName: player.name, players: 1+otherPlayers.size, maxPlayers: hostMaxPlayers,
-          mapName: MAPS[mapIndex].name }),
+          mapName: MAPS[mapIndex].name,
+          ...(mode === 'teams' ? { teamCount: hostTeamCount, teamSize: hostTeamSize } : {}) }),
       }).catch(()=>{});
     };
     beat();
@@ -3713,7 +3793,7 @@ const Net = (() => {
         return;
       }
       clientConns.set(conn.peer, conn);
-      otherPlayers.set(conn.peer, makeRemotePlayer(conn.peer, 'Player'));
+      otherPlayers.set(conn.peer, makeRemotePlayer(conn.peer, 'Player', pickTeamForNewPlayer()));
       meshConnectAll();
       updateLobbyGate();
     });
@@ -3745,6 +3825,8 @@ const Net = (() => {
     if(netMode !== 'host') return;
     const count = 1 + otherPlayers.size;
     const sizeEl = el('lobbySizeVal'); if(sizeEl) sizeEl.textContent = hostMaxPlayers;
+    const tcEl = el('teamCountVal'); if(tcEl) tcEl.textContent = hostTeamCount;
+    const tsEl = el('teamSizeVal'); if(tsEl) tsEl.textContent = hostTeamSize;
     const progEl = el('lobbyProgress');
     if(progEl) progEl.textContent = `${count} / ${hostMaxPlayers} joined`;
     el('btnStartMatch').classList.toggle('hide', count < hostMaxPlayers);
@@ -3828,8 +3910,10 @@ const Net = (() => {
     async startHost(mode, name){
       MODE = mode; netMode = 'host';
       player.name = name || 'Host';
+      player.team = 0;
       otherPlayers.clear();
-      hostMaxPlayers = 8;
+      if(mode === 'teams'){ hostTeamCount = 2; hostTeamSize = 2; hostMaxPlayers = hostTeamCount*hostTeamSize; }
+      else hostMaxPlayers = 8;
       const code = shortCode();
       setNetMsg('Opening room…');
       const iceServers = await fetchIceServers();
@@ -3840,6 +3924,8 @@ const Net = (() => {
         roomCode = code;
         el('lobbyCode').textContent = code;
         el('lobbyRoomWrap').classList.remove('hide');
+        el('lobbySquadWrap').classList.toggle('hide', mode === 'teams');
+        el('lobbyTeamWrap').classList.toggle('hide', mode !== 'teams');
         el('lobbyMapLabel').textContent = 'Map: ' + MAPS[mapIndex].name;
         setNetMsg('Share this code with your squad — or it\'s already listed under Browse Games.');
         renderLobbyList();
@@ -3888,6 +3974,15 @@ const Net = (() => {
 
     get maxPlayers(){ return hostMaxPlayers; },
     setMaxPlayers(n){ hostMaxPlayers = clamp(n, 7, 12); updateLobbyGate(); },
+
+    get teamCount(){ return hostTeamCount; },
+    get teamSize(){ return hostTeamSize; },
+    setTeamCount(n){ hostTeamCount = clamp(n, 2, 8); hostMaxPlayers = hostTeamCount*hostTeamSize; updateLobbyGate(); },
+    setTeamSize(n){ hostTeamSize = clamp(n, 1, 6); hostMaxPlayers = hostTeamCount*hostTeamSize; updateLobbyGate(); },
+    setTeamPreset(count, size){
+      hostTeamCount = clamp(count, 2, 8); hostTeamSize = clamp(size, 1, 6);
+      hostMaxPlayers = hostTeamCount*hostTeamSize; updateLobbyGate();
+    },
 
     send(msg){ sendToHost(msg); },
 
@@ -4007,11 +4102,16 @@ async function fetchAndRenderRooms(){
     const data = await r.json();
     const rooms = data.rooms || [];
     if(!rooms.length){ list.innerHTML = '<li>No open games right now — host one!</li>'; return; }
-    list.innerHTML = rooms.map(rm => `<li class="roomrow">
-        <span>${escapeHtml(rm.hostName)}'s ${rm.mode === 'deathmatch' ? 'Deathmatch' : 'Co-op'} · ${escapeHtml(rm.mapName || 'Sector 7')}
+    list.innerHTML = rooms.map(rm => {
+      const modeLabel = rm.mode === 'deathmatch' ? 'Deathmatch'
+        : rm.mode === 'teams' ? (rm.teamCount === 2 ? `${rm.teamSize}v${rm.teamSize}` : `${rm.teamCount} Teams x${rm.teamSize}`)
+        : 'Co-op';
+      return `<li class="roomrow">
+        <span>${escapeHtml(rm.hostName)}'s ${modeLabel} · ${escapeHtml(rm.mapName || 'Sector 7')}
         <small>(${Math.min(rm.players,rm.maxPlayers)}/${rm.maxPlayers})</small></span>
         <span class="mbtn small joinRoomBtn" data-code="${escapeHtml(rm.code)}">Join</span>
-      </li>`).join('');
+      </li>`;
+    }).join('');
   } catch(err){
     list.innerHTML = '<li>Could not reach the game list.</li>';
   }
@@ -4026,13 +4126,29 @@ el('browseList').addEventListener('click', e => {
 
 /* -------------------------------- scoreboard ------------------------------- */
 function renderScoreboard(){
-  el('sbTitle').textContent = MODE === 'deathmatch' ? 'Deathmatch' : MODE === 'coop' ? 'Co-op' : 'Solo';
+  el('sbTitle').textContent = MODE === 'deathmatch' ? 'Deathmatch' : MODE === 'coop' ? 'Co-op' : MODE === 'teams' ? 'Teams' : 'Solo';
   const rows = allPlayers().map(p => ({ name: escapeHtml(p===player ? (p.name||'You') : (p.name||'Player')),
-    kills:p.kills||0, deaths:p.deaths||0, me:p===player }));
-  rows.sort((a,b) => b.kills - a.kills);
-  el('sbTable').innerHTML =
-    '<tr><td class="name"><b>Player</b></td><td class="num"><b>K</b></td><td class="num"><b>D</b></td></tr>' +
-    rows.map(r => `<tr class="${r.me?'me':''}"><td class="name">${r.name}</td><td class="num">${r.kills}</td><td class="num">${r.deaths}</td></tr>`).join('');
+    kills:p.kills||0, deaths:p.deaths||0, me:p===player, team:p.team||0 }));
+  const header = '<tr><td class="name"><b>Player</b></td><td class="num"><b>K</b></td><td class="num"><b>D</b></td></tr>';
+  if(MODE === 'teams'){
+    rows.sort((a,b) => a.team - b.team || b.kills - a.kills);
+    const teamTotals = {};
+    for(const r of rows) teamTotals[r.team] = (teamTotals[r.team]||0) + r.kills;
+    let html = header, lastTeam = null;
+    for(const r of rows){
+      if(r.team !== lastTeam){
+        lastTeam = r.team;
+        const c = SKINS[r.team % SKINS.length].body;
+        html += `<tr><td colspan="3" style="color:${c};font-weight:bold;padding-top:6px">Team ${r.team+1} — ${teamTotals[r.team]} kills</td></tr>`;
+      }
+      html += `<tr class="${r.me?'me':''}"><td class="name">${r.name}</td><td class="num">${r.kills}</td><td class="num">${r.deaths}</td></tr>`;
+    }
+    el('sbTable').innerHTML = html;
+  } else {
+    rows.sort((a,b) => b.kills - a.kills);
+    el('sbTable').innerHTML = header +
+      rows.map(r => `<tr class="${r.me?'me':''}"><td class="name">${r.name}</td><td class="num">${r.kills}</td><td class="num">${r.deaths}</td></tr>`).join('');
+  }
 }
 function updateBuffHud(){
   const c = el('buffs');
@@ -4567,6 +4683,7 @@ el('btnBrowse').addEventListener('click', () => { showPanel('menuBrowse'); start
 el('btnBackBrowse').addEventListener('click', () => { stopBrowsing(); showPanel('menuMulti'); });
 el('btnHostCoop').addEventListener('click', () => showMapPicker('coop'));
 el('btnHostDM').addEventListener('click', () => showMapPicker('deathmatch'));
+el('btnHostTeams').addEventListener('click', () => showMapPicker('teams'));
 el('btnJoinGo').addEventListener('click', () => {
   const code = el('joinCode').value.trim();
   if(code.length < 4){ setNetMsg('Enter the 4-letter room code.'); return; }
@@ -4580,6 +4697,13 @@ el('btnStartMatch').addEventListener('click', () => Net.beginAsHost());
 el('btnLeaveLobby').addEventListener('click', () => Net.leaveToMenu());
 el('lobbySizeDown').addEventListener('click', () => Net.setMaxPlayers(Net.maxPlayers - 1));
 el('lobbySizeUp').addEventListener('click', () => Net.setMaxPlayers(Net.maxPlayers + 1));
+el('teamCountDown').addEventListener('click', () => Net.setTeamCount(Net.teamCount - 1));
+el('teamCountUp').addEventListener('click', () => Net.setTeamCount(Net.teamCount + 1));
+el('teamSizeDown').addEventListener('click', () => Net.setTeamSize(Net.teamSize - 1));
+el('teamSizeUp').addEventListener('click', () => Net.setTeamSize(Net.teamSize + 1));
+el('btnPreset1v1').addEventListener('click', () => Net.setTeamPreset(2, 1));
+el('btnPreset2v2').addEventListener('click', () => Net.setTeamPreset(2, 2));
+el('btnPreset3v3').addEventListener('click', () => Net.setTeamPreset(2, 3));
 
 function startGame(){
   selectMap(mapIndex);
@@ -4588,7 +4712,8 @@ function startGame(){
   rebuildMapMeshes();
   enemies = []; bolts = []; pendingShots = []; nextEnemyId = 1;
   wave = 0; kills = 0; score = 0; spawning = false; waveTimer = 0; lastAlive = -1;
-  const spawn = MODE === 'deathmatch' ? SPAWNS[(Math.random()*SPAWNS.length)|0] : START;
+  const spawn = MODE === 'deathmatch' ? SPAWNS[(Math.random()*SPAWNS.length)|0]
+    : MODE === 'teams' ? pickSpawnFor(player.team) : START;
   player.x = spawn[0]; player.y = spawn[1]; player.a = -Math.PI/2; player.pitch = 0;
   player.hp = 100; player.alive = true; player.weapon = 'pistol';
   account.ownedWeapons = new Set(DEFAULT_OWNED_WEAPONS);   // fresh loadout each match — everything past the pistol must be found in a chest
@@ -4616,6 +4741,7 @@ function startGame(){
   requestLock();
   if(MODE === 'deathmatch')      banner('Deathmatch', 'Eliminate everyone else');
   else if(MODE === 'coop')       banner('Co-op Breach', 'Hold the line together');
+  else if(MODE === 'teams')      banner(`Team ${(player.team||0)+1}`, 'Eliminate the enemy squads — friendly fire is off');
   else                           banner('Breach', 'Hostiles inbound');
 }
 
@@ -4623,7 +4749,7 @@ function die(){
   player.alive = false;
   if(MODE === 'campaign'){ triggerGameOver(); return; }
   vig.style.opacity = '.6';
-  banner('ELIMINATED', MODE === 'deathmatch' ? 'Redeploying…' : 'Down — revive next wave');
+  banner('ELIMINATED', (MODE === 'deathmatch' || MODE === 'teams') ? 'Redeploying…' : 'Down — revive next wave');
 }
 function triggerGameOver(){
   if(gameOver) return;
