@@ -527,6 +527,7 @@ const RAMPS_1 = [
 ];
 // a marked safe zone tucked in a quiet corner
 const SAFEZONES_1 = [{x:1,y:11,w:2,h:2}];
+const HAZARDS_1 = [{x:22.7,y:12.7,w:1.6,h:1.6}];   // jungle — spore cloud
 
 // 2 — Ring Circuit: symmetric nested rings around a cross-shaped core
 function buildMap2(){
@@ -551,6 +552,7 @@ const PICKUPS_2 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
 // a ramp up to the keep's west doorway, in the ring corridor
 const RAMPS_2 = [{x:5,y:9,w:4,h:3,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 const SAFEZONES_2 = [{x:24,y:9,w:2,h:2}];
+const HAZARDS_2 = [{x:16.7,y:0.7,w:1.6,h:1.6}];   // ice — falling glacier chunks
 
 // 3 — The Maze: three staggered wall partitions, wide gaps, tight cover stubs
 function buildMap3(){
@@ -575,6 +577,7 @@ const PICKUPS_3 = [[1.5,22.5,'health'],[30.5,1.5,'health'],[8.5,1.5,'ammo'],
 // a raised deck in the open corner past the last partition row
 const RAMPS_3 = [{x:20,y:19,w:5,h:3.5,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 const SAFEZONES_3 = [{x:28,y:2,w:2,h:2}];
+const HAZARDS_3 = [{x:11.7,y:18.7,w:1.6,h:1.6}];   // toxic — corroded gas pool
 
 // 4 — Open Plaza: large open floor, symmetric cover pairs, central metal ring
 function buildMap4(){
@@ -600,6 +603,7 @@ const RAMPS_4 = [
   {x:19,y:17,w:3.5,h:4,axis:'x',dir:-1,rampSpan:2,height:0.9},
 ];
 const SAFEZONES_4 = [{x:1,y:1,w:2,h:2}];
+const HAZARDS_4 = [{x:29.7,y:12.7,w:1.6,h:1.6}];   // desert — scorching sand
 
 // 5 — The Foundry: five parallel warehouse aisles with a cross-corridor
 function buildMap5(){
@@ -628,6 +632,7 @@ const RAMPS_5 = [
   {x:20,y:15,w:3,h:4,axis:'y',dir:-1,rampSpan:2,height:0.8},
 ];
 const SAFEZONES_5 = [{x:26,y:4,w:2,h:2}];
+const HAZARDS_5 = [{x:22.7,y:9.7,w:1.6,h:1.6}];   // volcanic — lava pool
 
 // 6 — Crossfire: four asymmetric rooms opening onto a shared center
 function buildMap6(){
@@ -648,6 +653,7 @@ const PICKUPS_6 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
 // a small step up just above the central cover block
 const RAMPS_6 = [{x:14,y:8,w:3,h:1.8,axis:'y',dir:1,rampSpan:1,height:0.7}];
 const SAFEZONES_6 = [{x:14,y:3,w:3,h:3}];
+const HAZARDS_6 = [{x:11.7,y:17.7,w:1.6,h:1.6}];   // jungle — spore cloud
 
 // 7 — The Pit: ring corridor around two symmetric inner chambers
 function buildMap7(){
@@ -668,6 +674,7 @@ const PICKUPS_7 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
 // a ramp up in the west ring corridor, between the corner covers
 const RAMPS_7 = [{x:3,y:8,w:4,h:6,axis:'x',dir:1,rampSpan:3,height:0.9}];
 const SAFEZONES_7 = [{x:1,y:1,w:2,h:2}];
+const HAZARDS_7 = [{x:11.7,y:17.7,w:1.6,h:1.6}];   // toxic — corroded gas pool
 
 // 8 — The Wastes: a huge open wasteland, four corner compounds, central ruin
 const MAPW_8 = 60, MAPH_8 = 44;
@@ -695,6 +702,7 @@ const RAMPS_8 = [
   {x:46,y:18,w:6,h:6,axis:'x',dir:-1,rampSpan:3,height:1.2},
 ];
 const SAFEZONES_8 = [{x:30,y:2,w:3,h:3}];
+const HAZARDS_8 = [{x:37.5,y:32.5,w:4,h:4}];   // desert — scorching sand
 
 // 9 — Skyline: a city-block grid of buildings with streets between them
 const SKYLINE_COLS = 8, SKYLINE_ROWS = 6;         // way bigger than the original 5x4 grid
@@ -731,6 +739,7 @@ for(let by=0; by<=SKYLINE_ROWS; by+=2){
 // a ramp up the narrow street between the first two blocks of row 0
 const RAMPS_9 = [{x:11,y:5,w:2.7,h:5,axis:'y',dir:1,rampSpan:3,height:0.9}];
 const SAFEZONES_9 = [{x:84,y:60,w:3,h:3}];
+const HAZARDS_9 = [{x:21.3,y:1.3,w:2.4,h:2.4}];   // ice — falling glacier chunks
 
 /* ---- three "different worlds" maps: same grid/wall/ramp systems as every
    other map, but selectMap()->startGame() calls applyWorldTheme() with each
@@ -765,6 +774,7 @@ const RAMPS_10 = [
   {x:44,y:22,w:6,h:5,axis:'x',dir:-1,rampSpan:3,height:1.1},
 ];
 const SAFEZONES_10 = [{x:28,y:19,w:3,h:3}];
+const HAZARDS_10 = [{x:27.5,y:35.5,w:4,h:4}];   // desert — scorching sand
 
 // 11 — Frostspire: an ice moon, a shattered glacier tower at the center of a frozen field
 const MAPW_11 = 56, MAPH_11 = 40;
@@ -791,6 +801,7 @@ const RAMPS_11 = [
   {x:39,y:16,w:6,h:6,axis:'x',dir:-1,rampSpan:3,height:1.0},
 ];
 const SAFEZONES_11 = [{x:26.5,y:18.5,w:3,h:3}];
+const HAZARDS_11 = [{x:38.5,y:34.5,w:4,h:4}];   // ice — falling glacier chunks
 
 // 12 — Emberfall: a volcanic world, twin obsidian spires either side of an ash flat
 const MAPW_12 = 54, MAPH_12 = 40;
@@ -815,6 +826,7 @@ const RAMPS_12 = [
   {x:36,y:26,w:6,h:5,axis:'x',dir:-1,rampSpan:3,height:1.0},
 ];
 const SAFEZONES_12 = [{x:25,y:33,w:3,h:3}];
+const HAZARDS_12 = [{x:42.5,y:8.5,w:4,h:4}];   // volcanic — lava pool
 
 /* ---- map scale-up: existing 32x24 layouts are block-expanded onto a much
    bigger grid (walls, spawns and pickups all scaled by the same integer
@@ -826,6 +838,9 @@ function scalePickups(arr, f){ return arr.map(([x,y,k,extra]) => extra===undefin
 function scaleRamps(arr, f){ return arr.map(r => ({ ...r, x:r.x*f, y:r.y*f, w:r.w*f, h:r.h*f, rampSpan:r.rampSpan*f })); }
 // safe zones: marked floor regions, no new geometry — just scale the footprint
 function scaleSafeZones(arr, f){ return arr.map(z => ({ ...z, x:z.x*f, y:z.y*f, w:z.w*f, h:z.h*f })); }
+// environmental hazard patches: same {x,y,w,h} shape as safe zones — kind is
+// derived from the map's theme at runtime (one theme per map), not stored here
+function scaleHazards(arr, f){ return arr.map(z => ({ ...z, x:z.x*f, y:z.y*f, w:z.w*f, h:z.h*f })); }
 function buildScaledMap(baseBuild, baseW, baseH, factor){
   return function(){
     const smallGrid = new Uint8Array(baseW*baseH);
@@ -843,7 +858,7 @@ function buildScaledMap(baseBuild, baseW, baseH, factor){
     }
   };
 }
-function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ramps=[], safeZones=[], theme='facility'){
+function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ramps=[], safeZones=[], theme='facility', hazards=[]){
   return {
     name, theme, build: buildScaledMap(build, w0, h0, factor),
     w: w0*factor, h: h0*factor,
@@ -852,27 +867,37 @@ function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ram
     start: [start[0]*factor, start[1]*factor],
     ramps: scaleRamps(ramps, factor),
     safeZones: scaleSafeZones(safeZones, factor),
+    hazards: scaleHazards(hazards, factor),
     large: factor > 1,
   };
 }
 const SCALE = 4;   // existing maps quadruple in size — 32x24 -> 128x96
 const MAPS = [
-  scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE, RAMPS_1, SAFEZONES_1, 'jungle'),
-  scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE, RAMPS_2, SAFEZONES_2, 'ice'),
-  scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE, RAMPS_3, SAFEZONES_3, 'toxic'),
-  scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE, RAMPS_4, SAFEZONES_4, 'desert'),
-  scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE, RAMPS_5, SAFEZONES_5, 'volcanic'),
-  scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE, RAMPS_6, SAFEZONES_6, 'jungle'),
-  scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE, RAMPS_7, SAFEZONES_7, 'toxic'),
-  { name:'The Wastes', theme:'desert', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], ramps:RAMPS_8, safeZones:SAFEZONES_8, large:true },
-  { name:'Skyline',    theme:'ice',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:RAMPS_9, safeZones:SAFEZONES_9, large:true },
-  { name:'Dust Canyon', theme:'desert',   build:buildMap10, w:MAPW_10, h:MAPH_10, spawns:SPAWNS_10, pickups:PICKUPS_10, start:SPAWNS_10[0], ramps:RAMPS_10, safeZones:SAFEZONES_10, large:true },
-  { name:'Frostspire',  theme:'ice',      build:buildMap11, w:MAPW_11, h:MAPH_11, spawns:SPAWNS_11, pickups:PICKUPS_11, start:SPAWNS_11[0], ramps:RAMPS_11, safeZones:SAFEZONES_11, large:true },
-  { name:'Emberfall',   theme:'volcanic', build:buildMap12, w:MAPW_12, h:MAPH_12, spawns:SPAWNS_12, pickups:PICKUPS_12, start:SPAWNS_12[0], ramps:RAMPS_12, safeZones:SAFEZONES_12, large:true },
+  scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE, RAMPS_1, SAFEZONES_1, 'jungle', HAZARDS_1),
+  scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE, RAMPS_2, SAFEZONES_2, 'ice', HAZARDS_2),
+  scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE, RAMPS_3, SAFEZONES_3, 'toxic', HAZARDS_3),
+  scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE, RAMPS_4, SAFEZONES_4, 'desert', HAZARDS_4),
+  scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE, RAMPS_5, SAFEZONES_5, 'volcanic', HAZARDS_5),
+  scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE, RAMPS_6, SAFEZONES_6, 'jungle', HAZARDS_6),
+  scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE, RAMPS_7, SAFEZONES_7, 'toxic', HAZARDS_7),
+  { name:'The Wastes', theme:'desert', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], ramps:RAMPS_8, safeZones:SAFEZONES_8, hazards:HAZARDS_8, large:true },
+  { name:'Skyline',    theme:'ice',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:RAMPS_9, safeZones:SAFEZONES_9, hazards:HAZARDS_9, large:true },
+  { name:'Dust Canyon', theme:'desert',   build:buildMap10, w:MAPW_10, h:MAPH_10, spawns:SPAWNS_10, pickups:PICKUPS_10, start:SPAWNS_10[0], ramps:RAMPS_10, safeZones:SAFEZONES_10, hazards:HAZARDS_10, large:true },
+  { name:'Frostspire',  theme:'ice',      build:buildMap11, w:MAPW_11, h:MAPH_11, spawns:SPAWNS_11, pickups:PICKUPS_11, start:SPAWNS_11[0], ramps:RAMPS_11, safeZones:SAFEZONES_11, hazards:HAZARDS_11, large:true },
+  { name:'Emberfall',   theme:'volcanic', build:buildMap12, w:MAPW_12, h:MAPH_12, spawns:SPAWNS_12, pickups:PICKUPS_12, start:SPAWNS_12[0], ramps:RAMPS_12, safeZones:SAFEZONES_12, hazards:HAZARDS_12, large:true },
 ];
 let mapIndex = 0;
 let SPAWNS = MAPS[0].spawns, PICKUPS = MAPS[0].pickups, START = MAPS[0].start, RAMPS = MAPS[0].ramps || [];
 let SAFEZONES = MAPS[0].safeZones || [];
+let HAZARDS = MAPS[0].hazards || [];
+// One environmental hazard "kind" per theme — lava for volcanic, falling
+// glacier chunks for ice, corroded gas for toxic, scorching sand for desert,
+// and spore clouds for jungle. `facility` (the unthemed default) gets none.
+const HAZARD_KIND_BY_THEME = { volcanic:'lava', ice:'fallingice', toxic:'gas', desert:'heat', jungle:'spores' };
+const HAZARD_DPS   = { lava:35, gas:14, heat:12, spores:13 };            // continuous zones — damage per second while standing in them
+const HAZARD_COLOR = { lava:'#ff4a1a', gas:'#5aff8a', heat:'#ffb84a', spores:'#c8ff4a', fallingice:'#bfe9ff' };
+const HAZARD_LABEL = { lava:'the lava', gas:'the toxic gas', heat:'the scorching sand', spores:'the spore cloud', fallingice:'a falling glacier chunk' };
+const ICE_IMPACT_DMG = 32, ICE_IMPACT_RADIUS = 1.4;
 // destructible buildings/ramps — reset fresh every time a map (re)loads
 const BUILDING_MAX_HP = 150, RAMP_MAX_HP = 120;
 const buildingHP = new Map();        // cell index (y*MAPW+x) -> remaining HP
@@ -885,6 +910,7 @@ function selectMap(idx){
   m.build();
   RAMPS = m.ramps || [];
   SAFEZONES = m.safeZones || [];
+  HAZARDS = m.hazards || [];
   SPAWNS = m.spawns; PICKUPS = m.pickups; START = m.start;
   buildingHP.clear();
   destroyedCells = [];
@@ -1652,9 +1678,13 @@ function lineOfSight(ax,ay,bx,by){
    Gameplay (movement, collision, hitscan, AI line-of-sight) is untouched;
    only how the world gets drawn changed.                                    */
 const VIEW = 34;                                    // far clip / fog distance (world units) — long enough for the sniper and big maps
-const WALL_H = 1.3, EYE_H = 0.62;
-const BUILD_H = WALL_H * 3;                         // tall-building walls reach much higher than cover walls
-const CEIL_H = BUILD_H + 0.4;                       // global ceiling raised above the tallest structure so buildings don't poke through it
+const WALL_H = 1.6, EYE_H = 0.62;
+const BUILD_H = WALL_H * 3.4;                       // tall-building walls reach much higher than cover walls
+// Moon Boots allow a double-jump, and re-triggering the second jump right at
+// the first jump's apex stacks height (~4.3 units, well above the old 3.9-unit
+// ceiling) — raised well past that worst case, plus a hard z-clamp below as a
+// second line of defense so no future buff tuning can poke the camera through it.
+const CEIL_H = BUILD_H + 5.0;
 
 scene.fog = new THREE.Fog(0x05080a, 3, VIEW);
 const ambientLight = new THREE.AmbientLight(0x9fd0e8, 0.55); scene.add(ambientLight);
@@ -1681,10 +1711,33 @@ const wallMats = {
   [WALL.BUILDING]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BUILDING], 1, 3), roughness:0.8 }),
 };
 const floorMat = new THREE.MeshStandardMaterial({ roughness:1 });
-const ceilMat  = new THREE.MeshStandardMaterial({ roughness:1, side:THREE.BackSide });
+const ceilMat  = new THREE.MeshStandardMaterial({ roughness:1, side:THREE.DoubleSide });
 const rampMat  = wallMats[WALL.STONE].clone(); rampMat.side = THREE.DoubleSide;
-const wallGeo = new THREE.BoxGeometry(1, WALL_H, 1);
-const buildingWallGeo = new THREE.BoxGeometry(1, BUILD_H, 1);
+// Irregular wall geometry: a subdivided box with its TOP verts jittered (via
+// cheap sine "noise", deterministic per variant) into a jagged, non-flat
+// silhouette — bases stay untouched/flush with the grid so cells still tile
+// with no gaps, and normals are recomputed so lighting reads the new facets.
+// A handful of pre-baked variants + a random per-cell rotation (applied in
+// rebuildMapMeshes) give visual variety from just a few shared geometries.
+function makeIrregularBoxGeometry(height, seed){
+  const geo = new THREE.BoxGeometry(1, height, 1, 4, 5, 4);
+  const pos = geo.attributes.position;
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const topT = clamp((y + height/2) / height, 0, 1);        // 0 at base, 1 at top
+    if(topT <= 0.15) continue;                                // keep the base flush with the grid cell
+    const jag = (topT - 0.15) / 0.85;
+    const n1 = Math.sin((x*7.3 + z*5.1 + seed) * 3.7) * 0.5 + 0.5;
+    const n2 = Math.sin((x*3.9 - z*8.2 + seed*1.7) * 2.3) * 0.5 + 0.5;
+    pos.setY(i, y + n1 * jag * height * 0.22);
+    if(Math.abs(x) > 0.49) pos.setX(i, x + (n2-0.5) * jag * 0.12 * Math.sign(x));
+    if(Math.abs(z) > 0.49) pos.setZ(i, z + (n1-0.5) * jag * 0.12 * Math.sign(z));
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+const WALL_GEO_VARIANTS = [0,1,2].map(i => makeIrregularBoxGeometry(WALL_H, i*13.7));
+const BUILDING_GEO_VARIANTS = [0,1,2].map(i => makeIrregularBoxGeometry(BUILD_H, i*13.7 + 47.3));
 
 function refreshFloorCeilTex(){
   if(floorMat.map) floorMat.map.dispose();
@@ -1731,31 +1784,41 @@ function buildRampGeometry(r){
   return geo;
 }
 
-let wallGroup = null, floorMesh = null, ceilMesh = null, rampGroup = null, safeZoneGroup = null;
+let wallGroup = null, floorMesh = null, ceilMesh = null, rampGroup = null, safeZoneGroup = null, hazardGroup = null;
 function rebuildMapMeshes(){
   if(wallGroup) scene.remove(wallGroup);
   if(floorMesh) scene.remove(floorMesh);
   if(ceilMesh)  scene.remove(ceilMesh);
   if(rampGroup) scene.remove(rampGroup);
   if(safeZoneGroup) scene.remove(safeZoneGroup);
+  if(hazardGroup) scene.remove(hazardGroup);
   refreshFloorCeilTex();
 
-  const counts = {};
-  for(let y=0;y<MAPH;y++) for(let x=0;x<MAPW;x++){ const t=at(x,y); if(t) counts[t]=(counts[t]||0)+1; }
+  const NV = 3;   // geometry variants per wall height class — see WALL_GEO_VARIANTS
+  const cellVariant = (x,y) => Math.abs(x*11 + y*17) % NV;
+  const cellRotation = (x,y) => (Math.abs(x*7 + y*13) % 4) * (Math.PI/2);
+  const counts = {};   // counts[type][variant]
+  for(let y=0;y<MAPH;y++) for(let x=0;x<MAPW;x++){
+    const t = at(x,y); if(!t) continue;
+    (counts[t] || (counts[t] = new Array(NV).fill(0)))[cellVariant(x,y)]++;
+  }
   const inst = {}, cursor = {};
   for(const k in counts){
-    const geo = (+k === WALL.BUILDING) ? buildingWallGeo : wallGeo;
-    inst[k] = new THREE.InstancedMesh(geo, wallMats[k], counts[k]); cursor[k]=0;
+    const variants = (+k === WALL.BUILDING) ? BUILDING_GEO_VARIANTS : WALL_GEO_VARIANTS;
+    inst[k] = counts[k].map((n,vi) => new THREE.InstancedMesh(variants[vi], wallMats[k], n));
+    cursor[k] = new Array(NV).fill(0);
   }
   const m = new THREE.Matrix4();
   for(let y=0;y<MAPH;y++) for(let x=0;x<MAPW;x++){
     const t = at(x,y); if(!t) continue;
     const h = (t === WALL.BUILDING) ? BUILD_H : WALL_H;
+    const vi = cellVariant(x,y);
+    m.makeRotationY(cellRotation(x,y));
     m.setPosition(x+0.5, h/2, y+0.5);
-    inst[t].setMatrixAt(cursor[t]++, m);
+    inst[t][vi].setMatrixAt(cursor[t][vi]++, m);
   }
   wallGroup = new THREE.Group();
-  for(const k in inst) wallGroup.add(inst[k]);
+  for(const k in inst) for(const mesh of inst[k]) wallGroup.add(mesh);
   scene.add(wallGroup);
 
   floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(MAPW, MAPH), floorMat);
@@ -1789,6 +1852,27 @@ function rebuildMapMeshes(){
     safeZoneGroup.add(ring);
   }
   scene.add(safeZoneGroup);
+
+  hazardGroup = new THREE.Group();
+  const hazKind = HAZARD_KIND_BY_THEME[MAPS[mapIndex].theme] || null;
+  if(hazKind){
+    const color = new THREE.Color(HAZARD_COLOR[hazKind]);
+    for(const z of HAZARDS){
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(z.w, z.h),
+        new THREE.MeshBasicMaterial({ color, transparent:true, opacity: hazKind==='fallingice' ? 0.12 : 0.45, side:THREE.DoubleSide }));
+      glow.rotation.x = -Math.PI/2;
+      glow.position.set(z.x + z.w/2, 0.02, z.y + z.h/2);
+      hazardGroup.add(glow);
+      if(hazKind !== 'fallingice'){          // continuous-damage zones get a bright warning ring; falling ice is telegraphed per-drop instead
+        const ring = new THREE.Mesh(new THREE.RingGeometry(Math.max(z.w,z.h)/2 - 0.1, Math.max(z.w,z.h)/2, 24),
+          new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.7, side:THREE.DoubleSide }));
+        ring.rotation.x = -Math.PI/2;
+        ring.position.set(z.x + z.w/2, 0.025, z.y + z.h/2);
+        hazardGroup.add(ring);
+      }
+    }
+  }
+  scene.add(hazardGroup);
 }
 
 /* ---- characters (players + enemies): real rigged GLTF model, with a boxy
@@ -2203,6 +2287,34 @@ function spawnDebrisFX(geometry, material, footX, footY, meshY, preferredDir, cl
     driftX: rand(0.4,-0.4), driftZ: rand(0.4,-0.4),
   });
 }
+// Frostspire/Ring Circuit/Skyline hazard: a ground ring telegraphs where a
+// glacier chunk is about to land, then the chunk itself falls from well
+// above the ceiling and shatters — both driven by the host's 'icewarn'/
+// 'icedrop' broadcasts so every player sees the same telegraph/impact.
+function spawnIceWarnFX(x, y){
+  const mesh = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.1, 24),
+    new THREE.MeshBasicMaterial({ color:0xbfe9ff, transparent:true, opacity:0.55, side:THREE.DoubleSide }));
+  mesh.rotation.x = -Math.PI/2;
+  mesh.position.set(x, heightAt(x,y) + 0.05, y);
+  scene.add(mesh);
+  activeFX.push({ mesh, age:0, life:1.1, kind:'icewarn' });
+}
+function spawnIceImpactFX(x, y){
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8),
+    new THREE.MeshBasicMaterial({ color:0xbfe9ff, transparent:true, opacity:0.85 }));
+  mesh.position.set(x, heightAt(x,y) + 0.4, y);
+  scene.add(mesh);
+  activeFX.push({ mesh, age:0, life:0.3, kind:'explosion', maxScale:3.5 });
+}
+function spawnIceChunkFX(x, y){
+  const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35, 0),
+    new THREE.MeshStandardMaterial({ color:0xbfe9ff, roughness:0.15, transparent:true, opacity:0.92 }));
+  const groundY = heightAt(x,y);
+  mesh.position.set(x, groundY + 7, y);
+  mesh.rotation.set(rand(TAU), rand(TAU), rand(TAU));
+  scene.add(mesh);
+  activeFX.push({ mesh, age:0, life:0.9, kind:'icechunk', x, y, startY: groundY+7, groundY });
+}
 function updateFX(dt){
   for(let i=activeFX.length-1; i>=0; i--){
     const f = activeFX[i]; f.age += dt;
@@ -2235,8 +2347,15 @@ function updateFX(dt){
       f.mesh.rotation[f.secondaryAxis] = f.secondaryAngle * fall;
       f.mesh.position.x = f.baseX + f.driftX * fall;
       f.mesh.position.z = f.baseZ + f.driftZ * fall;
+    } else if(f.kind === 'icewarn'){
+      f.mesh.scale.setScalar(1 - t*0.3);
+      f.mesh.material.opacity = 0.55 * (1 - t*0.5);
+    } else if(f.kind === 'icechunk'){
+      f.mesh.position.y = lerp(f.startY, f.groundY + 0.3, t*t);   // accelerating fall
+      f.mesh.rotation.x += dt*6; f.mesh.rotation.z += dt*4;
     }
     if(t >= 1){
+      if(f.kind === 'icechunk') spawnIceImpactFX(f.x, f.y);
       scene.remove(f.mesh);
       if(f.kind === 'debris'){
         rubbleGroup.add(f.mesh);
@@ -3224,6 +3343,21 @@ function resetPickups(){
   rebuildPickupMeshes();
 }
 
+// Per-match hazard state: each zone gets the current map's theme-derived
+// damage kind, plus (for 'fallingice') its own drop timer/telegraph state.
+let hazardState = [];
+const HAZARD_TICK_INTERVAL = 0.25;   // continuous zones (lava/gas/heat/spores) tick in lumps, not every frame — same feel, far less network/sound spam
+let hazardTickTimer = 0;
+function resetHazards(){
+  hazardTickTimer = 0;
+  const kind = HAZARD_KIND_BY_THEME[MAPS[mapIndex].theme] || null;
+  hazardState = kind ? HAZARDS.map(hz => ({
+    ...hz, kind,
+    nextDropAt: kind === 'fallingice' ? now + rand(3,6) : 0,
+    warning:false, warnT:0, dropX:0, dropY:0,
+  })) : [];
+}
+
 function decayBuffs(b, dt){
   for(const k in b) if(b[k] > 0) b[k] = Math.max(0, b[k] - dt);
 }
@@ -3325,7 +3459,12 @@ function update(dt){
   if(player.alive){
     const g = player.buffs.moonboots > 0 ? GRAVITY * 0.45 : GRAVITY;
     player.vz -= g * dt;
-    player.z = Math.max(0, player.z + player.vz * dt);
+    // hard soft-ceiling well above any real jump combo (~4.3 at most with a
+    // stacked Moon Boots double-jump) — a backstop, not the primary limiter
+    const maxZ = CEIL_H - EYE_H - 1.2;
+    let nz = player.z + player.vz * dt;
+    if(nz >= maxZ){ nz = maxZ; player.vz = 0; }
+    player.z = Math.max(0, nz);
     if(player.z <= 0){ player.vz = 0; player.jumpsUsed = 0; player.jumpApex = 0; }
     else player.jumpApex = Math.max(player.jumpApex||0, player.z);
   }
@@ -3429,6 +3568,41 @@ function update(dt){
     }
   }
 
+  // ---------- environmental hazards (host/solo authoritative) ----------
+  if(netMode !== 'client'){
+    hazardTickTimer -= dt;
+    const doTick = hazardTickTimer <= 0;
+    if(doTick) hazardTickTimer += HAZARD_TICK_INTERVAL;
+    for(const hz of hazardState){
+      if(hz.kind === 'fallingice'){
+        if(!hz.warning && now >= hz.nextDropAt){
+          hz.warning = true; hz.warnT = 1.1;
+          hz.dropX = rand(hz.x+hz.w, hz.x); hz.dropY = rand(hz.y+hz.h, hz.y);
+          Net.emit({ kind:'icewarn', x:hz.dropX, y:hz.dropY });
+        } else if(hz.warning){
+          hz.warnT -= dt;
+          if(hz.warnT <= 0){
+            hz.warning = false;
+            hz.nextDropAt = now + rand(6,10);
+            Net.emit({ kind:'icedrop', x:hz.dropX, y:hz.dropY });
+            for(const pl of livingPlayers()){
+              if(Math.hypot(pl.x-hz.dropX, pl.y-hz.dropY) < ICE_IMPACT_RADIUS){
+                damageOtherPlayer(pl, ICE_IMPACT_DMG, { name: HAZARD_LABEL.fallingice, kills:0 });
+              }
+            }
+          }
+        }
+      } else if(doTick){
+        const dps = HAZARD_DPS[hz.kind]; if(!dps) continue;
+        for(const pl of livingPlayers()){
+          if(pl.x >= hz.x && pl.x <= hz.x+hz.w && pl.y >= hz.y && pl.y <= hz.y+hz.h){
+            damageOtherPlayer(pl, dps*HAZARD_TICK_INTERVAL, { name: HAZARD_LABEL[hz.kind], kills:0 });
+          }
+        }
+      }
+    }
+  }
+
   // ---------- wave flow (campaign / co-op only — deathmatch & teams have no waves) ----------
   const aliveCount = enemies.filter(e => !e.dead).length;
   if(netMode !== 'client' && MODE !== 'deathmatch' && MODE !== 'teams'){
@@ -3498,6 +3672,15 @@ function drawMinimap(){
     mg.fillRect(ox+z.x*cell, oy+z.y*cell, z.w*cell, z.h*cell);
     mg.strokeStyle = 'rgba(207,255,255,.8)'; mg.lineWidth = 1;
     mg.strokeRect(ox+z.x*cell, oy+z.y*cell, z.w*cell, z.h*cell);
+  }
+  const hazKindMM = HAZARD_KIND_BY_THEME[MAPS[mapIndex].theme] || null;
+  if(hazKindMM){
+    mg.fillStyle = HAZARD_COLOR[hazKindMM] + '55';
+    mg.strokeStyle = HAZARD_COLOR[hazKindMM]; mg.lineWidth = 1;
+    for(const z of HAZARDS){
+      mg.fillRect(ox+z.x*cell, oy+z.y*cell, z.w*cell, z.h*cell);
+      mg.strokeRect(ox+z.x*cell, oy+z.y*cell, z.w*cell, z.h*cell);
+    }
   }
   for(const p of pickups){
     if(p.taken) continue;
@@ -3644,6 +3827,12 @@ function handleNetEvent(evt){
     case 'wave':
       banner(`Wave ${evt.wave}`, evt.hasBoss ? `${evt.count} hostiles inbound — boss incoming` : `${evt.count} hostiles inbound`);
       Sound.wave();
+      break;
+    case 'icewarn':
+      spawnIceWarnFX(evt.x, evt.y);
+      break;
+    case 'icedrop':
+      spawnIceChunkFX(evt.x, evt.y);
       break;
     case 'gameover':
       gameOver = true;
@@ -4524,6 +4713,16 @@ const LEGEND = [
     desc:'Rare find — near one-shot-kill damage.' },
   { color:WEAPON_RARITY_COLOR.lmg,     name:'Weapon Chest — LMG',
     desc:'Rarest find — a huge sustained-fire magazine.' },
+  { color:HAZARD_COLOR.lava,    name:'Lava Pool (volcanic worlds)',
+    desc:`Deals ${HAZARD_DPS.lava}/sec while you stand in it — get out fast.` },
+  { color:HAZARD_COLOR.gas,     name:'Toxic Gas (toxic worlds)',
+    desc:`A corroded pool venting gas — ${HAZARD_DPS.gas}/sec while inside.` },
+  { color:HAZARD_COLOR.heat,    name:'Scorching Sand (desert worlds)',
+    desc:`Baked ground that burns — ${HAZARD_DPS.heat}/sec while inside.` },
+  { color:HAZARD_COLOR.spores,  name:'Spore Cloud (jungle worlds)',
+    desc:`Airborne toxins — ${HAZARD_DPS.spores}/sec while inside.` },
+  { color:HAZARD_COLOR.fallingice, name:'Falling Glacier (ice worlds)',
+    desc:`A ring on the ground telegraphs where a chunk is about to land — ${ICE_IMPACT_DMG} damage if you're still there.` },
   { color:BUFF_META.overdrive.color,   name:`${BUFF_META.overdrive.icon} ${BUFF_META.overdrive.label}`,
     desc:`+50% movement speed, instant reloads, and faster weapon swap, for ${BUFF_DUR.overdrive}s.` },
   { color:BUFF_META.boomshot.color,    name:`${BUFF_META.boomshot.icon} ${BUFF_META.boomshot.label}`,
@@ -4788,6 +4987,7 @@ function startGame(){
   const speedMult = account.ownedUpgrades.has('speed') ? 1.1 : 1;
   player.speed = BASE_SPEED * speedMult; player.sprint = BASE_SPRINT * speedMult;
   resetPickups();
+  resetHazards();
   vig.style.opacity = '0';
   gameOver = false; paused = false; running = true;
   el('mobileControls').classList.remove('hide');
