@@ -3482,9 +3482,10 @@ function hitMarker(){
 // credential API — this is the actually-reliable option. STUN_FALLBACK is
 // only used if that fetch fails outright, so same-network play still works.
 const STUN_FALLBACK = [{ urls:'stun:stun.l.google.com:19302' }];
+const TURN_API = 'https://breach-lobby.vercel.app/api/turn';
 async function fetchIceServers(){
   try{
-    const r = await fetch('/api/turn', { cache:'no-store' });
+    const r = await fetch(TURN_API, { cache:'no-store' });
     if(!r.ok) return STUN_FALLBACK;
     const data = await r.json();
     return (data.iceServers && data.iceServers.length) ? data.iceServers : STUN_FALLBACK;
