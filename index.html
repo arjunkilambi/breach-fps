@@ -95,6 +95,7 @@
     border-radius:999px;padding:13px 30px;background:rgba(20,60,80,.5);animation:pulse 1.8s infinite}
   @keyframes pulse{0%,100%{opacity:.65}50%{opacity:1}}
   #over h1{background:linear-gradient(90deg,#ff8a8a,#ff3b3b);-webkit-background-clip:text;background-clip:text}
+  #matchEnd h1{background:linear-gradient(90deg,#ffe27a,#8ef5c0);-webkit-background-clip:text;background-clip:text}
   .stats{display:flex;gap:34px;margin:26px 0 6px}
   .stats div{min-width:110px}
   .stats .n{font-size:38px;font-weight:800;color:#fff}
@@ -452,6 +453,14 @@
     <div><div class="n" id="oScore">0</div><div class="k">Score</div></div>
   </div>
   <div class="cta">CLICK TO REDEPLOY</div>
+</div>
+
+<div class="screen hide" id="matchEnd" style="cursor:default">
+  <h1 id="matchEndTitle">YOU WIN!</h1>
+  <h2 id="matchEndSub">Kill target reached</h2>
+  <div class="mbtn" id="btnMatchContinue" style="pointer-events:auto;margin-top:10px">Continue — Round 2</div>
+  <div class="lbl hide" id="matchEndWait" style="margin-top:10px">Waiting for the host to continue…</div>
+  <div class="mbtn ghost small" id="btnMatchExit" style="pointer-events:auto;margin-top:12px">Exit to Menu</div>
 </div>
 
 <script>
@@ -2823,6 +2832,7 @@ function damagePlayer(dmg, shooter){
       if(shooter) shooter.kills = (shooter.kills||0) + 1;
       Net.emit({ kind:'elim', victim: player.name, killer: shooter ? shooter.name : '???', targetId: player.id,
         victimTeam: player.team, killerTeam: shooter ? shooter.team : null });
+      checkMatchEnd(shooter);
     }
     die();
   } else if(shooter){
@@ -2849,8 +2859,28 @@ function damageOtherPlayer(target, dmg, shooter){
     if(shooter) shooter.kills = (shooter.kills||0) + 1;
     Net.emit({ kind:'elim', victim: target.name, killer: shooter ? shooter.name : '???', targetId: target.id,
       victimTeam: target.team, killerTeam: shooter ? shooter.team : null });
+    checkMatchEnd(shooter);
   } else {
     Net.emit({ kind:'hit', targetId: target.id });
+  }
+}
+
+// Deathmatch/Teams have no natural end otherwise (unlike coop's wave loss
+// condition) — first to a kill target wins. Host/solo authoritative only:
+// this is reached exclusively from the host's own resolution of a kill (see
+// damagePlayer/damageOtherPlayer), never from a client mirroring a snapshot.
+const KILL_LIMIT = 20, TEAM_KILL_LIMIT = 30;
+function checkMatchEnd(shooter){
+  if(gameOver || !shooter) return;
+  if(MODE === 'deathmatch' && (shooter.kills||0) >= KILL_LIMIT){
+    gameOver = true;
+    Net.emit({ kind:'matchend', winnerName: shooter.name, winnerTeam: null });
+  } else if(MODE === 'teams'){
+    const teamKills = allPlayers().filter(p => (p.team||0) === (shooter.team||0)).reduce((s,p) => s + (p.kills||0), 0);
+    if(teamKills >= TEAM_KILL_LIMIT){
+      gameOver = true;
+      Net.emit({ kind:'matchend', winnerName: null, winnerTeam: shooter.team });
+    }
   }
 }
 
@@ -3619,6 +3649,10 @@ function handleNetEvent(evt){
       gameOver = true;
       showGameOverScreen(evt.wave, evt.kills, evt.score);
       break;
+    case 'matchend':
+      gameOver = true;
+      showMatchEndScreen(evt.winnerName, evt.winnerTeam);
+      break;
     case 'join': feed(`${evt.name} connected`, '#8ef5ff'); break;
     case 'leave': feed(`${evt.name} disconnected`, '#7d99a3'); break;
     case 'fling':
@@ -4014,7 +4048,7 @@ const Net = (() => {
       }
     },
 
-    leaveToMenu(){
+    leaveToMenu(toMulti){
       stopBrowsing();
       stopLobbyHeartbeat(netMode === 'host' ? roomCode : null);
       teardownVoice();
@@ -4024,10 +4058,10 @@ const Net = (() => {
       running = false; paused = false; gameOver = false;
       document.exitPointerLock?.();
       el('mobileControls').classList.add('hide'); resetJoy();
-      el('over').classList.add('hide'); el('pause').classList.add('hide');
+      el('over').classList.add('hide'); el('pause').classList.add('hide'); el('matchEnd').classList.add('hide');
       el('keysPanel').classList.add('hide'); el('btnDeploy').classList.add('hide');
       el('start').classList.remove('hide');
-      showPanel('menuMain');
+      showPanel(toMulti ? 'menuMulti' : 'menuMain');
     },
   };
 })();
@@ -4081,6 +4115,7 @@ el('mapPickList').addEventListener('click', e => {
 el('btnBackMapPick').addEventListener('click', () => showPanel(pendingHostMode ? 'menuMulti' : 'menuMain'));
 function beginMatch(){
   el('start').classList.add('hide');
+  el('matchEnd').classList.add('hide');
   startGame();
 }
 
@@ -4673,6 +4708,15 @@ el('over').addEventListener('click', () => {
   el('over').classList.add('hide');
   if(netMode === 'solo') startGame(); else Net.leaveToMenu();
 });
+el('btnMatchContinue').addEventListener('click', () => {
+  if(netMode !== 'host') return;   // hidden for clients anyway — defense in depth
+  el('matchEnd').classList.add('hide');
+  Net.beginAsHost();
+});
+el('btnMatchExit').addEventListener('click', () => {
+  el('matchEnd').classList.add('hide');
+  Net.leaveToMenu(true);
+});
 
 el('btnSolo').addEventListener('click', () => showMapPicker(null));
 el('btnMulti').addEventListener('click', () => showPanel('menuMulti'));
@@ -4723,6 +4767,18 @@ function startGame(){
   player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0; player.medkits = 0;
   player.titanShield = 0; player.phantomRevealT = 0; player.chaosSwitchT = 0; player.chaosActiveKey = null;
   player.safeZoneT = 0; player.inSafeZone = false;
+  if(netMode === 'host'){
+    // round 2 (Continue after a win) reuses the same connected roster — their
+    // kills/deaths/position from the last round need clearing same as ours.
+    // No-op the first time a match starts (makeRemotePlayer already zeroes these).
+    for(const op of otherPlayers.values()){
+      op.hp = 100; op.alive = true; op.kills = 0; op.deaths = 0; op.buffs = freshBuffs();
+      op.respawnAt = 0; op.titanShield = 0; op.phantomRevealT = 0; op.chaosSwitchT = 0; op.chaosActiveKey = null;
+      const s = MODE === 'teams' ? pickSpawnFor(op.team)
+        : MODE === 'deathmatch' ? SPAWNS[(Math.random()*SPAWNS.length)|0] : START;
+      op.x = s[0]; op.y = s[1];
+    }
+  }
   removeDrone();
   for(const key in WEAPONS){ WEAPONS[key].ammo = WEAPONS[key].mag; WEAPONS[key].reserve = WEAPONS[key].maxReserve; }
   const shieldTier = account.ownedUpgrades.get('shield') || 0;
@@ -4766,6 +4822,24 @@ function showGameOverScreen(w, k, s){
     el('oKills').textContent = k;
     el('oScore').textContent = s;
     el('over').classList.remove('hide');
+  }, 900);
+}
+// Deathmatch/Teams win screen — Continue (round 2) is host-only, matching
+// every other match-flow control (Start Match, squad size, etc); clients
+// just wait for the host's 'start' broadcast, same as the initial lobby.
+function showMatchEndScreen(winnerName, winnerTeam){
+  flushPendingCoins();
+  document.exitPointerLock?.();
+  const isTeamWin = winnerTeam != null;
+  const iWon = isTeamWin ? (player.team||0) === winnerTeam : winnerName === player.name;
+  el('matchEndTitle').textContent = iWon ? 'YOU WIN!' : isTeamWin ? `TEAM ${winnerTeam+1} WINS` : `${winnerName} WINS`;
+  el('matchEndSub').textContent = isTeamWin ? 'Team kill target reached' : 'Kill target reached';
+  el('btnMatchContinue').classList.toggle('hide', netMode !== 'host');
+  el('matchEndWait').classList.toggle('hide', netMode === 'host');
+  setTimeout(() => {
+    running = false;
+    el('mobileControls').classList.add('hide'); resetJoy();
+    el('matchEnd').classList.remove('hide');
   }, 900);
 }
 
