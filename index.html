@@ -3470,19 +3470,28 @@ function hitMarker(){
 //
 // PeerJS's own default RTCPeerConnection config only ships STUN servers, no
 // TURN — that's enough to connect two peers on the same LAN (or the "same
-// computer" case, which is really just loopback) since a direct or
-// STUN-reflexive path always exists there, but it silently fails to connect
-// across most real-world networks (symmetric NATs, many corporate/mobile
-// networks) where a relay is required. Adding a TURN server (the Open Relay
-// Project's free public one — no signup, shared credentials, intended for
-// exactly this) fixes cross-network play; STUN is kept too since it's
-// cheaper/faster when a direct path is actually available.
-const ICE_SERVERS = [
-  { urls:'stun:stun.l.google.com:19302' },
-  { urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject' },
-  { urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject' },
-  { urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject' },
-];
+// computer/same browser profile" case, which is really just loopback) since
+// a direct or STUN-reflexive path always exists there, but it silently fails
+// across most real-world cross-network setups (symmetric NATs, many mobile/
+// corporate networks) where a relay is actually required. Free public TURN
+// servers with shared static credentials (tried first: Open Relay Project,
+// then a couple of other commonly-cited ones) turned out to be non-functional
+// when directly probed with a relay-only RTCPeerConnection — zero candidates
+// gathered from any of them. TURN credentials are fetched fresh from our own
+// backend (api/turn.js), which proxies Cloudflare's short-lived TURN
+// credential API — this is the actually-reliable option. STUN_FALLBACK is
+// only used if that fetch fails outright, so same-network play still works.
+const STUN_FALLBACK = [{ urls:'stun:stun.l.google.com:19302' }];
+async function fetchIceServers(){
+  try{
+    const r = await fetch('/api/turn', { cache:'no-store' });
+    if(!r.ok) return STUN_FALLBACK;
+    const data = await r.json();
+    return (data.iceServers && data.iceServers.length) ? data.iceServers : STUN_FALLBACK;
+  }catch{
+    return STUN_FALLBACK;
+  }
+}
 function handleNetEvent(evt){
   switch(evt.kind){
     case 'hit':
@@ -3795,14 +3804,16 @@ const Net = (() => {
       updateVoiceUI();
     },
 
-    startHost(mode, name){
+    async startHost(mode, name){
       MODE = mode; netMode = 'host';
       player.name = name || 'Host';
       otherPlayers.clear();
       hostMaxPlayers = 8;
       const code = shortCode();
       setNetMsg('Opening room…');
-      peer = new Peer('breach-' + code, { config:{ iceServers:ICE_SERVERS } });
+      const iceServers = await fetchIceServers();
+      if(netMode !== 'host') return;   // left the flow while credentials were still loading
+      peer = new Peer('breach-' + code, { config:{ iceServers } });
       peer.on('open', id => {
         myId = id; player.id = id;          // real PeerJS id (== 'breach-CODE'), needed so other clients can voice-call the host directly
         roomCode = code;
@@ -3819,10 +3830,12 @@ const Net = (() => {
       peer.on('error', err => setNetMsg('Connection error: ' + ((err && err.type) || err)));
     },
 
-    joinRoom(code){
+    async joinRoom(code){
       netMode = 'client'; myId = null;
       player.name = 'Guest' + (10 + ((Math.random()*90)|0));
-      peer = new Peer({ config:{ iceServers:ICE_SERVERS } });
+      const iceServers = await fetchIceServers();
+      if(netMode !== 'client') return;   // left the flow while credentials were still loading
+      peer = new Peer({ config:{ iceServers } });
       peer.on('open', id => {
         myId = id; player.id = id;
         hostConn = peer.connect('breach-' + code.toUpperCase(), { reliable:true });
