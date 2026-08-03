@@ -1505,22 +1505,22 @@ scene.add(camera);
 // player's own stored pitch, so it settles back without fighting mouse input.
 // recoilSpread: matching per-shot random horizontal (yaw) kick, both ways.
 const WEAPONS = {
-  pistol : { name:'Pistol',  dmg:24, rof:.20,  mag:12, ammo:12, reserve:Infinity, reload:1.05,
+  pistol : { name:'Pistol',  dmg:24, rof:.20,  mag:12, ammo:12, reserve:Infinity, reload:1.0,
              spread:.006, kick:5.5,  heavy:false, auto:false, muzzleVel:95,
              recoilKick:0.014, recoilSpread:0.006 },
-  rifle  : { name:'Rifle',   dmg:17, rof:.085, mag:30, ammo:30, reserve:90,  reload:1.55,
+  rifle  : { name:'Rifle',   dmg:17, rof:.085, mag:30, ammo:30, reserve:90,  reload:1.8,
              spread:.022, kick:3.2,  heavy:true,  auto:true,  muzzleVel:110,
              recoilKick:0.009, recoilSpread:0.005 },
   smg    : { name:'SMG',     dmg:11, rof:.06,  mag:35, ammo:35, reserve:140, reload:1.3,
              spread:.03,  kick:2.2,  heavy:false, auto:true,  muzzleVel:85,
              recoilKick:0.006, recoilSpread:0.006 },
-  shotgun: { name:'Shotgun', dmg:9,  rof:.75,  mag:6,  ammo:6,  reserve:24,  reload:2.2,
+  shotgun: { name:'Shotgun', dmg:9,  rof:.75,  mag:6,  ammo:6,  reserve:24,  reload:2.5,
              spread:.09,  kick:9,    heavy:true,  auto:false, pellets:8, muzzleVel:70,
              recoilKick:0.032, recoilSpread:0.01 },
-  sniper : { name:'Sniper',  dmg:95, rof:1.1,  mag:5,  ammo:5,  reserve:20,  reload:2.6,
+  sniper : { name:'Sniper',  dmg:95, rof:1.1,  mag:5,  ammo:5,  reserve:20,  reload:3.3,
              spread:.001, kick:14,   heavy:true,  auto:false, zoom:true, muzzleVel:190,
              recoilKick:0.05, recoilSpread:0.004 },
-  lmg    : { name:'LMG',     dmg:15, rof:.11,  mag:75, ammo:75, reserve:225, reload:3.2,
+  lmg    : { name:'LMG',     dmg:15, rof:.11,  mag:75, ammo:75, reserve:225, reload:4.3,
              spread:.028, kick:3.6,  heavy:true,  auto:true,  muzzleVel:100,
              recoilKick:0.007, recoilSpread:0.006 },
 };
