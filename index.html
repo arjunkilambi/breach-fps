@@ -272,6 +272,7 @@
   <div class="panelbox" id="menuMain">
     <div class="lbl" id="acctStatus">Checking session…</div>
     <div class="mbtn" id="btnSolo">Solo Campaign</div>
+    <div class="mbtn" id="btnMissions">Missions</div>
     <div class="mbtn" id="btnMulti">Multiplayer</div>
     <div class="mbtn ghost small" id="btnArmory">Armory</div>
     <div class="mbtn ghost small" id="btnLegend">Legend</div>
@@ -341,6 +342,7 @@
     <div class="mbtn" id="btnHostTeams">Host — Teams</div>
     <div class="mbtn" id="btnHostCTF">Host — Capture the Flag</div>
     <div class="mbtn" id="btnHostTag">Host — Tag</div>
+    <div class="mbtn" id="btnHostMission">Host — Mission</div>
     <div class="mbtn" id="btnBrowse">Browse Games</div>
     <div class="mbtn" id="btnShowJoin">Join by Code</div>
     <div class="mbtn ghost small" id="btnBackMulti">Back</div>
@@ -2196,6 +2198,33 @@ function syncFlagMeshes(){
     mesh.rotation.y += 0.015;
   }
 }
+/* ---- Mission artifacts: a glowing relic core with an orbiting ring ------- */
+let artifactMeshes = [];
+function buildArtifactMesh(){
+  const g = new THREE.Group();
+  const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0),
+    new THREE.MeshStandardMaterial({ color:0xffd479, emissive:0xffb347, emissiveIntensity:0.7, roughness:0.25 }));
+  g.add(core);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.02, 8, 20),
+    new THREE.MeshStandardMaterial({ color:0xb26aff, emissive:0xb26aff, emissiveIntensity:0.6 }));
+  ring.rotation.x = Math.PI/2.3;
+  g.add(ring);
+  return g;
+}
+function rebuildArtifactMeshes(){
+  for(const m of artifactMeshes) scene.remove(m);
+  artifactMeshes = artifacts.map(a => { const m = buildArtifactMesh(); scene.add(m); return m; });
+}
+function syncArtifactMeshes(){
+  for(let i=0;i<artifacts.length;i++){
+    const a = artifacts[i], mesh = artifactMeshes[i]; if(!mesh) continue;
+    mesh.visible = !a.returned;
+    if(a.returned) continue;
+    mesh.position.set(a.x, heightAt(a.x,a.y) + 0.4 + Math.sin(now*2.2+a.x)*0.05, a.y);
+    mesh.rotation.y += 0.025;
+    mesh.children[1].rotation.z += 0.03;
+  }
+}
 const boltGeo = new THREE.SphereGeometry(0.07, 8, 6);
 const boltMat = new THREE.MeshBasicMaterial({ color:0x9fe8ff });
 let boltMeshPool = [];
@@ -2680,6 +2709,7 @@ function render3D(dt){
   syncPlayerMeshes(dt);
   syncPickupMeshes();
   syncFlagMeshes();
+  syncArtifactMeshes();
   syncBoltMeshes();
   updateFX(dt);
   updateWeaponView();
@@ -3349,7 +3379,7 @@ function nextWave(){
   flushPendingCoins();
   wave++;
   // co-op checkpoint: anyone who died mid-wave rejoins the fight
-  if(MODE === 'coop'){
+  if(MODE === 'coop' || MODE === 'mission'){
     for(const p of allPlayers()){
       if(p.alive) continue;
       const s = SPAWNS[(Math.random()*SPAWNS.length)|0];
@@ -3473,6 +3503,65 @@ function applyTag(shooter, target){
   if(target.id === tagId) return;
   tagId = target.id;
   Net.emit({ kind:'tagged', name: target.name, targetId: target.id });
+}
+
+/* ------------------------------- Missions ---------------------------------- */
+// Co-op PvE objective: find MISSION_ARTIFACT_COUNT artifacts scattered across
+// the map and carry them back to the map's (existing) safe zone. Positions are
+// deterministic — every 2nd-3rd entry in the map's own PICKUPS list, spread
+// out and already validated-walkable — no randomness, so host and clients
+// always agree on placement without needing to sync it.
+const MISSION_ARTIFACT_COUNT = 4;
+let artifacts = [];
+let missionReturned = 0;
+function resetMission(){
+  missionReturned = 0;
+  for(const m of artifactMeshes) scene.remove(m);
+  artifactMeshes = [];
+  if(MODE !== 'mission' || !PICKUPS.length){ artifacts = []; return; }
+  const stride = Math.max(1, Math.floor(PICKUPS.length / MISSION_ARTIFACT_COUNT));
+  artifacts = [];
+  for(let i=0;i<MISSION_ARTIFACT_COUNT;i++){
+    const [x,y] = PICKUPS[(i*stride) % PICKUPS.length];
+    artifacts.push({ x, y, carriedBy:null, returned:false });
+  }
+  rebuildArtifactMeshes();
+}
+// Host/solo authoritative (mirrors the CTF flag pattern exactly): pick up an
+// unclaimed artifact by walking near it, drop it where you die if you don't
+// make it back, and depositing inside ANY of the map's safe zones while
+// carrying banks it permanently.
+function missionTick(){
+  for(const a of artifacts){
+    if(a.returned) continue;
+    if(a.carriedBy){
+      const carrier = allPlayers().find(p => p.id === a.carriedBy);
+      if(!carrier || !carrier.alive){ a.carriedBy = null; }
+      else { a.x = carrier.x; a.y = carrier.y; }
+    } else {
+      for(const pl of livingPlayers()){
+        if(Math.hypot(pl.x-a.x, pl.y-a.y) >= 0.55) continue;
+        a.carriedBy = pl.id;
+        Net.emit({ kind:'artifactevent', text:`${pl===player?'You':pl.name} found an artifact!`, color:'#ffd479' });
+        break;
+      }
+    }
+  }
+  for(const pl of livingPlayers()){
+    const carrying = artifacts.filter(a => a.carriedBy === pl.id && !a.returned);
+    if(!carrying.length) continue;
+    const inSafe = SAFEZONES.some(z => pl.x >= z.x && pl.x <= z.x+z.w && pl.y >= z.y && pl.y <= z.y+z.h);
+    if(!inSafe) continue;
+    for(const a of carrying) a.carriedBy = null, a.returned = true;
+    missionReturned += carrying.length;
+    Net.emit({ kind:'artifactevent',
+      text:`${pl===player?'You':pl.name} secured ${carrying.length} artifact${carrying.length>1?'s':''}! (${missionReturned}/${MISSION_ARTIFACT_COUNT})`,
+      color:'#8ef5c0' });
+    if(missionReturned >= MISSION_ARTIFACT_COUNT){
+      gameOver = true;
+      Net.emit({ kind:'missioncomplete' });
+    }
+  }
 }
 
 function decayBuffs(b, dt){
@@ -3760,6 +3849,9 @@ function update(dt){
     }
   }
 
+  // ---------- Mission artifacts (host/solo authoritative) ----------
+  if(netMode !== 'client' && MODE === 'mission' && !gameOver) missionTick();
+
   // ---------- wave flow (campaign / co-op only — deathmatch/teams/ctf/tag have no waves) ----------
   const aliveCount = enemies.filter(e => !e.dead).length;
   if(netMode !== 'client' && MODE !== 'deathmatch' && !isTeamMode(MODE) && MODE !== 'tag'){
@@ -3768,7 +3860,7 @@ function update(dt){
       waveTimer -= dt;
       if(waveTimer <= 0){ spawning = false; nextWave(); }
     }
-    if(MODE === 'coop' && running && !gameOver && livingPlayers().length === 0){
+    if((MODE === 'coop' || MODE === 'mission') && running && !gameOver && livingPlayers().length === 0){
       triggerGameOver();
     }
   }
@@ -3883,6 +3975,9 @@ function updateHUD(){
     const m = Math.max(0,Math.floor(tagTimeLeft/60)), s = Math.max(0,Math.floor(tagTimeLeft%60));
     el('waveLbl').textContent = 'Time'; el('wave').textContent = `${m}:${s<10?'0':''}${s}`;
     el('leftLbl').textContent = 'Status'; el('left').textContent = tagId === player.id ? "YOU'RE IT" : 'Running';
+  } else if(MODE === 'mission'){
+    el('waveLbl').textContent = 'Artifacts'; el('wave').textContent = `${missionReturned}/${MISSION_ARTIFACT_COUNT}`;
+    el('leftLbl').textContent = 'Hostiles'; el('left').textContent = enemies.filter(e=>!e.dead).length;
   } else {
     el('waveLbl').textContent = 'Wave'; el('wave').textContent = wave;
     el('leftLbl').textContent = 'Hostiles'; el('left').textContent = enemies.filter(e=>!e.dead).length;
@@ -4014,6 +4109,14 @@ function handleNetEvent(evt){
       Sound.hit();
       if(evt.targetId === myId){ Sound.hurt(); banner("YOU'RE IT!", 'Tag someone to pass it on'); }
       break;
+    case 'artifactevent':
+      feed(evt.text, evt.color);
+      Sound.pickup();
+      break;
+    case 'missioncomplete':
+      gameOver = true;
+      showMatchEndScreen(null, null, null, true);
+      break;
     case 'gameover':
       gameOver = true;
       showGameOverScreen(evt.wave, evt.kills, evt.score);
@@ -4126,6 +4229,8 @@ const Net = (() => {
       destroyedCells, destroyedRampIdx,
       flags: flags.map(f => ({ team:f.team, x:f.x, y:f.y, carriedBy:f.carriedBy })),
       tagId, tagTimeLeft,
+      artifacts: artifacts.map(a => ({ x:a.x, y:a.y, carriedBy:a.carriedBy, returned:a.returned })),
+      missionReturned,
     };
   }
   function applySnapshot(s){
@@ -4144,6 +4249,14 @@ const Net = (() => {
       }
     }
     if(s.tagId !== undefined){ tagId = s.tagId; tagTimeLeft = s.tagTimeLeft; }
+    if(s.artifacts){
+      for(let i=0;i<s.artifacts.length;i++){
+        if(!artifacts[i]) continue;
+        artifacts[i].x = s.artifacts[i].x; artifacts[i].y = s.artifacts[i].y;
+        artifacts[i].carriedBy = s.artifacts[i].carriedBy; artifacts[i].returned = s.artifacts[i].returned;
+      }
+      missionReturned = s.missionReturned;
+    }
     if(netMode === 'client'){
       let changed = false;
       for(const key of s.destroyedCells||[]){
@@ -4488,7 +4601,12 @@ el('mapPickList').addEventListener('click', e => {
   const btn = e.target.closest('.pickMapBtn');
   if(!btn) return;
   mapIndex = +btn.dataset.i;
-  if(pendingHostMode){
+  if(pendingHostMode === 'solo-mission'){
+    MODE = 'mission'; netMode = 'solo';
+    showPanel('');
+    el('keysPanel').classList.remove('hide');
+    el('btnDeploy').classList.remove('hide');
+  } else if(pendingHostMode){
     showPanel('menuLobby');
     Net.startHost(pendingHostMode);
   } else {
@@ -4498,7 +4616,7 @@ el('mapPickList').addEventListener('click', e => {
     el('btnDeploy').classList.remove('hide');
   }
 });
-el('btnBackMapPick').addEventListener('click', () => showPanel(pendingHostMode ? 'menuMulti' : 'menuMain'));
+el('btnBackMapPick').addEventListener('click', () => showPanel((pendingHostMode && pendingHostMode !== 'solo-mission') ? 'menuMulti' : 'menuMain'));
 function beginMatch(){
   el('start').classList.add('hide');
   el('matchEnd').classList.add('hide');
@@ -4528,6 +4646,7 @@ async function fetchAndRenderRooms(){
         : rm.mode === 'teams' ? (rm.teamCount === 2 ? `${rm.teamSize}v${rm.teamSize}` : `${rm.teamCount} Teams x${rm.teamSize}`)
         : rm.mode === 'ctf' ? `CTF ${rm.teamSize}v${rm.teamSize}`
         : rm.mode === 'tag' ? `Tag (${rm.tagMinutes||10} min)`
+        : rm.mode === 'mission' ? 'Mission'
         : 'Co-op';
       return `<li class="roomrow">
         <span>${escapeHtml(rm.hostName)}'s ${modeLabel} · ${escapeHtml(rm.mapName || 'Sector 7')}
@@ -4550,7 +4669,8 @@ el('browseList').addEventListener('click', e => {
 /* -------------------------------- scoreboard ------------------------------- */
 function renderScoreboard(){
   el('sbTitle').textContent = MODE === 'deathmatch' ? 'Deathmatch' : MODE === 'coop' ? 'Co-op'
-    : MODE === 'teams' ? 'Teams' : MODE === 'ctf' ? 'Capture the Flag' : MODE === 'tag' ? 'Tag' : 'Solo';
+    : MODE === 'teams' ? 'Teams' : MODE === 'ctf' ? 'Capture the Flag' : MODE === 'tag' ? 'Tag'
+    : MODE === 'mission' ? 'Mission' : 'Solo';
   const rows = allPlayers().map(p => ({ name: escapeHtml(p===player ? (p.name||'You') : (p.name||'Player')),
     kills:p.kills||0, deaths:p.deaths||0, me:p===player, team:p.team||0 }));
   const header = '<tr><td class="name"><b>Player</b></td><td class="num"><b>K</b></td><td class="num"><b>D</b></td></tr>';
@@ -5108,6 +5228,7 @@ el('over').addEventListener('click', () => {
   if(netMode === 'solo') startGame(); else Net.leaveToMenu();
 });
 el('btnMatchContinue').addEventListener('click', () => {
+  if(netMode === 'solo'){ el('matchEnd').classList.add('hide'); startGame(); return; }
   if(netMode !== 'host') return;   // hidden for clients anyway — defense in depth
   el('matchEnd').classList.add('hide');
   Net.beginAsHost();
@@ -5118,6 +5239,7 @@ el('btnMatchExit').addEventListener('click', () => {
 });
 
 el('btnSolo').addEventListener('click', () => showMapPicker(null));
+el('btnMissions').addEventListener('click', () => showMapPicker('solo-mission'));
 el('btnMulti').addEventListener('click', () => showPanel('menuMulti'));
 el('btnBackMulti').addEventListener('click', () => showPanel('menuMain'));
 el('btnShowJoin').addEventListener('click', () => showPanel('menuJoin'));
@@ -5129,6 +5251,7 @@ el('btnHostDM').addEventListener('click', () => showMapPicker('deathmatch'));
 el('btnHostTeams').addEventListener('click', () => showMapPicker('teams'));
 el('btnHostCTF').addEventListener('click', () => showMapPicker('ctf'));
 el('btnHostTag').addEventListener('click', () => showMapPicker('tag'));
+el('btnHostMission').addEventListener('click', () => showMapPicker('mission'));
 el('btnTag5').addEventListener('click', () => Net.setTagMinutes(5));
 el('btnTag10').addEventListener('click', () => Net.setTagMinutes(10));
 el('btnTag15').addEventListener('click', () => Net.setTagMinutes(15));
@@ -5195,6 +5318,7 @@ function startGame(){
   resetHazards();
   resetCTF();
   resetTag();
+  resetMission();
   vig.style.opacity = '0';
   gameOver = false; paused = false; running = true;
   el('mobileControls').classList.remove('hide');
@@ -5207,6 +5331,7 @@ function startGame(){
   else if(MODE === 'teams')      banner(`Team ${(player.team||0)+1}`, 'Eliminate the enemy squads — friendly fire is off');
   else if(MODE === 'ctf')        banner(`Round ${ctfRound} of 3`, `Team ${(player.team||0)+1} — capture the enemy flag, friendly fire is off`);
   else if(MODE === 'tag')        banner(tagId === player.id ? "YOU'RE IT" : 'Run!', tagId === player.id ? 'Tag someone to pass it on' : 'Whoever has the gun when time runs out loses');
+  else if(MODE === 'mission')    banner('Mission', `Recover all ${MISSION_ARTIFACT_COUNT} artifacts and return them to the safe zone`);
   else                           banner('Breach', 'Hostiles inbound');
 }
 
@@ -5236,10 +5361,13 @@ function showGameOverScreen(w, k, s){
 // Deathmatch/Teams win screen — Continue (round 2) is host-only, matching
 // every other match-flow control (Start Match, squad size, etc); clients
 // just wait for the host's 'start' broadcast, same as the initial lobby.
-function showMatchEndScreen(winnerName, winnerTeam, tagLoserName){
+function showMatchEndScreen(winnerName, winnerTeam, tagLoserName, missionWin){
   flushPendingCoins();
   document.exitPointerLock?.();
-  if(tagLoserName != null){
+  if(missionWin){
+    el('matchEndTitle').textContent = 'MISSION COMPLETE!';
+    el('matchEndSub').textContent = `All ${MISSION_ARTIFACT_COUNT} artifacts secured`;
+  } else if(tagLoserName != null){
     const iLost = tagLoserName === player.name;
     el('matchEndTitle').textContent = iLost ? 'YOU WERE CAUGHT!' : `${tagLoserName} WAS CAUGHT!`;
     el('matchEndSub').textContent = iLost ? 'You were holding the gun when time ran out' : 'You survived — they were holding the gun';
@@ -5250,8 +5378,9 @@ function showMatchEndScreen(winnerName, winnerTeam, tagLoserName){
     el('matchEndSub').textContent = MODE === 'ctf' ? `Best of 3 flag captures: ${ctfRoundWins[0]}-${ctfRoundWins[1]}`
       : isTeamWin ? 'Team kill target reached' : 'Kill target reached';
   }
-  el('btnMatchContinue').classList.toggle('hide', netMode !== 'host');
-  el('matchEndWait').classList.toggle('hide', netMode === 'host');
+  el('btnMatchContinue').textContent = netMode === 'solo' ? 'Try Again' : 'Continue — Round 2';
+  el('btnMatchContinue').classList.toggle('hide', netMode !== 'host' && netMode !== 'solo');
+  el('matchEndWait').classList.toggle('hide', netMode === 'host' || netMode === 'solo');
   setTimeout(() => {
     running = false;
     el('mobileControls').classList.add('hide'); resetJoy();

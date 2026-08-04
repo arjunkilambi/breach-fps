@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     const code = String(body.code || '').toUpperCase().slice(0, 8);
     if (!/^[A-Z0-9]{4,8}$/.test(code)) { res.status(400).json({ error: 'bad room code' }); return; }
 
-    const mode = ['coop', 'deathmatch', 'teams', 'ctf', 'tag'].includes(body.mode) ? body.mode : 'coop';
+    const mode = ['coop', 'deathmatch', 'teams', 'ctf', 'tag', 'mission'].includes(body.mode) ? body.mode : 'coop';
     const hostName = String(body.hostName || 'Host').slice(0, 16);
     const mapName = String(body.mapName || 'Sector 7').slice(0, 24);
     const players = Math.max(1, Math.min(16, Number(body.players) || 1));
