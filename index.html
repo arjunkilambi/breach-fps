@@ -1460,13 +1460,13 @@ function applyWorldTheme(theme){
 /* Colors feed the 3D blocky-humanoid factory in the render section below —
    there's no 2D sprite sheet anymore, everything is real Three.js geometry.  */
 const TYPES = {
-  grunt : { name:'Grunt',  hp:60,  speed:2.35, dmg:8,  range:1.25, cool:1.05, score:100, radius:.38, scale:.80,
+  grunt : { name:'Grunt',  hp:90,  speed:2.35, dmg:8,  range:1.25, cool:1.05, score:100, radius:.38, scale:.80,
             colors:{ body:0x4f6b3d, trim:0x2c3a22, head:0x5d7a49, eye:0x7dff9b } },
-  gunner: { name:'Gunner', hp:45,  speed:1.75, dmg:11, range:9.0,  cool:1.5,  score:150, radius:.36, scale:.76, ranged:true,
+  gunner: { name:'Gunner', hp:65,  speed:1.75, dmg:11, range:9.0,  cool:1.5,  score:150, radius:.36, scale:.76, ranged:true,
             colors:{ body:0x3d5570, trim:0x22303f, head:0x4a6482, eye:0x6fd8ff } },
-  brute : { name:'Brute',  hp:170, speed:1.55, dmg:20, range:1.6,  cool:1.55, score:300, radius:.52, scale:1.02,
+  brute : { name:'Brute',  hp:250, speed:1.55, dmg:20, range:1.6,  cool:1.55, score:300, radius:.52, scale:1.02,
             colors:{ body:0x6b2f2f, trim:0x3a1a1a, head:0x7d3a3a, eye:0xff7a5c } },
-  boss  : { name:'Warlord', hp:520, speed:1.55, dmg:20, range:11, cool:1.1, score:1000, radius:.62, scale:1.55, ranged:true,
+  boss  : { name:'Warlord', hp:780, speed:1.55, dmg:20, range:11, cool:1.1, score:1000, radius:.62, scale:1.55, ranged:true,
             colors:{ body:0x6b1f6b, trim:0x371038, head:0x7d2a80, eye:0xff5cf0 } },
 };
 for(const k in TYPES) TYPES[k].key = k;   // lets a network snapshot reference a type by name
@@ -3327,7 +3327,7 @@ function nextWave(){
   // a boss shows up after each wave from wave 2 on, tougher every time
   const hasBoss = wave >= 2;
   if(hasBoss){
-    const boss = { ...TYPES.boss, hp: TYPES.boss.hp + (wave-2)*70, dmg: TYPES.boss.dmg + (wave-2)*1.5 };
+    const boss = { ...TYPES.boss, hp: TYPES.boss.hp + (wave-2)*105, dmg: TYPES.boss.dmg + (wave-2)*2.2 };
     const [bx,by] = pool[count % pool.length];
     const jx = bx + rand(.7,-.7), jy = by + rand(.7,-.7);
     const ok = !solid(jx, jy) && !solid(jx+.4,jy) && !solid(jx-.4,jy) && !solid(jx,jy+.4) && !solid(jx,jy-.4);
