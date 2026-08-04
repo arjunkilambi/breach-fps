@@ -229,11 +229,11 @@
       <div id="hpbar"><div id="hpfill"></div></div>
     </div>
     <div class="cell" style="text-align:center">
-      <div class="lbl">Wave</div>
+      <div class="lbl" id="waveLbl">Wave</div>
       <div class="val" id="wave">1</div>
     </div>
     <div class="cell" style="text-align:center">
-      <div class="lbl">Hostiles</div>
+      <div class="lbl" id="leftLbl">Hostiles</div>
       <div class="val" id="left">0</div>
     </div>
     <div class="cell" style="text-align:center">
@@ -339,6 +339,8 @@
     <div class="mbtn" id="btnHostCoop">Host — Co-op</div>
     <div class="mbtn" id="btnHostDM">Host — Deathmatch</div>
     <div class="mbtn" id="btnHostTeams">Host — Teams</div>
+    <div class="mbtn" id="btnHostCTF">Host — Capture the Flag</div>
+    <div class="mbtn" id="btnHostTag">Host — Tag</div>
     <div class="mbtn" id="btnBrowse">Browse Games</div>
     <div class="mbtn" id="btnShowJoin">Join by Code</div>
     <div class="mbtn ghost small" id="btnBackMulti">Back</div>
@@ -382,11 +384,13 @@
           <div class="mbtn small" id="btnPreset2v2">2v2</div>
           <div class="mbtn small" id="btnPreset3v3">3v3</div>
         </div>
-        <div class="lbl" style="text-align:center;margin-top:10px">Teams</div>
-        <div class="mrow" style="justify-content:center;align-items:center;gap:14px">
-          <div class="mbtn small" id="teamCountDown">−</div>
-          <div class="roomcode" id="teamCountVal" style="font-size:20px;padding:8px 18px">2</div>
-          <div class="mbtn small" id="teamCountUp">+</div>
+        <div id="teamCountWrap">
+          <div class="lbl" style="text-align:center;margin-top:10px">Teams</div>
+          <div class="mrow" style="justify-content:center;align-items:center;gap:14px">
+            <div class="mbtn small" id="teamCountDown">−</div>
+            <div class="roomcode" id="teamCountVal" style="font-size:20px;padding:8px 18px">2</div>
+            <div class="mbtn small" id="teamCountUp">+</div>
+          </div>
         </div>
         <div class="lbl" style="text-align:center;margin-top:10px">Players Per Team</div>
         <div class="mrow" style="justify-content:center;align-items:center;gap:14px">
@@ -394,6 +398,15 @@
           <div class="roomcode" id="teamSizeVal" style="font-size:20px;padding:8px 18px">2</div>
           <div class="mbtn small" id="teamSizeUp">+</div>
         </div>
+      </div>
+      <div id="lobbyTagWrap" class="hide">
+        <div class="lbl" style="text-align:center;margin-top:10px">Match Length</div>
+        <div class="mrow" style="justify-content:center;gap:8px;margin-top:6px">
+          <div class="mbtn small" id="btnTag5">5 min</div>
+          <div class="mbtn small" id="btnTag10">10 min</div>
+          <div class="mbtn small" id="btnTag15">15 min</div>
+        </div>
+        <div class="lbl" style="text-align:center;margin-top:8px" id="tagLengthLabel">10 minutes</div>
       </div>
     </div>
     <div class="lbl" id="lobbyMapLabel" style="text-align:center"></div>
@@ -1620,6 +1633,11 @@ let mouseDown = false;
 // position/hp/buffs. Each device predicts its own local player for feel, and
 // reconciles toward whatever the host last reported for "me".
 let netMode = 'solo', MODE = 'campaign';
+// 'teams' (kill-count win) and 'ctf' (flag-capture win) share every bit of
+// team infrastructure — assignment, friendly-fire, spawn clustering, combat/
+// respawn flow — and differ only in their win condition and (for ctf) the
+// flag mechanics layered on top.
+function isTeamMode(m){ return m === 'teams' || m === 'ctf'; }
 let myId = 'me', roomCode = null;
 let otherPlayers = new Map();           // id -> player-shaped state (authoritative on host, ghost elsewhere)
 const SKINS = [
@@ -2152,6 +2170,32 @@ function syncPickupMeshes(){
     if(!p.taken){ mesh.position.y = heightAt(p.x,p.y) + 0.35 + Math.sin(now*2.5+p.x)*0.05; mesh.rotation.y += 0.02; mesh.rotation.x += 0.012; }
   }
 }
+/* ---- CTF flags: a pole + a team-colored cloth, idling with a slow spin ---- */
+let flagMeshes = [];
+function buildFlagMesh(team){
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,1.1,6),
+    new THREE.MeshStandardMaterial({ color:0xcccccc, roughness:0.4, metalness:0.5 }));
+  pole.position.y = 0.55;
+  g.add(pole);
+  const color = SKINS[team % SKINS.length].body;
+  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.34,0.22),
+    new THREE.MeshStandardMaterial({ color, emissive:color, emissiveIntensity:0.5, side:THREE.DoubleSide }));
+  cloth.position.set(0.17, 0.92, 0);
+  g.add(cloth);
+  return g;
+}
+function rebuildFlagMeshes(){
+  for(const m of flagMeshes) scene.remove(m);
+  flagMeshes = flags.map(f => { const m = buildFlagMesh(f.team); scene.add(m); return m; });
+}
+function syncFlagMeshes(){
+  for(let i=0;i<flags.length;i++){
+    const f = flags[i], mesh = flagMeshes[i]; if(!mesh) continue;
+    mesh.position.set(f.x, heightAt(f.x,f.y), f.y);
+    mesh.rotation.y += 0.015;
+  }
+}
 const boltGeo = new THREE.SphereGeometry(0.07, 8, 6);
 const boltMat = new THREE.MeshBasicMaterial({ color:0x9fe8ff });
 let boltMeshPool = [];
@@ -2635,6 +2679,7 @@ function render3D(dt){
   syncEnemyMeshes(dt);
   syncPlayerMeshes(dt);
   syncPickupMeshes();
+  syncFlagMeshes();
   syncBoltMeshes();
   updateFX(dt);
   updateWeaponView();
@@ -2796,10 +2841,10 @@ function computeShotHit(px, py, ang, shooter){
     const perp = Math.hypot(ex - dx*t, ey - dy*t);
     if(perp <= e.type.radius + 0.05){ best = e; bestT = t; bestKind = 'enemy'; }
   }
-  if(MODE === 'deathmatch' || MODE === 'teams'){
+  if(MODE === 'deathmatch' || isTeamMode(MODE) || MODE === 'tag'){
     for(const op of allPlayers()){
       if(op === shooter || !op.alive) continue;
-      if(MODE === 'teams' && shooter && op.team === shooter.team) continue;   // no friendly fire
+      if(isTeamMode(MODE) && shooter && op.team === shooter.team) continue;   // no friendly fire
       const ex = op.x-px, ey = op.y-py;
       const t = ex*dx + ey*dy;
       if(t <= 0 || t >= bestT) continue;
@@ -2838,7 +2883,8 @@ function resolveShot(px, py, ang, dmg, shooter, authoritative, chainShock, booms
       damageEnemy(best, dmg, shooter);
       if(chainShock) chainShockZap(hitX, hitY, Math.round(dmg*0.5), best, shooter);
     } else if(bestKind === 'player'){
-      damageOtherPlayer(best, dmg, shooter);
+      if(MODE === 'tag') applyTag(shooter, best);
+      else damageOtherPlayer(best, dmg, shooter);
     } else if(wallRay.tile === WALL.BUILDING && at(wallRay.mapX, wallRay.mapY) === WALL.BUILDING){
       damageBuildingCell(wallRay.mapX, wallRay.mapY, dmg, px, py);
     }
@@ -2856,6 +2902,7 @@ function resolveShot(px, py, ang, dmg, shooter, authoritative, chainShock, booms
 }
 
 function fire(){
+  if(MODE === 'tag' && player.id !== tagId){ Sound.dry(); return; }   // only the tagger has a working gun
   const w = WEAPONS[player.weapon];
   if(player.reloading > 0 || player.cooldown > 0) return;
   const frenzy = player.buffs.frenzy > 0;
@@ -2945,7 +2992,7 @@ function damagePlayer(dmg, shooter){
   if(player.hp <= 0){
     player.hp = 0;
     player.alive = false;
-    if(MODE === 'deathmatch' || MODE === 'teams'){
+    if(MODE === 'deathmatch' || isTeamMode(MODE)){
       player.deaths = (player.deaths||0) + 1;
       player.respawnAt = now + 3;
       if(shooter) shooter.kills = (shooter.kills||0) + 1;
@@ -3035,7 +3082,7 @@ function computeTeamSpawnGroups(teamCount){
   return groups;
 }
 function pickSpawnFor(team){
-  if(MODE === 'teams' && SPAWNS.length){
+  if(isTeamMode(MODE) && SPAWNS.length){
     const groups = computeTeamSpawnGroups(Net.teamCount);
     const grp = groups[(team||0) % groups.length];
     if(grp && grp.length) return grp[(Math.random()*grp.length)|0];
@@ -3044,7 +3091,7 @@ function pickSpawnFor(team){
 }
 
 function respawnDM(p){
-  const s = MODE === 'teams' ? pickSpawnFor(p.team) : SPAWNS[(Math.random()*SPAWNS.length)|0];
+  const s = isTeamMode(MODE) ? pickSpawnFor(p.team) : SPAWNS[(Math.random()*SPAWNS.length)|0];
   p.x = s[0]; p.y = s[1]; p.hp = 100; p.alive = true; p.respawnAt = 0;
   p.buffs = freshBuffs(); p.vx = 0; p.vy = 0;
   if(p === player){ vig.style.opacity = '0'; banner('Redeployed'); }
@@ -3358,6 +3405,76 @@ function resetHazards(){
   })) : [];
 }
 
+/* --------------------------------- CTF ------------------------------------ */
+// Each flag lives at its team's home base (the SPAWNS point nearest that
+// team's spawn-cluster centroid — reuses the same clustering already built
+// for Teams mode, guaranteeing a walkable, on-that-team's-side location with
+// no per-map hand placement needed).
+let flags = [];
+let ctfRoundWins = [0,0], ctfRound = 1;
+function resetFlags(){
+  for(const m of flagMeshes) scene.remove(m);
+  flagMeshes = [];
+  if(MODE !== 'ctf' || !SPAWNS.length){ flags = []; return; }
+  const groups = computeTeamSpawnGroups(2);
+  flags = [0,1].map(team => {
+    const grp = (groups[team % groups.length] && groups[team % groups.length].length) ? groups[team % groups.length] : SPAWNS;
+    const cx = grp.reduce((s,p)=>s+p[0],0)/grp.length, cy = grp.reduce((s,p)=>s+p[1],0)/grp.length;
+    let best = grp[0], bestD = Infinity;
+    for(const p of grp){ const d = (p[0]-cx)**2 + (p[1]-cy)**2; if(d < bestD){ bestD = d; best = p; } }
+    return { team, x:best[0], y:best[1], homeX:best[0], homeY:best[1], carriedBy:null };
+  });
+  rebuildFlagMeshes();
+}
+function resetCTF(){
+  ctfRoundWins = [0,0]; ctfRound = 1;
+  resetFlags();
+}
+// Fires only host/solo-side (see the ctf block in update()); the resulting
+// team-win-count broadcast + round reset (or final 'matchend') keeps clients
+// in sync the same way every other match-flow event in this file already does.
+function ctfCapture(team){
+  ctfRoundWins[team] = (ctfRoundWins[team]||0) + 1;
+  if(ctfRound >= 3){
+    gameOver = true;
+    const winner = ctfRoundWins[0] > ctfRoundWins[1] ? 0 : 1;
+    Net.emit({ kind:'ctfcapture', team, round:ctfRound, wins:[...ctfRoundWins], final:true });
+    Net.emit({ kind:'matchend', winnerName:null, winnerTeam: winner });
+  } else {
+    ctfRound++;
+    resetFlags();
+    for(const p of allPlayers()){
+      const s = pickSpawnFor(p.team);
+      p.x = s[0]; p.y = s[1]; p.hp = 100; p.alive = true; p.buffs = freshBuffs();
+    }
+    Net.emit({ kind:'ctfcapture', team, round:ctfRound, wins:[...ctfRoundWins], final:false });
+  }
+}
+
+/* --------------------------------- Tag ------------------------------------- */
+// Only the current tagger (tagId) can fire at all (see fire()'s early-out and
+// resolveShot's apply() routing 'player' hits here instead of damageOtherPlayer
+// for MODE==='tag') — so there's no hp/death system in this mode at all, just
+// who's holding the gun when the clock runs out.
+let tagId = null, tagTimeLeft = 0;
+function resetTag(){
+  if(MODE !== 'tag'){ tagId = null; tagTimeLeft = 0; return; }
+  tagTimeLeft = (Net.tagMinutes||10) * 60;
+  if(netMode !== 'client'){
+    const all = allPlayers();
+    tagId = (all[(Math.random()*all.length)|0] || player).id;
+  }
+}
+// Only ever reached from resolveShot's apply(), which itself only runs
+// authoritatively (host/solo) — same rule as every other hit in this file.
+// Swaps who's "it" and lets everyone know via the same self-fire+broadcast
+// Net.emit pattern used for every other match event.
+function applyTag(shooter, target){
+  if(target.id === tagId) return;
+  tagId = target.id;
+  Net.emit({ kind:'tagged', name: target.name, targetId: target.id });
+}
+
 function decayBuffs(b, dt){
   for(const k in b) if(b[k] > 0) b[k] = Math.max(0, b[k] - dt);
 }
@@ -3499,7 +3616,7 @@ function update(dt){
       player.hurt = Math.max(player.hurt, 0.5);
       if(player.hp <= 0){
         player.hp = 0; player.alive = false;
-        if(MODE === 'deathmatch' || MODE === 'teams'){
+        if(MODE === 'deathmatch' || isTeamMode(MODE)){
           player.deaths = (player.deaths||0) + 1; player.respawnAt = now + 3;
           Net.emit({ kind:'elim', victim: player.name, killer:'the safe zone', targetId: player.id, victimTeam: player.team, killerTeam: null });
         }
@@ -3603,9 +3720,49 @@ function update(dt){
     }
   }
 
-  // ---------- wave flow (campaign / co-op only — deathmatch & teams have no waves) ----------
+  // ---------- CTF flags (host/solo authoritative; clients mirror via snapshot) ----------
+  if(netMode !== 'client' && MODE === 'ctf'){
+    for(const f of flags){
+      if(f.carriedBy){
+        const carrier = allPlayers().find(p => p.id === f.carriedBy);
+        if(!carrier || !carrier.alive){ f.carriedBy = null; }   // dropped where it was last carried
+        else {
+          f.x = carrier.x; f.y = carrier.y;
+          const ownFlag = flags.find(o => o.team === carrier.team);
+          if(f.team !== carrier.team && ownFlag && Math.hypot(carrier.x-ownFlag.homeX, carrier.y-ownFlag.homeY) < 1.2){
+            f.carriedBy = null; f.x = f.homeX; f.y = f.homeY;
+            ctfCapture(carrier.team);
+          }
+        }
+      } else {
+        const atHome = Math.hypot(f.x-f.homeX, f.y-f.homeY) < 0.1;
+        for(const pl of livingPlayers()){
+          if(Math.hypot(pl.x-f.x, pl.y-f.y) >= 0.6) continue;
+          if(pl.team === f.team){
+            if(!atHome){ f.x = f.homeX; f.y = f.homeY; Net.emit({ kind:'flagevent', text:`Team ${f.team+1}'s flag was returned`, color:SKINS[f.team%SKINS.length].body }); }
+          } else {
+            f.carriedBy = pl.id;
+            Net.emit({ kind:'flagevent', text:`${pl.name} took Team ${f.team+1}'s flag!`, color:SKINS[f.team%SKINS.length].body });
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // ---------- Tag countdown (host/solo authoritative) ----------
+  if(netMode !== 'client' && MODE === 'tag' && !gameOver){
+    tagTimeLeft -= dt;
+    if(tagTimeLeft <= 0){
+      tagTimeLeft = 0; gameOver = true;
+      const loser = allPlayers().find(p => p.id === tagId);
+      Net.emit({ kind:'matchend', winnerName:null, winnerTeam:null, tagLoserName: loser ? loser.name : '???' });
+    }
+  }
+
+  // ---------- wave flow (campaign / co-op only — deathmatch/teams/ctf/tag have no waves) ----------
   const aliveCount = enemies.filter(e => !e.dead).length;
-  if(netMode !== 'client' && MODE !== 'deathmatch' && MODE !== 'teams'){
+  if(netMode !== 'client' && MODE !== 'deathmatch' && !isTeamMode(MODE) && MODE !== 'tag'){
     if(aliveCount === 0 && livingPlayers().length > 0){
       if(!spawning){ spawning = true; waveTimer = wave === 0 ? 0.6 : 4; }
       waveTimer -= dt;
@@ -3616,8 +3773,8 @@ function update(dt){
     }
   }
 
-  // ---------- deathmatch/teams respawns (host/solo only) ----------
-  if(netMode !== 'client' && (MODE === 'deathmatch' || MODE === 'teams')){
+  // ---------- deathmatch/teams/ctf respawns (host/solo only) ----------
+  if(netMode !== 'client' && (MODE === 'deathmatch' || isTeamMode(MODE))){
     for(const p of allPlayers()){
       if(!p.alive && p.respawnAt && now >= p.respawnAt) respawnDM(p);
     }
@@ -3719,8 +3876,17 @@ function updateHUD(){
   el('hp').textContent   = Math.ceil(player.hp);
   el('hpfill').style.width = clamp(player.hp,0,100) + '%';
   el('hpcell').classList.toggle('low', player.hp <= 35);
-  el('wave').textContent = wave;
-  el('left').textContent = enemies.filter(e=>!e.dead).length;
+  if(MODE === 'ctf'){
+    el('waveLbl').textContent = 'Round'; el('wave').textContent = `${ctfRound}/3`;
+    el('leftLbl').textContent = 'Score'; el('left').textContent = `${ctfRoundWins[0]}-${ctfRoundWins[1]}`;
+  } else if(MODE === 'tag'){
+    const m = Math.max(0,Math.floor(tagTimeLeft/60)), s = Math.max(0,Math.floor(tagTimeLeft%60));
+    el('waveLbl').textContent = 'Time'; el('wave').textContent = `${m}:${s<10?'0':''}${s}`;
+    el('leftLbl').textContent = 'Status'; el('left').textContent = tagId === player.id ? "YOU'RE IT" : 'Running';
+  } else {
+    el('waveLbl').textContent = 'Wave'; el('wave').textContent = wave;
+    el('leftLbl').textContent = 'Hostiles'; el('left').textContent = enemies.filter(e=>!e.dead).length;
+  }
   el('hudCoins').textContent = account.coins;
   el('mkCount').textContent = player.medkits;
   el('mkCap').textContent = medkitCap();
@@ -3834,13 +4000,27 @@ function handleNetEvent(evt){
     case 'icedrop':
       spawnIceChunkFX(evt.x, evt.y);
       break;
+    case 'flagevent':
+      feed(evt.text, evt.color);
+      Sound.pickup();
+      break;
+    case 'ctfcapture':
+      ctfRoundWins = evt.wins; ctfRound = evt.round;
+      if(!evt.final) banner(`Round ${evt.round} of 3`, `Team ${evt.team+1} captured the flag!`);
+      break;
+    case 'tagged':
+      tagId = evt.targetId;
+      feed(evt.targetId === myId ? "You're it!" : `${evt.name} is now it!`, '#ff9a6a');
+      Sound.hit();
+      if(evt.targetId === myId){ Sound.hurt(); banner("YOU'RE IT!", 'Tag someone to pass it on'); }
+      break;
     case 'gameover':
       gameOver = true;
       showGameOverScreen(evt.wave, evt.kills, evt.score);
       break;
     case 'matchend':
       gameOver = true;
-      showMatchEndScreen(evt.winnerName, evt.winnerTeam);
+      showMatchEndScreen(evt.winnerName, evt.winnerTeam, evt.tagLoserName);
       break;
     case 'join': feed(`${evt.name} connected`, '#8ef5ff'); break;
     case 'leave': feed(`${evt.name} disconnected`, '#7d99a3'); break;
@@ -3854,7 +4034,8 @@ function handleNetEvent(evt){
 const Net = (() => {
   let peer = null, hostConn = null;
   let hostMaxPlayers = 8;                 // host-chosen squad size (7-12) — the room can't fill past it, and the host can't start short of it
-  let hostTeamCount = 2, hostTeamSize = 2;  // Teams mode only — hostMaxPlayers is derived as their product
+  let hostTeamCount = 2, hostTeamSize = 2;  // Teams/CTF only — hostMaxPlayers is derived as their product
+  let hostTagMinutes = 10;                  // Tag mode only
   const clientConns = new Map();          // host-side: peerId -> DataConnection
 
   function shortCode(){
@@ -3869,7 +4050,7 @@ const Net = (() => {
   // Balances new joiners onto whichever team currently has the fewest players
   // (the host, connecting first, always lands on team 0).
   function pickTeamForNewPlayer(){
-    if(MODE !== 'teams') return 0;
+    if(!isTeamMode(MODE)) return 0;
     const counts = new Array(hostTeamCount).fill(0);
     counts[player.team||0]++;
     for(const st of otherPlayers.values()) counts[st.team||0]++;
@@ -3880,10 +4061,10 @@ const Net = (() => {
 
   function makeRemotePlayer(id, name, team){
     team = team||0;
-    const s = MODE === 'teams' ? pickSpawnFor(team) : SPAWNS[(Math.random()*SPAWNS.length)|0];
+    const s = isTeamMode(MODE) ? pickSpawnFor(team) : SPAWNS[(Math.random()*SPAWNS.length)|0];
     return {
       id, name, x:s[0], y:s[1], a:0, pitch:0, hp:100, alive:true, weapon:'pistol', team,
-      kills:0, deaths:0, buffs:freshBuffs(), skin: MODE === 'teams' ? team % SKINS.length : (nextSkin++)%SKINS.length,
+      kills:0, deaths:0, buffs:freshBuffs(), skin: isTeamMode(MODE) ? team % SKINS.length : (nextSkin++)%SKINS.length,
       respawnAt:0, animPhase:0, input:{keys:{}}, lastShotAt:0, vx:0, vy:0,
     };
   }
@@ -3943,6 +4124,8 @@ const Net = (() => {
       bolts: bolts.map(b => ({ x:b.x, y:b.y })),
       players: [ playerSnap(player), ...[...otherPlayers.values()].map(playerSnap) ],
       destroyedCells, destroyedRampIdx,
+      flags: flags.map(f => ({ team:f.team, x:f.x, y:f.y, carriedBy:f.carriedBy })),
+      tagId, tagTimeLeft,
     };
   }
   function applySnapshot(s){
@@ -3954,6 +4137,13 @@ const Net = (() => {
       const p = pickups.find(pp => pp.x===sp.x && pp.y===sp.y && pp.kind===sp.kind);
       if(p) p.taken = sp.taken;
     }
+    if(s.flags){
+      for(let i=0;i<s.flags.length;i++){
+        if(!flags[i]) continue;
+        flags[i].x = s.flags[i].x; flags[i].y = s.flags[i].y; flags[i].carriedBy = s.flags[i].carriedBy;
+      }
+    }
+    if(s.tagId !== undefined){ tagId = s.tagId; tagTimeLeft = s.tagTimeLeft; }
     if(netMode === 'client'){
       let changed = false;
       for(const key of s.destroyedCells||[]){
@@ -3995,7 +4185,8 @@ const Net = (() => {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ code, mode, hostName: player.name, players: 1+otherPlayers.size, maxPlayers: hostMaxPlayers,
           mapName: MAPS[mapIndex].name,
-          ...(mode === 'teams' ? { teamCount: hostTeamCount, teamSize: hostTeamSize } : {}) }),
+          ...((mode === 'teams' || mode === 'ctf') ? { teamCount: hostTeamCount, teamSize: hostTeamSize } : {}),
+          ...(mode === 'tag' ? { tagMinutes: hostTagMinutes } : {}) }),
       }).catch(()=>{});
     };
     beat();
@@ -4050,6 +4241,7 @@ const Net = (() => {
     const sizeEl = el('lobbySizeVal'); if(sizeEl) sizeEl.textContent = hostMaxPlayers;
     const tcEl = el('teamCountVal'); if(tcEl) tcEl.textContent = hostTeamCount;
     const tsEl = el('teamSizeVal'); if(tsEl) tsEl.textContent = hostTeamSize;
+    const tagEl = el('tagLengthLabel'); if(tagEl) tagEl.textContent = `${hostTagMinutes} minutes`;
     const progEl = el('lobbyProgress');
     if(progEl) progEl.textContent = `${count} / ${hostMaxPlayers} joined`;
     el('btnStartMatch').classList.toggle('hide', count < hostMaxPlayers);
@@ -4135,7 +4327,7 @@ const Net = (() => {
       player.name = name || 'Host';
       player.team = 0;
       otherPlayers.clear();
-      if(mode === 'teams'){ hostTeamCount = 2; hostTeamSize = 2; hostMaxPlayers = hostTeamCount*hostTeamSize; }
+      if(mode === 'teams' || mode === 'ctf'){ hostTeamCount = 2; hostTeamSize = 2; hostMaxPlayers = hostTeamCount*hostTeamSize; }
       else hostMaxPlayers = 8;
       const code = shortCode();
       setNetMsg('Opening room…');
@@ -4147,8 +4339,10 @@ const Net = (() => {
         roomCode = code;
         el('lobbyCode').textContent = code;
         el('lobbyRoomWrap').classList.remove('hide');
-        el('lobbySquadWrap').classList.toggle('hide', mode === 'teams');
-        el('lobbyTeamWrap').classList.toggle('hide', mode !== 'teams');
+        el('lobbySquadWrap').classList.toggle('hide', mode === 'teams' || mode === 'ctf');
+        el('lobbyTeamWrap').classList.toggle('hide', mode !== 'teams' && mode !== 'ctf');
+        el('teamCountWrap').classList.toggle('hide', mode === 'ctf');   // CTF is always exactly 2 teams
+        el('lobbyTagWrap').classList.toggle('hide', mode !== 'tag');
         el('lobbyMapLabel').textContent = 'Map: ' + MAPS[mapIndex].name;
         setNetMsg('Share this code with your squad — or it\'s already listed under Browse Games.');
         renderLobbyList();
@@ -4206,6 +4400,9 @@ const Net = (() => {
       hostTeamCount = clamp(count, 2, 8); hostTeamSize = clamp(size, 1, 6);
       hostMaxPlayers = hostTeamCount*hostTeamSize; updateLobbyGate();
     },
+
+    get tagMinutes(){ return hostTagMinutes; },
+    setTagMinutes(n){ hostTagMinutes = n; updateLobbyGate(); },
 
     send(msg){ sendToHost(msg); },
 
@@ -4329,6 +4526,8 @@ async function fetchAndRenderRooms(){
     list.innerHTML = rooms.map(rm => {
       const modeLabel = rm.mode === 'deathmatch' ? 'Deathmatch'
         : rm.mode === 'teams' ? (rm.teamCount === 2 ? `${rm.teamSize}v${rm.teamSize}` : `${rm.teamCount} Teams x${rm.teamSize}`)
+        : rm.mode === 'ctf' ? `CTF ${rm.teamSize}v${rm.teamSize}`
+        : rm.mode === 'tag' ? `Tag (${rm.tagMinutes||10} min)`
         : 'Co-op';
       return `<li class="roomrow">
         <span>${escapeHtml(rm.hostName)}'s ${modeLabel} · ${escapeHtml(rm.mapName || 'Sector 7')}
@@ -4350,11 +4549,12 @@ el('browseList').addEventListener('click', e => {
 
 /* -------------------------------- scoreboard ------------------------------- */
 function renderScoreboard(){
-  el('sbTitle').textContent = MODE === 'deathmatch' ? 'Deathmatch' : MODE === 'coop' ? 'Co-op' : MODE === 'teams' ? 'Teams' : 'Solo';
+  el('sbTitle').textContent = MODE === 'deathmatch' ? 'Deathmatch' : MODE === 'coop' ? 'Co-op'
+    : MODE === 'teams' ? 'Teams' : MODE === 'ctf' ? 'Capture the Flag' : MODE === 'tag' ? 'Tag' : 'Solo';
   const rows = allPlayers().map(p => ({ name: escapeHtml(p===player ? (p.name||'You') : (p.name||'Player')),
     kills:p.kills||0, deaths:p.deaths||0, me:p===player, team:p.team||0 }));
   const header = '<tr><td class="name"><b>Player</b></td><td class="num"><b>K</b></td><td class="num"><b>D</b></td></tr>';
-  if(MODE === 'teams'){
+  if(isTeamMode(MODE)){
     rows.sort((a,b) => a.team - b.team || b.kills - a.kills);
     const teamTotals = {};
     for(const r of rows) teamTotals[r.team] = (teamTotals[r.team]||0) + r.kills;
@@ -4927,6 +5127,11 @@ el('btnBackBrowse').addEventListener('click', () => { stopBrowsing(); showPanel(
 el('btnHostCoop').addEventListener('click', () => showMapPicker('coop'));
 el('btnHostDM').addEventListener('click', () => showMapPicker('deathmatch'));
 el('btnHostTeams').addEventListener('click', () => showMapPicker('teams'));
+el('btnHostCTF').addEventListener('click', () => showMapPicker('ctf'));
+el('btnHostTag').addEventListener('click', () => showMapPicker('tag'));
+el('btnTag5').addEventListener('click', () => Net.setTagMinutes(5));
+el('btnTag10').addEventListener('click', () => Net.setTagMinutes(10));
+el('btnTag15').addEventListener('click', () => Net.setTagMinutes(15));
 el('btnJoinGo').addEventListener('click', () => {
   const code = el('joinCode').value.trim();
   if(code.length < 4){ setNetMsg('Enter the 4-letter room code.'); return; }
@@ -4955,8 +5160,8 @@ function startGame(){
   rebuildMapMeshes();
   enemies = []; bolts = []; pendingShots = []; nextEnemyId = 1;
   wave = 0; kills = 0; score = 0; spawning = false; waveTimer = 0; lastAlive = -1;
-  const spawn = MODE === 'deathmatch' ? SPAWNS[(Math.random()*SPAWNS.length)|0]
-    : MODE === 'teams' ? pickSpawnFor(player.team) : START;
+  const spawn = (MODE === 'deathmatch' || MODE === 'tag') ? SPAWNS[(Math.random()*SPAWNS.length)|0]
+    : isTeamMode(MODE) ? pickSpawnFor(player.team) : START;
   player.x = spawn[0]; player.y = spawn[1]; player.a = -Math.PI/2; player.pitch = 0;
   player.hp = 100; player.alive = true; player.weapon = 'pistol';
   account.ownedWeapons = new Set(DEFAULT_OWNED_WEAPONS);   // fresh loadout each match — everything past the pistol must be found in a chest
@@ -4973,8 +5178,8 @@ function startGame(){
     for(const op of otherPlayers.values()){
       op.hp = 100; op.alive = true; op.kills = 0; op.deaths = 0; op.buffs = freshBuffs();
       op.respawnAt = 0; op.titanShield = 0; op.phantomRevealT = 0; op.chaosSwitchT = 0; op.chaosActiveKey = null;
-      const s = MODE === 'teams' ? pickSpawnFor(op.team)
-        : MODE === 'deathmatch' ? SPAWNS[(Math.random()*SPAWNS.length)|0] : START;
+      const s = isTeamMode(MODE) ? pickSpawnFor(op.team)
+        : (MODE === 'deathmatch' || MODE === 'tag') ? SPAWNS[(Math.random()*SPAWNS.length)|0] : START;
       op.x = s[0]; op.y = s[1];
     }
   }
@@ -4988,6 +5193,8 @@ function startGame(){
   player.speed = BASE_SPEED * speedMult; player.sprint = BASE_SPRINT * speedMult;
   resetPickups();
   resetHazards();
+  resetCTF();
+  resetTag();
   vig.style.opacity = '0';
   gameOver = false; paused = false; running = true;
   el('mobileControls').classList.remove('hide');
@@ -4998,6 +5205,8 @@ function startGame(){
   if(MODE === 'deathmatch')      banner('Deathmatch', 'Eliminate everyone else');
   else if(MODE === 'coop')       banner('Co-op Breach', 'Hold the line together');
   else if(MODE === 'teams')      banner(`Team ${(player.team||0)+1}`, 'Eliminate the enemy squads — friendly fire is off');
+  else if(MODE === 'ctf')        banner(`Round ${ctfRound} of 3`, `Team ${(player.team||0)+1} — capture the enemy flag, friendly fire is off`);
+  else if(MODE === 'tag')        banner(tagId === player.id ? "YOU'RE IT" : 'Run!', tagId === player.id ? 'Tag someone to pass it on' : 'Whoever has the gun when time runs out loses');
   else                           banner('Breach', 'Hostiles inbound');
 }
 
@@ -5005,7 +5214,7 @@ function die(){
   player.alive = false;
   if(MODE === 'campaign'){ triggerGameOver(); return; }
   vig.style.opacity = '.6';
-  banner('ELIMINATED', (MODE === 'deathmatch' || MODE === 'teams') ? 'Redeploying…' : 'Down — revive next wave');
+  banner('ELIMINATED', (MODE === 'deathmatch' || isTeamMode(MODE)) ? 'Redeploying…' : 'Down — revive next wave');
 }
 function triggerGameOver(){
   if(gameOver) return;
@@ -5027,13 +5236,20 @@ function showGameOverScreen(w, k, s){
 // Deathmatch/Teams win screen — Continue (round 2) is host-only, matching
 // every other match-flow control (Start Match, squad size, etc); clients
 // just wait for the host's 'start' broadcast, same as the initial lobby.
-function showMatchEndScreen(winnerName, winnerTeam){
+function showMatchEndScreen(winnerName, winnerTeam, tagLoserName){
   flushPendingCoins();
   document.exitPointerLock?.();
-  const isTeamWin = winnerTeam != null;
-  const iWon = isTeamWin ? (player.team||0) === winnerTeam : winnerName === player.name;
-  el('matchEndTitle').textContent = iWon ? 'YOU WIN!' : isTeamWin ? `TEAM ${winnerTeam+1} WINS` : `${winnerName} WINS`;
-  el('matchEndSub').textContent = isTeamWin ? 'Team kill target reached' : 'Kill target reached';
+  if(tagLoserName != null){
+    const iLost = tagLoserName === player.name;
+    el('matchEndTitle').textContent = iLost ? 'YOU WERE CAUGHT!' : `${tagLoserName} WAS CAUGHT!`;
+    el('matchEndSub').textContent = iLost ? 'You were holding the gun when time ran out' : 'You survived — they were holding the gun';
+  } else {
+    const isTeamWin = winnerTeam != null;
+    const iWon = isTeamWin ? (player.team||0) === winnerTeam : winnerName === player.name;
+    el('matchEndTitle').textContent = iWon ? 'YOU WIN!' : isTeamWin ? `TEAM ${winnerTeam+1} WINS` : `${winnerName} WINS`;
+    el('matchEndSub').textContent = MODE === 'ctf' ? `Best of 3 flag captures: ${ctfRoundWins[0]}-${ctfRoundWins[1]}`
+      : isTeamWin ? 'Team kill target reached' : 'Kill target reached';
+  }
   el('btnMatchContinue').classList.toggle('hide', netMode !== 'host');
   el('matchEndWait').classList.toggle('hide', netMode === 'host');
   setTimeout(() => {

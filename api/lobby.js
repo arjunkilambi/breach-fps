@@ -39,16 +39,19 @@ export default async function handler(req, res) {
     const code = String(body.code || '').toUpperCase().slice(0, 8);
     if (!/^[A-Z0-9]{4,8}$/.test(code)) { res.status(400).json({ error: 'bad room code' }); return; }
 
-    const mode = ['coop', 'deathmatch', 'teams'].includes(body.mode) ? body.mode : 'coop';
+    const mode = ['coop', 'deathmatch', 'teams', 'ctf', 'tag'].includes(body.mode) ? body.mode : 'coop';
     const hostName = String(body.hostName || 'Host').slice(0, 16);
     const mapName = String(body.mapName || 'Sector 7').slice(0, 24);
     const players = Math.max(1, Math.min(16, Number(body.players) || 1));
     const maxPlayers = Math.max(players, Math.min(16, Number(body.maxPlayers) || 8));
 
     const entry = { code, mode, hostName, mapName, players, maxPlayers, updatedAt: Date.now() };
-    if (mode === 'teams') {
+    if (mode === 'teams' || mode === 'ctf') {
       entry.teamCount = Math.max(2, Math.min(8, Number(body.teamCount) || 2));
       entry.teamSize = Math.max(1, Math.min(6, Number(body.teamSize) || 1));
+    }
+    if (mode === 'tag') {
+      entry.tagMinutes = [5, 10, 15].includes(Number(body.tagMinutes)) ? Number(body.tagMinutes) : 10;
     }
     await redis.set(PREFIX + code, JSON.stringify(entry), { ex: ROOM_TTL });
     res.status(200).json({ ok: true });
