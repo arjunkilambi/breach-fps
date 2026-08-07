@@ -73,6 +73,16 @@
     text-shadow:0 0 24px rgba(0,220,255,.55);opacity:0;transition:opacity .3s}
   #banner small{display:block;font-size:13px;letter-spacing:.3em;color:var(--dim);margin-top:6px;font-weight:600}
 
+  /* ---------- Mega Warlord bar ---------- */
+  #warlordBar{position:absolute;left:50%;top:9%;transform:translateX(-50%);text-align:center;
+    pointer-events:none;width:340px}
+  #warlordBar .name{font-size:14px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#ff6a6a;
+    text-shadow:0 0 14px rgba(255,60,60,.6)}
+  #warlordBar .track{height:8px;background:rgba(255,255,255,.12);border-radius:4px;margin-top:5px;overflow:hidden}
+  #warlordBar .fill{height:100%;width:100%;background:linear-gradient(90deg,#ff3b3b,#ff8a5c);transition:width .12s}
+  #warlordBar.invuln .fill{background:linear-gradient(90deg,#555,#888)}
+  #warlordBar .sub{font-size:11px;letter-spacing:.1em;color:var(--dim);margin-top:4px}
+
   /* ---------- safe zone ---------- */
   #safeZoneUI{position:absolute;left:50%;top:3%;transform:translateX(-50%);text-align:center;pointer-events:none}
   #safeZoneTimer{font-size:12px;letter-spacing:.2em;color:var(--dim);font-weight:600;text-transform:uppercase}
@@ -216,6 +226,11 @@
   <div id="voiceBtn" class="hide">ENABLE VOICE <small>· V</small></div>
 
   <div id="banner"></div>
+  <div id="warlordBar" class="hide">
+    <div class="name">Mega Warlord</div>
+    <div class="track"><div class="fill" id="warlordFill"></div></div>
+    <div class="sub" id="warlordSub"></div>
+  </div>
   <div id="safeZoneUI" class="hide">
     <div id="safeZoneTimer"></div>
     <div id="safeZoneLabel">Safe Zone</div>
@@ -273,6 +288,7 @@
     <div class="lbl" id="acctStatus">Checking session…</div>
     <div class="mbtn" id="btnSolo">Solo Campaign</div>
     <div class="mbtn" id="btnMissions">Missions</div>
+    <div class="mbtn" id="btnStory">Story Mode</div>
     <div class="mbtn" id="btnMulti">Multiplayer</div>
     <div class="mbtn ghost small" id="btnArmory">Armory</div>
     <div class="mbtn ghost small" id="btnLegend">Legend</div>
@@ -343,6 +359,7 @@
     <div class="mbtn" id="btnHostCTF">Host — Capture the Flag</div>
     <div class="mbtn" id="btnHostTag">Host — Tag</div>
     <div class="mbtn" id="btnHostMission">Host — Mission</div>
+    <div class="mbtn" id="btnHostStory">Host — Story</div>
     <div class="mbtn" id="btnBrowse">Browse Games</div>
     <div class="mbtn" id="btnShowJoin">Join by Code</div>
     <div class="mbtn ghost small" id="btnBackMulti">Back</div>
@@ -479,6 +496,12 @@
   <div class="mbtn ghost small" id="btnMatchExit" style="pointer-events:auto;margin-top:12px">Exit to Menu</div>
 </div>
 
+<div class="screen hide" id="storyCard" style="cursor:pointer;z-index:5">
+  <h1 id="storyCardTitle">Chapter 1 — The Signal</h1>
+  <h2 id="storyCardSub" style="max-width:640px">Sector 7 has gone dark.</h2>
+  <div class="cta">CLICK TO CONTINUE</div>
+</div>
+
 <script>
 "use strict";
 function __startBreach(){
@@ -543,7 +566,7 @@ const RAMPS_1 = [
 ];
 // a marked safe zone tucked in a quiet corner
 const SAFEZONES_1 = [{x:1,y:11,w:2,h:2}];
-const HAZARDS_1 = [{x:22.7,y:12.7,w:1.6,h:1.6}];   // jungle — spore cloud
+const HAZARDS_1 = [{x:22.7,y:12.7,w:1.6,h:1.6},{x:5.3,y:18.7,w:1.6,h:1.6},{x:17.7,y:18.7,w:1.6,h:1.6}];   // jungle — spore clouds
 
 // 2 — Ring Circuit: symmetric nested rings around a cross-shaped core
 function buildMap2(){
@@ -568,7 +591,7 @@ const PICKUPS_2 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
 // a ramp up to the keep's west doorway, in the ring corridor
 const RAMPS_2 = [{x:5,y:9,w:4,h:3,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 const SAFEZONES_2 = [{x:24,y:9,w:2,h:2}];
-const HAZARDS_2 = [{x:16.7,y:0.7,w:1.6,h:1.6}];   // ice — falling glacier chunks
+const HAZARDS_2 = [{x:16.7,y:2.3,w:1.6,h:1.6},{x:2.3,y:21.7,w:1.6,h:1.6},{x:29.7,y:14.3,w:1.6,h:1.6}];   // ice — falling glacier chunks
 
 // 3 — The Maze: three staggered wall partitions, wide gaps, tight cover stubs
 function buildMap3(){
@@ -593,7 +616,7 @@ const PICKUPS_3 = [[1.5,22.5,'health'],[30.5,1.5,'health'],[8.5,1.5,'ammo'],
 // a raised deck in the open corner past the last partition row
 const RAMPS_3 = [{x:20,y:19,w:5,h:3.5,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 const SAFEZONES_3 = [{x:28,y:2,w:2,h:2}];
-const HAZARDS_3 = [{x:11.7,y:18.7,w:1.6,h:1.6}];   // toxic — corroded gas pool
+const HAZARDS_3 = [{x:11.7,y:20.3,w:1.6,h:1.6},{x:20.3,y:10.3,w:1.6,h:1.6},{x:2.3,y:9.7,w:1.6,h:1.6}];   // toxic — corroded gas pools
 
 // 4 — Open Plaza: large open floor, symmetric cover pairs, central metal ring
 function buildMap4(){
@@ -619,7 +642,7 @@ const RAMPS_4 = [
   {x:19,y:17,w:3.5,h:4,axis:'x',dir:-1,rampSpan:2,height:0.9},
 ];
 const SAFEZONES_4 = [{x:1,y:1,w:2,h:2}];
-const HAZARDS_4 = [{x:29.7,y:12.7,w:1.6,h:1.6}];   // desert — scorching sand
+const HAZARDS_4 = [{x:29.7,y:12.7,w:1.6,h:1.6},{x:24.3,y:21.7,w:1.6,h:1.6},{x:20.3,y:8.7,w:1.6,h:1.6}];   // desert — scorching sand
 
 // 5 — The Foundry: five parallel warehouse aisles with a cross-corridor
 function buildMap5(){
@@ -648,7 +671,7 @@ const RAMPS_5 = [
   {x:20,y:15,w:3,h:4,axis:'y',dir:-1,rampSpan:2,height:0.8},
 ];
 const SAFEZONES_5 = [{x:26,y:4,w:2,h:2}];
-const HAZARDS_5 = [{x:22.7,y:9.7,w:1.6,h:1.6}];   // volcanic — lava pool
+const HAZARDS_5 = [{x:22.7,y:9.7,w:1.6,h:1.6},{x:13.3,y:13.7,w:1.6,h:1.6},{x:2.3,y:11.3,w:1.6,h:1.6}];   // volcanic — lava pools
 
 // 6 — Crossfire: four asymmetric rooms opening onto a shared center
 function buildMap6(){
@@ -669,7 +692,7 @@ const PICKUPS_6 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
 // a small step up just above the central cover block
 const RAMPS_6 = [{x:14,y:8,w:3,h:1.8,axis:'y',dir:1,rampSpan:1,height:0.7}];
 const SAFEZONES_6 = [{x:14,y:3,w:3,h:3}];
-const HAZARDS_6 = [{x:11.7,y:17.7,w:1.6,h:1.6}];   // jungle — spore cloud
+const HAZARDS_6 = [{x:11.7,y:17.7,w:1.6,h:1.6},{x:30.5,y:12.7,w:1.6,h:1.6},{x:23.2,y:22.8,w:1.6,h:1.6}];   // jungle — spore clouds
 
 // 7 — The Pit: ring corridor around two symmetric inner chambers
 function buildMap7(){
@@ -690,7 +713,7 @@ const PICKUPS_7 = [[30.5,1.5,'health'],[1.5,22.5,'health'],[8.5,1.5,'ammo'],
 // a ramp up in the west ring corridor, between the corner covers
 const RAMPS_7 = [{x:3,y:8,w:4,h:6,axis:'x',dir:1,rampSpan:3,height:0.9}];
 const SAFEZONES_7 = [{x:1,y:1,w:2,h:2}];
-const HAZARDS_7 = [{x:11.7,y:17.7,w:1.6,h:1.6}];   // toxic — corroded gas pool
+const HAZARDS_7 = [{x:11.7,y:19.3,w:1.6,h:1.6},{x:29.7,y:14.3,w:1.6,h:1.6},{x:20.3,y:8.7,w:1.6,h:1.6}];   // toxic — corroded gas pools
 
 // 8 — The Wastes: a huge open wasteland, four corner compounds, central ruin
 const MAPW_8 = 60, MAPH_8 = 44;
@@ -718,7 +741,7 @@ const RAMPS_8 = [
   {x:46,y:18,w:6,h:6,axis:'x',dir:-1,rampSpan:3,height:1.2},
 ];
 const SAFEZONES_8 = [{x:30,y:2,w:3,h:3}];
-const HAZARDS_8 = [{x:37.5,y:32.5,w:4,h:4}];   // desert — scorching sand
+const HAZARDS_8 = [{x:37.5,y:32.5,w:4,h:4},{x:18.5,y:32.5,w:4,h:4},{x:37.5,y:10.5,w:4,h:4}];   // desert — scorching sand
 
 // 9 — Skyline: a city-block grid of buildings with streets between them
 const SKYLINE_COLS = 8, SKYLINE_ROWS = 6;         // way bigger than the original 5x4 grid
@@ -755,7 +778,7 @@ for(let by=0; by<=SKYLINE_ROWS; by+=2){
 // a ramp up the narrow street between the first two blocks of row 0
 const RAMPS_9 = [{x:11,y:5,w:2.7,h:5,axis:'y',dir:1,rampSpan:3,height:0.9}];
 const SAFEZONES_9 = [{x:84,y:60,w:3,h:3}];
-const HAZARDS_9 = [{x:21.3,y:1.3,w:2.4,h:2.4}];   // ice — falling glacier chunks
+const HAZARDS_9 = [{x:21.3,y:1.3,w:2.4,h:2.4},{x:41.3,y:21.3,w:2.4,h:2.4},{x:61.3,y:41.3,w:2.4,h:2.4}];   // ice — falling glacier chunks, spread across the skyline
 
 /* ---- three "different worlds" maps: same grid/wall/ramp systems as every
    other map, but selectMap()->startGame() calls applyWorldTheme() with each
@@ -790,7 +813,7 @@ const RAMPS_10 = [
   {x:44,y:22,w:6,h:5,axis:'x',dir:-1,rampSpan:3,height:1.1},
 ];
 const SAFEZONES_10 = [{x:28,y:19,w:3,h:3}];
-const HAZARDS_10 = [{x:27.5,y:35.5,w:4,h:4}];   // desert — scorching sand
+const HAZARDS_10 = [{x:27.5,y:35.5,w:4,h:4},{x:8.5,y:18.5,w:4,h:4},{x:49.5,y:18.5,w:4,h:4}];   // desert — scorching sand
 
 // 11 — Frostspire: an ice moon, a shattered glacier tower at the center of a frozen field
 const MAPW_11 = 56, MAPH_11 = 40;
@@ -817,7 +840,7 @@ const RAMPS_11 = [
   {x:39,y:16,w:6,h:6,axis:'x',dir:-1,rampSpan:3,height:1.0},
 ];
 const SAFEZONES_11 = [{x:26.5,y:18.5,w:3,h:3}];
-const HAZARDS_11 = [{x:38.5,y:34.5,w:4,h:4}];   // ice — falling glacier chunks
+const HAZARDS_11 = [{x:38.5,y:34.5,w:4,h:4},{x:6.5,y:17.5,w:4,h:4},{x:13.5,y:5.5,w:4,h:4}];   // ice — falling glacier chunks
 
 // 12 — Emberfall: a volcanic world, twin obsidian spires either side of an ash flat
 const MAPW_12 = 54, MAPH_12 = 40;
@@ -842,7 +865,7 @@ const RAMPS_12 = [
   {x:36,y:26,w:6,h:5,axis:'x',dir:-1,rampSpan:3,height:1.0},
 ];
 const SAFEZONES_12 = [{x:25,y:33,w:3,h:3}];
-const HAZARDS_12 = [{x:42.5,y:8.5,w:4,h:4}];   // volcanic — lava pool
+const HAZARDS_12 = [{x:42.5,y:8.5,w:4,h:4},{x:10.5,y:30.5,w:4,h:4},{x:7.5,y:8.5,w:4,h:4}];   // volcanic — lava pools
 
 /* ---- map scale-up: existing 32x24 layouts are block-expanded onto a much
    bigger grid (walls, spawns and pickups all scaled by the same integer
@@ -901,6 +924,20 @@ const MAPS = [
   { name:'Dust Canyon', theme:'desert',   build:buildMap10, w:MAPW_10, h:MAPH_10, spawns:SPAWNS_10, pickups:PICKUPS_10, start:SPAWNS_10[0], ramps:RAMPS_10, safeZones:SAFEZONES_10, hazards:HAZARDS_10, large:true },
   { name:'Frostspire',  theme:'ice',      build:buildMap11, w:MAPW_11, h:MAPH_11, spawns:SPAWNS_11, pickups:PICKUPS_11, start:SPAWNS_11[0], ramps:RAMPS_11, safeZones:SAFEZONES_11, hazards:HAZARDS_11, large:true },
   { name:'Emberfall',   theme:'volcanic', build:buildMap12, w:MAPW_12, h:MAPH_12, spawns:SPAWNS_12, pickups:PICKUPS_12, start:SPAWNS_12[0], ramps:RAMPS_12, safeZones:SAFEZONES_12, hazards:HAZARDS_12, large:true },
+];
+// Story Mode — a fixed 4-chapter campaign (exposition, two rising-action beats,
+// climax), reusing the Mega Warlord as each chapter's boss. Clearing a
+// chapter's warlord swaps the map and shows the next chapter's title card;
+// clearing the finale's warlord ends the run in victory.
+const STORY_CHAPTERS = [
+  { mapIndex:0,  title:'Chapter 1 — The Signal',
+    text:'Sector 7 has gone dark. You’re the only responder who made it past the perimeter.' },
+  { mapIndex:1,  title:'Chapter 2 — Into the Ice',
+    text:'Whatever broke containment came from the ice fields. The trail leads to Ring Circuit.' },
+  { mapIndex:4,  title:'Chapter 3 — The Furnace',
+    text:'The Foundry’s reactors are still hot. So is whatever has been nesting inside.' },
+  { mapIndex:11, title:'Chapter 4 — The Overlord',
+    text:'Emberfall. This is where it ends — one way or another.', finale:true },
 ];
 let mapIndex = 0;
 let SPAWNS = MAPS[0].spawns, PICKUPS = MAPS[0].pickups, START = MAPS[0].start, RAMPS = MAPS[0].ramps || [];
@@ -1484,6 +1521,10 @@ const TYPES = {
             colors:{ body:0x6b2f2f, trim:0x3a1a1a, head:0x7d3a3a, eye:0xff7a5c } },
   boss  : { name:'Warlord', hp:780, speed:1.55, dmg:20, range:11, cool:1.1, score:1000, radius:.62, scale:1.55, ranged:true,
             colors:{ body:0x6b1f6b, trim:0x371038, head:0x7d2a80, eye:0xff5cf0 } },
+  // Template only — hp/dmg/maxHp are always overridden per-spawn (see nextWave()'s
+  // Mega Warlord branch), same pattern the scaled 'boss' spawn already uses.
+  megawarlord: { name:'Mega Warlord', hp:3900, speed:1.3, dmg:30, range:11, cool:0.95, score:5000, radius:.9, scale:2.2, ranged:true,
+            colors:{ body:0x2a0a0a, trim:0x140505, head:0x3a0d0d, eye:0xff2020 } },
 };
 for(const k in TYPES) TYPES[k].key = k;   // lets a network snapshot reference a type by name
 
@@ -2204,10 +2245,10 @@ let artifactMeshes = [];
 function buildArtifactMesh(){
   const g = new THREE.Group();
   const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0),
-    new THREE.MeshStandardMaterial({ color:0xffd479, emissive:0xffb347, emissiveIntensity:0.7, roughness:0.25 }));
+    new THREE.MeshStandardMaterial({ color:0xffd479, emissive:0xffb347, emissiveIntensity:0.35, roughness:0.4 }));
   g.add(core);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.02, 8, 20),
-    new THREE.MeshStandardMaterial({ color:0xb26aff, emissive:0xb26aff, emissiveIntensity:0.6 }));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.014, 8, 20),
+    new THREE.MeshStandardMaterial({ color:0xb26aff, emissive:0xb26aff, emissiveIntensity:0.28 }));
   ring.rotation.x = Math.PI/2.3;
   g.add(ring);
   return g;
@@ -2224,6 +2265,33 @@ function syncArtifactMeshes(){
     mesh.position.set(a.x, heightAt(a.x,a.y) + 0.4 + Math.sin(now*2.2+a.x)*0.05, a.y);
     mesh.rotation.y += 0.025;
     mesh.children[1].rotation.z += 0.03;
+  }
+}
+/* ---- Mega-artifacts: a jagged red sigil, visually distinct from the
+   regular Mission artifact — only visible once its wave has been reached. */
+let megaArtifactMeshes = [];
+function buildMegaArtifactMesh(){
+  const g = new THREE.Group();
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0),
+    new THREE.MeshStandardMaterial({ color:0xff4444, emissive:0xff2020, emissiveIntensity:0.55, roughness:0.3 }));
+  g.add(core);
+  const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0),
+    new THREE.MeshStandardMaterial({ color:0x2a0a0a, emissive:0xff2020, emissiveIntensity:0.2, wireframe:true }));
+  g.add(shard);
+  return g;
+}
+function rebuildMegaArtifactMeshes(){
+  for(const m of megaArtifactMeshes) scene.remove(m);
+  megaArtifactMeshes = megaArtifacts.map(a => { const m = buildMegaArtifactMesh(); scene.add(m); return m; });
+}
+function syncMegaArtifactMeshes(){
+  for(let i=0;i<megaArtifacts.length;i++){
+    const a = megaArtifacts[i], mesh = megaArtifactMeshes[i]; if(!mesh) continue;
+    mesh.visible = !a.collected && wave >= a.revealWave;
+    if(!mesh.visible) continue;
+    mesh.position.set(a.x, heightAt(a.x,a.y) + 0.45 + Math.sin(now*3+a.x)*0.07, a.y);
+    mesh.rotation.y += 0.03;
+    mesh.children[1].rotation.x += 0.02;
   }
 }
 const boltGeo = new THREE.SphereGeometry(0.07, 8, 6);
@@ -2711,6 +2779,7 @@ function render3D(dt){
   syncPickupMeshes();
   syncFlagMeshes();
   syncArtifactMeshes();
+  syncMegaArtifactMeshes();
   syncBoltMeshes();
   updateFX(dt);
   updateWeaponView();
@@ -2985,6 +3054,10 @@ function fire(){
 }
 
 function damageEnemy(e, dmg, shooter){
+  if(e.invulnerable){
+    if(warlordTauntCooldown <= 0){ warlordTauntCooldown = 1.2; Net.emit({ kind:'warlordblock' }); }
+    return;
+  }
   e.hp -= dmg;
   e.flash = 0.75;
   e.painTime = 0.16;
@@ -2995,6 +3068,7 @@ function damageEnemy(e, dmg, shooter){
     e.dead = true; e.deadTime = 0;
     kills++; score += e.type.score;
     Net.emit({ kind:'kill', name: e.type.name, shooterId: src.id, coins: Math.round(e.type.score/10) });
+    if(e.type.key === 'megawarlord' && netMode !== 'client' && MODE === 'story') advanceStoryChapter();
     updateHUD();
   } else {
     Net.emit({ kind:'hit' });
@@ -3168,9 +3242,10 @@ function switchWeapon(name){
 let nextEnemyId = 1;
 function spawnEnemy(type, x, y){
   enemies.push({
-    id: nextEnemyId++, type, hp:type.hp, x, y, dead:false, deadTime:0, flash:0, painTime:0,
+    id: nextEnemyId++, type, hp:type.hp, maxHp:type.hp, x, y, dead:false, deadTime:0, flash:0, painTime:0,
     cool:rand(1.2,.3), attackAnim:0, windup:0, animPhase:rand(4), alert:false,
     lastSeen:null, wander:rand(TAU), wanderT:0, vx:0, vy:0,
+    invulnerable: !!type.invulnerable,
   });
 }
 
@@ -3380,7 +3455,7 @@ function nextWave(){
   flushPendingCoins();
   wave++;
   // co-op checkpoint: anyone who died mid-wave rejoins the fight
-  if(MODE === 'coop' || MODE === 'mission'){
+  if(MODE === 'coop' || MODE === 'mission' || MODE === 'story'){
     for(const p of allPlayers()){
       if(p.alive) continue;
       const s = SPAWNS[(Math.random()*SPAWNS.length)|0];
@@ -3388,6 +3463,8 @@ function nextWave(){
       if(p === player) vig.style.opacity = '0';
     }
   }
+  ensureMegaCycle(wave);
+  const isWarlordWave = megaWarlordModeActive() && (wave % MEGA_WARLORD_INTERVAL === 0);
   const count = Math.round((3 + Math.floor(wave*1.6)) * (MAPS[mapIndex].large ? 1.6 : 1));
   const alivePlayers = livingPlayers();
   const far = SPAWNS.filter(s => alivePlayers.every(p => Math.hypot(s[0]-p.x, s[1]-p.y) > 6));
@@ -3402,8 +3479,9 @@ function nextWave(){
     const ok = !solid(jx, jy) && !solid(jx+.4,jy) && !solid(jx-.4,jy) && !solid(jx,jy+.4) && !solid(jx,jy-.4);
     spawnEnemy(type, ok ? jx : sx, ok ? jy : sy);   // never drop a hostile inside geometry
   }
-  // a boss shows up after each wave from wave 2 on, tougher every time
-  const hasBoss = wave >= 2;
+  // a boss shows up after each wave from wave 2 on, tougher every time — except
+  // on a Mega Warlord wave, where he replaces the normal boss entirely
+  const hasBoss = wave >= 2 && !isWarlordWave;
   if(hasBoss){
     const boss = { ...TYPES.boss, hp: TYPES.boss.hp + (wave-2)*105, dmg: TYPES.boss.dmg + (wave-2)*2.2 };
     const [bx,by] = pool[count % pool.length];
@@ -3411,8 +3489,17 @@ function nextWave(){
     const ok = !solid(jx, jy) && !solid(jx+.4,jy) && !solid(jx-.4,jy) && !solid(jx,jy+.4) && !solid(jx,jy-.4);
     spawnEnemy(boss, ok ? jx : bx, ok ? jy : by);
   }
+  if(isWarlordWave){
+    const bossHp = TYPES.boss.hp + (wave-2)*105, bossDmg = TYPES.boss.dmg + (wave-2)*2.2;
+    const warlord = { ...TYPES.megawarlord, hp: bossHp*5, maxHp: bossHp*5, dmg: bossDmg*1.5,
+      invulnerable: megaArtifactsCollected < MEGA_ARTIFACT_COUNT };
+    const [wx,wy] = pool[count % pool.length];
+    const jx = wx + rand(.7,-.7), jy = wy + rand(.7,-.7);
+    const ok = !solid(jx, jy) && !solid(jx+.4,jy) && !solid(jx-.4,jy) && !solid(jx,jy+.4) && !solid(jx,jy-.4);
+    spawnEnemy(warlord, ok ? jx : wx, ok ? jy : wy);
+  }
   for(const p of pickups) if(Math.random() < .7) p.taken = false;
-  Net.emit({ kind:'wave', wave, count, hasBoss });
+  Net.emit({ kind:'wave', wave, count, hasBoss, isWarlordWave });
   updateHUD();
 }
 
@@ -3515,22 +3602,33 @@ function applyTag(shooter, target){
 const MISSION_ARTIFACT_COUNT = 4;
 let artifacts = [];
 let missionReturned = 0;
-// Solo Campaign can optionally layer the artifact objective on top of its
-// normal endless wave-survival (opt-in per match, off by default) — this
-// flag is what distinguishes that from a plain campaign run.
-let campaignMissionObjective = false;
-function missionsActive(){ return MODE === 'mission' || (MODE === 'campaign' && campaignMissionObjective); }
+// Campaign and Co-op can optionally layer the artifact objective on top of
+// their normal wave-survival (opt-in per match, off by default) — this flag
+// is what distinguishes that from a plain wave-survival run. For Co-op the
+// host's choice is broadcast in the 'start' message so clients agree on it
+// too (see Net.beginAsHost / the 'start' handler).
+let wavesMissionObjective = false;
+function missionsActive(){ return MODE === 'mission' || ((MODE === 'campaign' || MODE === 'coop') && wavesMissionObjective); }
+// Ranks a map's PICKUPS by distance to the nearest player spawn (farthest
+// first) so artifact spots land in remote corners instead of clustering near
+// the well-traveled pickup routes players already walk. Deterministic (no
+// RNG) so host and clients always agree without needing to sync placement.
+function farthestPickupSpots(count, offset){
+  if(!PICKUPS.length) return [];
+  const ranked = PICKUPS
+    .map(p => ({ p, d: Math.min(...SPAWNS.map(s => Math.hypot(s[0]-p[0], s[1]-p[1]))) }))
+    .sort((a,b) => b.d - a.d);
+  const out = [];
+  for(let i=0; out.length < count && (offset + i*2) < ranked.length; i++) out.push(ranked[offset + i*2].p);
+  for(let i=0; out.length < count; i++) out.push(ranked[i % ranked.length].p);   // fallback if the map is too small
+  return out;
+}
 function resetMission(){
   missionReturned = 0;
   for(const m of artifactMeshes) scene.remove(m);
   artifactMeshes = [];
   if(!missionsActive() || !PICKUPS.length){ artifacts = []; return; }
-  const stride = Math.max(1, Math.floor(PICKUPS.length / MISSION_ARTIFACT_COUNT));
-  artifacts = [];
-  for(let i=0;i<MISSION_ARTIFACT_COUNT;i++){
-    const [x,y] = PICKUPS[(i*stride) % PICKUPS.length];
-    artifacts.push({ x, y, carriedBy:null, returned:false });
-  }
+  artifacts = farthestPickupSpots(MISSION_ARTIFACT_COUNT, 0).map(([x,y]) => ({ x, y, carriedBy:null, returned:false }));
   rebuildArtifactMeshes();
 }
 // Host/solo authoritative (mirrors the CTF flag pattern exactly): pick up an
@@ -3546,7 +3644,7 @@ function missionTick(){
       else { a.x = carrier.x; a.y = carrier.y; }
     } else {
       for(const pl of livingPlayers()){
-        if(Math.hypot(pl.x-a.x, pl.y-a.y) >= 0.55) continue;
+        if(Math.hypot(pl.x-a.x, pl.y-a.y) >= 0.42) continue;
         a.carriedBy = pl.id;
         Net.emit({ kind:'artifactevent', text:`${pl===player?'You':pl.name} found an artifact!`, color:'#ffd479' });
         break;
@@ -3568,6 +3666,110 @@ function missionTick(){
       Net.emit({ kind:'missioncomplete' });
     }
   }
+}
+
+/* ------------------------------ Mega Warlord -------------------------------- */
+// Every 5th wave in any wave-survival mode (Campaign/Co-op/Story — not Mission,
+// which already has its own objective), a Mega Warlord shows up instead of that
+// wave's normal scaled boss. He's invulnerable until 3 mega-artifacts — revealed
+// one per wave across the 4 waves leading up to him — are found; once vulnerable
+// he's 5x tougher than that wave's normal boss would have been.
+const MEGA_WARLORD_INTERVAL = 5;
+const MEGA_ARTIFACT_COUNT = 3;
+let megaArtifacts = [];
+let megaArtifactsCollected = 0;
+let megaWarlordCycle = -1;
+let warlordTauntCooldown = 0;
+let storyChapter = 0;   // Story Mode's current chapter index — see the Story Mode section below
+function megaWarlordModeActive(){ return MODE === 'campaign' || MODE === 'coop' || MODE === 'story'; }
+function resetMegaWarlord(){
+  megaWarlordCycle = -1;
+  megaArtifactsCollected = 0;
+  for(const m of megaArtifactMeshes) scene.remove(m);
+  megaArtifactMeshes = [];
+  megaArtifacts = [];
+}
+// Pure function of (map, cycle) — callable identically on host and client so
+// mega-artifact positions never need to be network-synced, only whether each
+// one has been collected. Safe to call every wave; it's a no-op once the
+// cycle for `forWave` has already been prepared.
+function ensureMegaCycle(forWave){
+  if(!megaWarlordModeActive()){ if(megaArtifacts.length) resetMegaWarlord(); return; }
+  const cycle = Math.floor(Math.max(0, forWave-1) / MEGA_WARLORD_INTERVAL);
+  if(cycle === megaWarlordCycle) return;
+  megaWarlordCycle = cycle;
+  megaArtifactsCollected = 0;
+  const base = cycle * MEGA_WARLORD_INTERVAL;
+  megaArtifacts = farthestPickupSpots(MEGA_ARTIFACT_COUNT, 1).map(([x,y], i) => ({ x, y, collected:false, revealWave: base+i+1 }));
+  rebuildMegaArtifactMeshes();
+}
+function megaArtifactTick(){
+  for(const a of megaArtifacts){
+    if(a.collected || wave < a.revealWave) continue;
+    for(const pl of livingPlayers()){
+      if(Math.hypot(pl.x-a.x, pl.y-a.y) >= 0.45) continue;
+      a.collected = true; megaArtifactsCollected++;
+      Net.emit({ kind:'megaartifactevent',
+        text:`${pl===player?'You':pl.name} found a mega-artifact! (${megaArtifactsCollected}/${MEGA_ARTIFACT_COUNT})`, color:'#ff6a6a' });
+      break;
+    }
+  }
+  if(megaArtifactsCollected >= MEGA_ARTIFACT_COUNT){
+    const warlord = enemies.find(e => e.type.key === 'megawarlord' && !e.dead && e.invulnerable);
+    if(warlord){
+      warlord.invulnerable = false;
+      Net.emit({ kind:'warlordvulnerable' });
+    }
+  }
+}
+
+/* -------------------------------- Story Mode -------------------------------- */
+// A fixed-sequence narrative campaign — see STORY_CHAPTERS above. Chapter
+// advancement/completion always goes through Net.emit so host/solo and every
+// client run the exact same transition (Net.emit calls handleNetEvent locally
+// too, so the host doesn't need a separate direct-call path).
+function applyStoryChapterMap(ch){
+  mapIndex = ch.mapIndex;
+  selectMap(mapIndex);
+  applyWorldTheme(MAPS[mapIndex].theme || 'facility');
+  clearRubble();
+  rebuildMapMeshes();
+  enemies = []; bolts = []; pendingShots = [];
+  resetPickups();
+  resetHazards();
+  resetMegaWarlord();
+  for(const p of allPlayers()){
+    p.x = START[0]; p.y = START[1]; p.hp = 100; p.alive = true; p.buffs = freshBuffs(); p.vx = 0; p.vy = 0;
+  }
+  vig.style.opacity = '0';
+  if(netMode !== 'client'){ flowFields.clear(); refreshFlowFields(); }
+  updateHUD();
+}
+let storyCardT = null, storyCardDismiss = null;
+function showStoryCard(title, sub, onDismiss){
+  el('storyCardTitle').textContent = title;
+  el('storyCardSub').textContent = sub;
+  el('storyCard').classList.remove('hide');
+  clearTimeout(storyCardT);
+  const dismiss = () => {
+    if(storyCardDismiss !== dismiss) return;
+    storyCardDismiss = null;
+    el('storyCard').classList.add('hide');
+    if(onDismiss) onDismiss();
+  };
+  storyCardDismiss = dismiss;
+  storyCardT = setTimeout(dismiss, 4500);
+}
+// Host/solo authoritative — called from damageEnemy() when a Mega Warlord dies
+// while MODE is 'story'.
+function advanceStoryChapter(){
+  storyChapter++;
+  if(storyChapter >= STORY_CHAPTERS.length){ triggerStoryVictory(); return; }
+  Net.emit({ kind:'storychapter', chapter: storyChapter });
+}
+function triggerStoryVictory(){
+  gameOver = true;
+  Net.emit({ kind:'storycomplete' });
 }
 
 function decayBuffs(b, dt){
@@ -3858,6 +4060,10 @@ function update(dt){
   // ---------- Mission artifacts (host/solo authoritative) ----------
   if(netMode !== 'client' && missionsActive() && !gameOver) missionTick();
 
+  // ---------- Mega Warlord mega-artifacts (host/solo authoritative) ----------
+  if(warlordTauntCooldown > 0) warlordTauntCooldown -= dt;
+  if(netMode !== 'client' && megaWarlordModeActive() && !gameOver) megaArtifactTick();
+
   // ---------- wave flow (campaign / co-op only — deathmatch/teams/ctf/tag have no waves) ----------
   const aliveCount = enemies.filter(e => !e.dead).length;
   if(netMode !== 'client' && MODE !== 'deathmatch' && !isTeamMode(MODE) && MODE !== 'tag'){
@@ -3866,7 +4072,7 @@ function update(dt){
       waveTimer -= dt;
       if(waveTimer <= 0){ spawning = false; nextWave(); }
     }
-    if((MODE === 'coop' || MODE === 'mission') && running && !gameOver && livingPlayers().length === 0){
+    if((MODE === 'coop' || MODE === 'mission' || MODE === 'story') && running && !gameOver && livingPlayers().length === 0){
       triggerGameOver();
     }
   }
@@ -3984,7 +4190,7 @@ function updateHUD(){
   } else if(MODE === 'mission'){
     el('waveLbl').textContent = 'Artifacts'; el('wave').textContent = `${missionReturned}/${MISSION_ARTIFACT_COUNT}`;
     el('leftLbl').textContent = 'Hostiles'; el('left').textContent = enemies.filter(e=>!e.dead).length;
-  } else if(MODE === 'campaign' && campaignMissionObjective){
+  } else if((MODE === 'campaign' || MODE === 'coop') && wavesMissionObjective){
     el('waveLbl').textContent = 'Wave'; el('wave').textContent = wave;
     el('leftLbl').textContent = 'Artifacts'; el('left').textContent = `${missionReturned}/${MISSION_ARTIFACT_COUNT}`;
   } else {
@@ -4000,6 +4206,18 @@ function updateHUD(){
   el('mag').textContent  = w.ammo;
   el('mag').classList.toggle('empty', w.ammo === 0);
   el('res').textContent  = w.reserve === Infinity ? '∞' : w.reserve;
+  const warlord = enemies.find(e => e.type.key === 'megawarlord' && !e.dead);
+  el('warlordBar').classList.toggle('hide', !warlord);
+  if(warlord){
+    el('warlordBar').classList.toggle('invuln', warlord.invulnerable);
+    if(warlord.invulnerable){
+      el('warlordFill').style.width = '100%';
+      el('warlordSub').textContent = `SHIELDED — MEGA-ARTIFACTS ${megaArtifactsCollected}/${MEGA_ARTIFACT_COUNT}`;
+    } else {
+      el('warlordFill').style.width = clamp((warlord.hp/(warlord.maxHp||warlord.hp))*100,0,100) + '%';
+      el('warlordSub').textContent = 'VULNERABLE';
+    }
+  }
 }
 let bannerT = null;
 function banner(text, sub){
@@ -4095,8 +4313,21 @@ function handleNetEvent(evt){
       }
       break;
     case 'wave':
-      banner(`Wave ${evt.wave}`, evt.hasBoss ? `${evt.count} hostiles inbound — boss incoming` : `${evt.count} hostiles inbound`);
+      if(evt.isWarlordWave) banner('MEGA WARLORD', 'Find the mega-artifacts to break his shield — or run');
+      else banner(`Wave ${evt.wave}`, evt.hasBoss ? `${evt.count} hostiles inbound — boss incoming` : `${evt.count} hostiles inbound`);
       Sound.wave();
+      break;
+    case 'megaartifactevent':
+      feed(evt.text, evt.color);
+      Sound.pickup();
+      break;
+    case 'warlordvulnerable':
+      banner('THE SHIELD IS DOWN', 'The Mega Warlord can be killed now');
+      Sound.buff();
+      break;
+    case 'warlordblock':
+      feed('The Mega Warlord shrugs it off — find the mega-artifacts!', '#ff6a6a');
+      Sound.shieldBlock();
       break;
     case 'icewarn':
       spawnIceWarnFX(evt.x, evt.y);
@@ -4125,6 +4356,15 @@ function handleNetEvent(evt){
     case 'missioncomplete':
       gameOver = true;
       showMatchEndScreen(null, null, null, true);
+      break;
+    case 'storychapter':
+      storyChapter = evt.chapter;
+      showStoryCard(STORY_CHAPTERS[storyChapter].title, STORY_CHAPTERS[storyChapter].text,
+        () => applyStoryChapterMap(STORY_CHAPTERS[storyChapter]));
+      break;
+    case 'storycomplete':
+      gameOver = true;
+      showMatchEndScreen(null, null, null, false, true);
       break;
     case 'gameover':
       gameOver = true;
@@ -4229,9 +4469,9 @@ const Net = (() => {
   function buildSnapshot(){
     return {
       type:'state', wave, kills, score, spawning, waveTimer,
-      enemies: enemies.map(e => ({ id:e.id, t:e.type.key, x:e.x, y:e.y, hp:e.hp, dead:e.dead,
+      enemies: enemies.map(e => ({ id:e.id, t:e.type.key, x:e.x, y:e.y, hp:e.hp, maxHp:e.maxHp, dead:e.dead,
         deadTime:e.deadTime, flash:e.flash, painTime:e.painTime, attackAnim:e.attackAnim,
-        animPhase:e.animPhase, alert:e.alert })),
+        animPhase:e.animPhase, alert:e.alert, invulnerable:e.invulnerable })),
       pickups: pickups.map(p => ({ x:p.x, y:p.y, kind:p.kind, taken:p.taken })),
       bolts: bolts.map(b => ({ x:b.x, y:b.y })),
       players: [ playerSnap(player), ...[...otherPlayers.values()].map(playerSnap) ],
@@ -4240,13 +4480,17 @@ const Net = (() => {
       tagId, tagTimeLeft,
       artifacts: artifacts.map(a => ({ x:a.x, y:a.y, carriedBy:a.carriedBy, returned:a.returned })),
       missionReturned,
+      megaWarlordCycle,
+      megaArtifacts: megaArtifacts.map(a => ({ collected:a.collected })),
+      megaArtifactsCollected,
+      storyChapter,
     };
   }
   function applySnapshot(s){
     wave = s.wave; kills = s.kills; score = s.score; spawning = s.spawning; waveTimer = s.waveTimer;
-    enemies = s.enemies.map(se => ({ id:se.id, type:TYPES[se.t], x:se.x, y:se.y, hp:se.hp, dead:se.dead,
+    enemies = s.enemies.map(se => ({ id:se.id, type:TYPES[se.t], x:se.x, y:se.y, hp:se.hp, maxHp:se.maxHp||se.hp, dead:se.dead,
       deadTime:se.deadTime, flash:se.flash, painTime:se.painTime, attackAnim:se.attackAnim,
-      animPhase:se.animPhase, alert:se.alert }));
+      animPhase:se.animPhase, alert:se.alert, invulnerable:!!se.invulnerable }));
     for(const sp of s.pickups){
       const p = pickups.find(pp => pp.x===sp.x && pp.y===sp.y && pp.kind===sp.kind);
       if(p) p.taken = sp.taken;
@@ -4265,6 +4509,17 @@ const Net = (() => {
         artifacts[i].carriedBy = s.artifacts[i].carriedBy; artifacts[i].returned = s.artifacts[i].returned;
       }
       missionReturned = s.missionReturned;
+    }
+    if(s.storyChapter !== undefined && s.storyChapter !== storyChapter && MODE === 'story'){
+      storyChapter = s.storyChapter;   // late-join/reconnect: snap straight to the host's current chapter's map
+      applyStoryChapterMap(STORY_CHAPTERS[storyChapter]);
+    }
+    if(s.megaWarlordCycle !== undefined){
+      ensureMegaCycle(wave);   // deterministic — recomputes this cycle's mega-artifact positions locally if needed
+      if(s.megaArtifacts){
+        for(let i=0;i<s.megaArtifacts.length;i++) if(megaArtifacts[i]) megaArtifacts[i].collected = s.megaArtifacts[i].collected;
+      }
+      megaArtifactsCollected = s.megaArtifactsCollected||0;
     }
     if(netMode === 'client'){
       let changed = false;
@@ -4496,7 +4751,7 @@ const Net = (() => {
           if(msg.type === 'welcome'){ MODE = msg.mode; mapIndex = msg.mapIndex; el('lobbyMapLabel').textContent = 'Map: ' + MAPS[mapIndex].name; }
           else if(msg.type === 'state') applySnapshot(msg);
           else if(msg.type === 'event') handleNetEvent(msg.evt);
-          else if(msg.type === 'start') beginMatch();
+          else if(msg.type === 'start'){ wavesMissionObjective = !!msg.missionObjective; beginMatch(); }
           else if(msg.type === 'full'){ setNetMsg('That squad is already full.'); }
           else if(msg.type === 'lobbyinfo'){ el('lobbyProgress').textContent = `${msg.count} / ${msg.max} joined — waiting for the host to start…`; }
         });
@@ -4508,7 +4763,7 @@ const Net = (() => {
 
     beginAsHost(){
       if(1 + otherPlayers.size < hostMaxPlayers) return;   // defense in depth — button is hidden until this is true anyway
-      stopLobbyHeartbeat(roomCode); broadcast({ type:'start' }); beginMatch();
+      stopLobbyHeartbeat(roomCode); broadcast({ type:'start', missionObjective: wavesMissionObjective }); beginMatch();
     },
 
     get maxPlayers(){ return hostMaxPlayers; },
@@ -4604,14 +4859,14 @@ function showMapPicker(hostMode){
       <span>${escapeHtml(m.name)}${m.large ? ' <small>(large)</small>' : ''}</span>
       <span class="mbtn small pickMapBtn" data-i="${i}">Select</span>
     </li>`).join('');
-  campaignMissionObjective = false;
+  wavesMissionObjective = false;
   el('missionToggleState').textContent = 'OFF';
-  el('missionToggleWrap').classList.toggle('hide', hostMode !== null);
+  el('missionToggleWrap').classList.toggle('hide', !(hostMode === null || hostMode === 'coop'));
   showPanel('menuMapPick');
 }
 el('missionToggleWrap').addEventListener('click', () => {
-  campaignMissionObjective = !campaignMissionObjective;
-  el('missionToggleState').textContent = campaignMissionObjective ? 'ON' : 'OFF';
+  wavesMissionObjective = !wavesMissionObjective;
+  el('missionToggleState').textContent = wavesMissionObjective ? 'ON' : 'OFF';
 });
 el('mapPickList').addEventListener('click', e => {
   const btn = e.target.closest('.pickMapBtn');
@@ -4663,6 +4918,7 @@ async function fetchAndRenderRooms(){
         : rm.mode === 'ctf' ? `CTF ${rm.teamSize}v${rm.teamSize}`
         : rm.mode === 'tag' ? `Tag (${rm.tagMinutes||10} min)`
         : rm.mode === 'mission' ? 'Mission'
+        : rm.mode === 'story' ? 'Story Mode'
         : 'Co-op';
       return `<li class="roomrow">
         <span>${escapeHtml(rm.hostName)}'s ${modeLabel} · ${escapeHtml(rm.mapName || 'Sector 7')}
@@ -4686,7 +4942,7 @@ el('browseList').addEventListener('click', e => {
 function renderScoreboard(){
   el('sbTitle').textContent = MODE === 'deathmatch' ? 'Deathmatch' : MODE === 'coop' ? 'Co-op'
     : MODE === 'teams' ? 'Teams' : MODE === 'ctf' ? 'Capture the Flag' : MODE === 'tag' ? 'Tag'
-    : MODE === 'mission' ? 'Mission' : 'Solo';
+    : MODE === 'mission' ? 'Mission' : MODE === 'story' ? 'Story Mode' : 'Solo';
   const rows = allPlayers().map(p => ({ name: escapeHtml(p===player ? (p.name||'You') : (p.name||'Player')),
     kills:p.kills||0, deaths:p.deaths||0, me:p===player, team:p.team||0 }));
   const header = '<tr><td class="name"><b>Player</b></td><td class="num"><b>K</b></td><td class="num"><b>D</b></td></tr>';
@@ -5253,9 +5509,18 @@ el('btnMatchExit').addEventListener('click', () => {
   el('matchEnd').classList.add('hide');
   Net.leaveToMenu(true);
 });
+el('storyCard').addEventListener('click', () => { if(storyCardDismiss) storyCardDismiss(); });
 
 el('btnSolo').addEventListener('click', () => showMapPicker(null));
 el('btnMissions').addEventListener('click', () => showMapPicker('solo-mission'));
+// Story Mode's map is fixed per chapter, so it skips the map picker entirely —
+// same direct-to-deploy shape as 'solo-mission'.
+el('btnStory').addEventListener('click', () => {
+  storyChapter = 0; mapIndex = STORY_CHAPTERS[0].mapIndex; MODE = 'story'; netMode = 'solo';
+  showPanel('');
+  el('keysPanel').classList.remove('hide');
+  el('btnDeploy').classList.remove('hide');
+});
 el('btnMulti').addEventListener('click', () => showPanel('menuMulti'));
 el('btnBackMulti').addEventListener('click', () => showPanel('menuMain'));
 el('btnShowJoin').addEventListener('click', () => showPanel('menuJoin'));
@@ -5268,6 +5533,11 @@ el('btnHostTeams').addEventListener('click', () => showMapPicker('teams'));
 el('btnHostCTF').addEventListener('click', () => showMapPicker('ctf'));
 el('btnHostTag').addEventListener('click', () => showMapPicker('tag'));
 el('btnHostMission').addEventListener('click', () => showMapPicker('mission'));
+el('btnHostStory').addEventListener('click', () => {
+  storyChapter = 0; mapIndex = STORY_CHAPTERS[0].mapIndex;
+  showPanel('menuLobby');
+  Net.startHost('story');
+});
 el('btnTag5').addEventListener('click', () => Net.setTagMinutes(5));
 el('btnTag10').addEventListener('click', () => Net.setTagMinutes(10));
 el('btnTag15').addEventListener('click', () => Net.setTagMinutes(15));
@@ -5293,6 +5563,7 @@ el('btnPreset2v2').addEventListener('click', () => Net.setTeamPreset(2, 2));
 el('btnPreset3v3').addEventListener('click', () => Net.setTeamPreset(2, 3));
 
 function startGame(){
+  if(MODE === 'story'){ storyChapter = 0; mapIndex = STORY_CHAPTERS[0].mapIndex; }
   selectMap(mapIndex);
   applyWorldTheme(MAPS[mapIndex].theme || 'facility');
   clearRubble();
@@ -5335,6 +5606,7 @@ function startGame(){
   resetCTF();
   resetTag();
   resetMission();
+  resetMegaWarlord();
   vig.style.opacity = '0';
   gameOver = false; paused = false; running = true;
   el('mobileControls').classList.remove('hide');
@@ -5343,13 +5615,19 @@ function startGame(){
   updateVoiceUI();
   requestLock();
   if(MODE === 'deathmatch')      banner('Deathmatch', 'Eliminate everyone else');
+  else if(MODE === 'coop' && wavesMissionObjective)
+                                 banner('Co-op Breach', `Hold the line — recover all ${MISSION_ARTIFACT_COUNT} artifacts to win early`);
   else if(MODE === 'coop')       banner('Co-op Breach', 'Hold the line together');
   else if(MODE === 'teams')      banner(`Team ${(player.team||0)+1}`, 'Eliminate the enemy squads — friendly fire is off');
   else if(MODE === 'ctf')        banner(`Round ${ctfRound} of 3`, `Team ${(player.team||0)+1} — capture the enemy flag, friendly fire is off`);
   else if(MODE === 'tag')        banner(tagId === player.id ? "YOU'RE IT" : 'Run!', tagId === player.id ? 'Tag someone to pass it on' : 'Whoever has the gun when time runs out loses');
   else if(MODE === 'mission')    banner('Mission', `Recover all ${MISSION_ARTIFACT_COUNT} artifacts and return them to the safe zone`);
-  else if(MODE === 'campaign' && campaignMissionObjective)
+  else if(MODE === 'campaign' && wavesMissionObjective)
                                  banner('Breach', `Hostiles inbound — recover all ${MISSION_ARTIFACT_COUNT} artifacts to win early`);
+  else if(MODE === 'story'){
+    banner(STORY_CHAPTERS[storyChapter].title, 'Hostiles inbound');
+    if(wave === 0) showStoryCard(STORY_CHAPTERS[0].title, STORY_CHAPTERS[0].text, () => {});
+  }
   else                           banner('Breach', 'Hostiles inbound');
 }
 
@@ -5379,10 +5657,13 @@ function showGameOverScreen(w, k, s){
 // Deathmatch/Teams win screen — Continue (round 2) is host-only, matching
 // every other match-flow control (Start Match, squad size, etc); clients
 // just wait for the host's 'start' broadcast, same as the initial lobby.
-function showMatchEndScreen(winnerName, winnerTeam, tagLoserName, missionWin){
+function showMatchEndScreen(winnerName, winnerTeam, tagLoserName, missionWin, storyWin){
   flushPendingCoins();
   document.exitPointerLock?.();
-  if(missionWin){
+  if(storyWin){
+    el('matchEndTitle').textContent = 'THE END';
+    el('matchEndSub').textContent = 'The Overlord falls. Sector 7 is silent again — whatever came through the breach came alone.';
+  } else if(missionWin){
     el('matchEndTitle').textContent = 'MISSION COMPLETE!';
     el('matchEndSub').textContent = `All ${MISSION_ARTIFACT_COUNT} artifacts secured`;
   } else if(tagLoserName != null){
@@ -5396,7 +5677,7 @@ function showMatchEndScreen(winnerName, winnerTeam, tagLoserName, missionWin){
     el('matchEndSub').textContent = MODE === 'ctf' ? `Best of 3 flag captures: ${ctfRoundWins[0]}-${ctfRoundWins[1]}`
       : isTeamWin ? 'Team kill target reached' : 'Kill target reached';
   }
-  el('btnMatchContinue').textContent = netMode === 'solo' ? 'Try Again' : 'Continue — Round 2';
+  el('btnMatchContinue').textContent = netMode === 'solo' ? 'Try Again' : (MODE === 'story' ? 'Play Again' : 'Continue — Round 2');
   el('btnMatchContinue').classList.toggle('hide', netMode !== 'host' && netMode !== 'solo');
   el('matchEndWait').classList.toggle('hide', netMode === 'host' || netMode === 'solo');
   setTimeout(() => {
