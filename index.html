@@ -104,6 +104,17 @@
   .cta{margin-top:28px;font-size:14px;letter-spacing:.24em;color:#fff;border:1px solid var(--line);
     border-radius:999px;padding:13px 30px;background:rgba(20,60,80,.5);animation:pulse 1.8s infinite}
   @keyframes pulse{0%,100%{opacity:.65}50%{opacity:1}}
+  /* ---------- cutscenes: letterbox bars + subtitle over the live 3D scene ---------- */
+  #cineBars{position:fixed;inset:0;pointer-events:none;z-index:4}
+  #cineBars .bar{position:absolute;left:0;right:0;background:#000;transition:height .5s ease}
+  #cineBars .bar.top{top:0;height:12%}
+  #cineBars .bar.bottom{bottom:0;height:12%}
+  #cineCaption{position:fixed;left:50%;bottom:6.5%;transform:translateX(-50%);z-index:5;
+    text-align:center;pointer-events:none;max-width:70vw}
+  #cineCaption .t{font-size:22px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#fff;
+    text-shadow:0 0 16px rgba(0,0,0,.8)}
+  #cineCaption .s{font-size:14px;letter-spacing:.05em;color:#cfe9f2;margin-top:8px;
+    text-shadow:0 0 10px rgba(0,0,0,.9)}
   #over h1{background:linear-gradient(90deg,#ff8a8a,#ff3b3b);-webkit-background-clip:text;background-clip:text}
   #matchEnd h1{background:linear-gradient(90deg,#ffe27a,#8ef5c0);-webkit-background-clip:text;background-clip:text}
   .stats{display:flex;gap:34px;margin:26px 0 6px}
@@ -496,10 +507,10 @@
   <div class="mbtn ghost small" id="btnMatchExit" style="pointer-events:auto;margin-top:12px">Exit to Menu</div>
 </div>
 
-<div class="screen hide" id="storyCard" style="cursor:pointer;z-index:5">
-  <h1 id="storyCardTitle">Chapter 1 — The Signal</h1>
-  <h2 id="storyCardSub" style="max-width:640px">Sector 7 has gone dark.</h2>
-  <div class="cta">CLICK TO CONTINUE</div>
+<div id="cineBars" class="hide"><div class="bar top"></div><div class="bar bottom"></div></div>
+<div id="cineCaption" class="hide">
+  <div class="t" id="cineCaptionTitle"></div>
+  <div class="s" id="cineCaptionSub"></div>
 </div>
 
 <script>
@@ -1491,7 +1502,7 @@ function applyWorldTheme(theme){
     textures[k] = set[k];
     const m = wallMats[k], mc = cfg.mats[k];
     if(m.map) m.map.dispose();
-    m.map = makeCanvasTex(textures[k], mc.repeat[0], mc.repeat[1]);
+    m.map = m.bumpMap = makeCanvasTex(textures[k], mc.repeat[0], mc.repeat[1]);
     m.roughness = mc.roughness; m.metalness = mc.metalness;
     m.emissive.set(mc.emissive); m.emissiveIntensity = mc.emissiveIntensity;
     m.needsUpdate = true;
@@ -1504,7 +1515,8 @@ function applyWorldTheme(theme){
   sunLight.color.set(cfg.sun.color); sunLight.intensity = cfg.sun.i;
   rampMat.map?.dispose();
   rampMat.color.set(theme === 'facility' ? 0xffffff : 0xffffff);
-  rampMat.map = makeCanvasTex(textures[WALL.STONE], 2, 2);
+  rampMat.map = rampMat.bumpMap = makeCanvasTex(textures[WALL.STONE], 2, 2);
+  rampMat.bumpScale = 0.05;
   rampMat.roughness = cfg.mats[WALL.STONE].roughness;
   rampMat.needsUpdate = true;
 }
@@ -1764,16 +1776,21 @@ function makeCanvasTex(canvasEl, rx=1, ry=1){
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
+// bumpMap reuses the exact same canvas source as `map` (Three.js is happy to
+// share one Texture object across both slots) — turns the noise/crack/rivet
+// patterns already painted into the diffuse texture into real surface relief
+// the scene's lights actually shade, instead of flat-looking painted-on detail.
 const wallMats = {
-  [WALL.BRICK]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BRICK]), roughness:0.95 }),
-  [WALL.STONE]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.STONE]), roughness:0.9 }),
-  [WALL.METAL]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.METAL]), roughness:0.5, metalness:0.4 }),
+  [WALL.BRICK]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BRICK]), roughness:0.95, bumpScale:0.045 }),
+  [WALL.STONE]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.STONE]), roughness:0.9, bumpScale:0.05 }),
+  [WALL.METAL]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.METAL]), roughness:0.5, metalness:0.4, bumpScale:0.03 }),
   [WALL.TECH] : new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.TECH]), roughness:0.7,
-                  emissive:0x3fc8ff, emissiveIntensity:0.35 }),
-  [WALL.BUILDING]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BUILDING], 1, 3), roughness:0.8 }),
+                  emissive:0x3fc8ff, emissiveIntensity:0.35, bumpScale:0.025 }),
+  [WALL.BUILDING]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BUILDING], 1, 3), roughness:0.8, bumpScale:0.04 }),
 };
-const floorMat = new THREE.MeshStandardMaterial({ roughness:1 });
-const ceilMat  = new THREE.MeshStandardMaterial({ roughness:1, side:THREE.DoubleSide });
+for(const k in wallMats) wallMats[k].bumpMap = wallMats[k].map;
+const floorMat = new THREE.MeshStandardMaterial({ roughness:1, bumpScale:0.05 });
+const ceilMat  = new THREE.MeshStandardMaterial({ roughness:1, side:THREE.DoubleSide, bumpScale:0.05 });
 const rampMat  = wallMats[WALL.STONE].clone(); rampMat.side = THREE.DoubleSide;
 // Irregular wall geometry: a subdivided box with its TOP verts jittered (via
 // cheap sine "noise", deterministic per variant) into a jagged, non-flat
@@ -1804,8 +1821,8 @@ const BUILDING_GEO_VARIANTS = [0,1,2].map(i => makeIrregularBoxGeometry(BUILD_H,
 function refreshFloorCeilTex(){
   if(floorMat.map) floorMat.map.dispose();
   if(ceilMat.map)  ceilMat.map.dispose();
-  floorMat.map = makeCanvasTex(textures[5], MAPW, MAPH);
-  ceilMat.map  = makeCanvasTex(textures[6], MAPW, MAPH);
+  floorMat.map = floorMat.bumpMap = makeCanvasTex(textures[5], MAPW, MAPH);
+  ceilMat.map  = ceilMat.bumpMap  = makeCanvasTex(textures[6], MAPW, MAPH);
 }
 
 /* ---- ramp/platform mesh: a closed solid built from explicit quads (top
@@ -2765,13 +2782,15 @@ function updateWeaponView(){
 /* ---- camera + full-scene sync, called once per frame instead of the old
    renderWorld()/renderWeapon() pair ------------------------------------------ */
 function render3D(dt){
-  camera.position.set(player.x, heightAt(player.x,player.y) + player.z + EYE_H + Math.sin(player.bob)*0.012, player.y);
-  // recoil is an additive offset on top of the player's own mouse-controlled
-  // aim (player.a/pitch never get mutated by it) — it decays back to zero on
-  // its own (see decayBuffs-adjacent recoil decay in update()), simulating
-  // muzzle climb settling rather than fighting the player's next mouse move
-  camera.rotation.y = -(player.a + (player.recoilYaw||0)) - Math.PI/2;
-  camera.rotation.x = clamp(player.pitch + (player.recoilPitch||0), -1.45, 1.45);
+  if(!cutsceneActive){
+    camera.position.set(player.x, heightAt(player.x,player.y) + player.z + EYE_H + Math.sin(player.bob)*0.012, player.y);
+    // recoil is an additive offset on top of the player's own mouse-controlled
+    // aim (player.a/pitch never get mutated by it) — it decays back to zero on
+    // its own (see decayBuffs-adjacent recoil decay in update()), simulating
+    // muzzle climb settling rather than fighting the player's next mouse move
+    camera.rotation.y = -(player.a + (player.recoilYaw||0)) - Math.PI/2;
+    camera.rotation.x = clamp(player.pitch + (player.recoilPitch||0), -1.45, 1.45);
+  }
   headlamp.intensity = 0.85 + player.flash*0.4;
 
   syncEnemyMeshes(dt);
@@ -2782,7 +2801,7 @@ function render3D(dt){
   syncMegaArtifactMeshes();
   syncBoltMeshes();
   updateFX(dt);
-  updateWeaponView();
+  if(!cutsceneActive) updateWeaponView();
 
   renderer.render(scene, camera);
 }
@@ -3747,21 +3766,133 @@ function applyStoryChapterMap(ch){
   if(netMode !== 'client'){ flowFields.clear(); refreshFlowFields(); }
   updateHUD();
 }
-let storyCardT = null, storyCardDismiss = null;
-function showStoryCard(title, sub, onDismiss){
-  el('storyCardTitle').textContent = title;
-  el('storyCardSub').textContent = sub;
-  el('storyCard').classList.remove('hide');
-  clearTimeout(storyCardT);
-  const dismiss = () => {
-    if(storyCardDismiss !== dismiss) return;
-    storyCardDismiss = null;
-    el('storyCard').classList.add('hide');
-    if(onDismiss) onDismiss();
-  };
-  storyCardDismiss = dismiss;
-  storyCardT = setTimeout(dismiss, 4500);
+/* ------------------------------ Cutscenes ------------------------------------ */
+// A tiny scripted-camera + real-skeletal-animation cutscene player. Reuses the
+// exact same character rig/mixer (makeCharacter/updateCharacterVisual) and
+// camera object gameplay already drives — no new assets, no new interpolation
+// math beyond THREE's own Vector3.lerp/Object3D.lookAt.
+let cutsceneActive = false;
+let cutsceneBeats = [], cutsceneBeatIdx = 0, cutsceneBeatT = 0, cutsceneOnDone = null;
+let cutsceneActors = [];
+const _cinePos = new THREE.Vector3(), _cineTo = new THREE.Vector3(),
+      _cineLook = new THREE.Vector3(), _cineLookTo = new THREE.Vector3();
+
+// A showcase actor is driven through the same updateCharacterVisual() every
+// real enemy/player uses — moving `ent.x/y` toward a target over time gets a
+// genuine Idle->Walk crossfade + correct facing "for free"; setting `dead`
+// gets the exact same collapse/topple animation a real kill uses.
+function spawnCutsceneActor(x, y, colors, scale, ranged){
+  const mesh = makeCharacter(colors, !!ranged);
+  mesh.scale.setScalar(scale);
+  scene.add(mesh);
+  const actor = { mesh, rec:{ mesh, fallDir:1, wasDead:false, deadT:0 }, ent:{ x, y, z:0 }, dead:false, animPhase:0 };
+  cutsceneActors.push(actor);
+  return actor;
 }
+function clearCutsceneActors(){
+  for(const a of cutsceneActors) scene.remove(a.mesh);
+  cutsceneActors = [];
+}
+function playCutscene(beats, onDone){
+  cutsceneActive = true;
+  cutsceneBeats = beats; cutsceneOnDone = onDone || (()=>{});
+  // deliberately keep pointer lock engaged — releasing it would trip the
+  // existing pointerlockchange handler into pausing the whole frame loop
+  // (and showing the Paused overlay) on top of the cutscene
+  el('ui').classList.add('hide');
+  weaponModel.visible = false;
+  el('cineBars').classList.remove('hide');
+  el('cineCaption').classList.remove('hide');
+  beginCutsceneBeat(0);
+}
+function beginCutsceneBeat(i){
+  cutsceneBeatIdx = i; cutsceneBeatT = 0;
+  const beat = cutsceneBeats[i];
+  el('cineCaptionTitle').textContent = beat.caption || '';
+  el('cineCaptionSub').textContent = beat.captionSub || '';
+  beat.onStart?.();
+}
+function endCutscene(){
+  cutsceneActive = false;
+  clearCutsceneActors();
+  el('ui').classList.remove('hide');
+  weaponModel.visible = true;
+  el('cineBars').classList.add('hide');
+  el('cineCaption').classList.add('hide');
+  requestLock();
+  const done = cutsceneOnDone; cutsceneOnDone = null;
+  done();
+}
+function updateCutscene(dt){
+  for(const a of cutsceneActors){
+    if(a.walkTo){
+      const wx = a.walkTo[0]-a.ent.x, wy = a.walkTo[1]-a.ent.y;
+      const d = Math.hypot(wx,wy);
+      if(d > 0.05){ const sp = Math.min(d, dt*1.6); a.ent.x += (wx/d)*sp; a.ent.y += (wy/d)*sp; }
+    }
+    a.animPhase += dt*6;
+    updateCharacterVisual(a.rec, a.ent, a.dead, a.animPhase, false, false, dt);
+  }
+  const beat = cutsceneBeats[cutsceneBeatIdx];
+  if(!beat){ endCutscene(); return; }
+  cutsceneBeatT += dt;
+  const t = clamp(cutsceneBeatT / beat.duration, 0, 1);
+  const st = t*t*(3-2*t);
+  _cinePos.set(beat.fromPos[0],beat.fromPos[1],beat.fromPos[2]).lerp(_cineTo.set(beat.toPos[0],beat.toPos[1],beat.toPos[2]), st);
+  _cineLook.set(beat.fromLook[0],beat.fromLook[1],beat.fromLook[2]).lerp(_cineLookTo.set(beat.toLook[0],beat.toLook[1],beat.toLook[2]), st);
+  camera.position.copy(_cinePos);
+  camera.lookAt(_cineLook);
+  if(t >= 1){
+    if(cutsceneBeatIdx+1 < cutsceneBeats.length) beginCutsceneBeat(cutsceneBeatIdx+1);
+    else endCutscene();
+  }
+}
+
+// Chapter 1 has no warlord to reveal yet — just an establishing shot over the
+// player's own spawn point, descending into the normal first-person view.
+function playIntroCutscene(onDone){
+  const ch = STORY_CHAPTERS[0];
+  const gy = heightAt(START[0], START[1]);
+  playCutscene([{
+    fromPos:[START[0]-3, gy+9, START[1]-9], toPos:[START[0], gy+EYE_H, START[1]-0.01],
+    fromLook:[START[0], gy+1, START[1]], toLook:[START[0], gy+EYE_H, START[1]],
+    duration: 5, caption: ch.title, captionSub: ch.text,
+  }], onDone);
+}
+// A menacing reveal: the chapter's Mega Warlord (built from the same TYPES
+// entry — and same makeCharacter()/mixer — the real wave-5 enemy will use)
+// stomps toward a fixed showcase point while the camera pushes in on him.
+function playChapterRevealCutscene(ch, onDone){
+  const sz = SAFEZONES[0] || { x:START[0]-2, y:START[1]-2, w:4, h:4 };
+  const cx = sz.x + sz.w/2, cy = sz.y + sz.h/2;
+  const gy = heightAt(cx, cy);
+  const T = TYPES.megawarlord;
+  const actor = spawnCutsceneActor(cx+6, cy+3, T.colors, T.scale, true);
+  actor.walkTo = [cx+1.6, cy];
+  playCutscene([{
+    fromPos:[cx-7, gy+3, cy+8], toPos:[cx-2.5, gy+2.6, cy+3.2],
+    fromLook:[cx+2, gy+2.2, cy], toLook:[cx+1.6, gy+2.6, cy],
+    duration: 5, caption: ch.title, captionSub: ch.text,
+  }], onDone);
+}
+// The just-defeated Overlord, collapsed (reusing the exact same death/topple
+// animation a real kill triggers — updateCharacterVisual keys off `dead`),
+// camera pulling back from the wreckage.
+function playFinaleCutscene(onDone){
+  const ch = STORY_CHAPTERS[STORY_CHAPTERS.length-1];
+  const sz = SAFEZONES[0] || { x:START[0]-2, y:START[1]-2, w:4, h:4 };
+  const cx = sz.x + sz.w/2, cy = sz.y + sz.h/2;
+  const gy = heightAt(cx, cy);
+  const T = TYPES.megawarlord;
+  const actor = spawnCutsceneActor(cx, cy, T.colors, T.scale, true);
+  actor.dead = true;
+  playCutscene([{
+    fromPos:[cx-2.5, gy+3, cy+1.5], toPos:[cx-8, gy+5.5, cy+6],
+    fromLook:[cx, gy+1, cy], toLook:[cx, gy+0.6, cy],
+    duration: 5.5, caption:'The Overlord Falls', captionSub: ch.text,
+  }], onDone);
+}
+
 // Host/solo authoritative — called from damageEnemy() when a Mega Warlord dies
 // while MODE is 'story'.
 function advanceStoryChapter(){
@@ -3770,8 +3901,7 @@ function advanceStoryChapter(){
   Net.emit({ kind:'storychapter', chapter: storyChapter });
 }
 function triggerStoryVictory(){
-  gameOver = true;
-  Net.emit({ kind:'storycomplete' });
+  Net.emit({ kind:'storyfinale' });
 }
 
 function decayBuffs(b, dt){
@@ -3834,6 +3964,7 @@ function tryJump(){
 let now = 0, last = performance.now();
 
 function update(dt){
+  if(cutsceneActive){ updateCutscene(dt); return; }
   // ---------- player movement ----------
   let fx = 0, fy = 0;
   const dirX = Math.cos(player.a), dirY = Math.sin(player.a);
@@ -4361,8 +4492,13 @@ function handleNetEvent(evt){
       break;
     case 'storychapter':
       storyChapter = evt.chapter;
-      showStoryCard(STORY_CHAPTERS[storyChapter].title, STORY_CHAPTERS[storyChapter].text,
-        () => applyStoryChapterMap(STORY_CHAPTERS[storyChapter]));
+      applyStoryChapterMap(STORY_CHAPTERS[storyChapter]);
+      playChapterRevealCutscene(STORY_CHAPTERS[storyChapter], () => {});
+      break;
+    case 'storyfinale':
+      playFinaleCutscene(() => {
+        if(netMode !== 'client'){ gameOver = true; Net.emit({ kind:'storycomplete' }); }
+      });
       break;
     case 'storycomplete':
       gameOver = true;
@@ -5145,7 +5281,7 @@ document.addEventListener('touchcancel', endTouch, { passive:true });
 document.addEventListener('pointerlockchange', () => {
   if(document.pointerLockElement === canvas){
     paused = false; el('pause').classList.add('hide');
-  } else if(running && !gameOver){
+  } else if(running && !gameOver && !cutsceneActive){
     paused = true; el('pause').classList.remove('hide');
     setZoom(false);
   }
@@ -5511,7 +5647,6 @@ el('btnMatchExit').addEventListener('click', () => {
   el('matchEnd').classList.add('hide');
   Net.leaveToMenu(true);
 });
-el('storyCard').addEventListener('click', () => { if(storyCardDismiss) storyCardDismiss(); });
 
 el('btnSolo').addEventListener('click', () => showMapPicker(null));
 el('btnMissions').addEventListener('click', () => showMapPicker('solo-mission'));
@@ -5627,8 +5762,8 @@ function startGame(){
   else if(MODE === 'campaign' && wavesMissionObjective)
                                  banner('Breach', `Hostiles inbound — recover all ${MISSION_ARTIFACT_COUNT} artifacts to win early`);
   else if(MODE === 'story'){
-    banner(STORY_CHAPTERS[storyChapter].title, 'Hostiles inbound');
-    if(wave === 0) showStoryCard(STORY_CHAPTERS[0].title, STORY_CHAPTERS[0].text, () => {});
+    if(wave === 0) playIntroCutscene(() => banner(STORY_CHAPTERS[0].title, 'Hostiles inbound'));
+    else banner(STORY_CHAPTERS[storyChapter].title, 'Hostiles inbound');
   }
   else                           banner('Breach', 'Hostiles inbound');
 }
