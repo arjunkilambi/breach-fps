@@ -358,6 +358,7 @@
   <div class="panelbox hide" id="menuMapPick">
     <div class="lbl">Choose Map</div>
     <ul class="lobbylist" id="mapPickList"></ul>
+    <div class="mbtn ghost small hide" id="missionToggleWrap">Mission Objective: <span id="missionToggleState">OFF</span></div>
     <div class="mbtn ghost small" id="btnBackMapPick">Back</div>
   </div>
 
@@ -3514,11 +3515,16 @@ function applyTag(shooter, target){
 const MISSION_ARTIFACT_COUNT = 4;
 let artifacts = [];
 let missionReturned = 0;
+// Solo Campaign can optionally layer the artifact objective on top of its
+// normal endless wave-survival (opt-in per match, off by default) — this
+// flag is what distinguishes that from a plain campaign run.
+let campaignMissionObjective = false;
+function missionsActive(){ return MODE === 'mission' || (MODE === 'campaign' && campaignMissionObjective); }
 function resetMission(){
   missionReturned = 0;
   for(const m of artifactMeshes) scene.remove(m);
   artifactMeshes = [];
-  if(MODE !== 'mission' || !PICKUPS.length){ artifacts = []; return; }
+  if(!missionsActive() || !PICKUPS.length){ artifacts = []; return; }
   const stride = Math.max(1, Math.floor(PICKUPS.length / MISSION_ARTIFACT_COUNT));
   artifacts = [];
   for(let i=0;i<MISSION_ARTIFACT_COUNT;i++){
@@ -3850,7 +3856,7 @@ function update(dt){
   }
 
   // ---------- Mission artifacts (host/solo authoritative) ----------
-  if(netMode !== 'client' && MODE === 'mission' && !gameOver) missionTick();
+  if(netMode !== 'client' && missionsActive() && !gameOver) missionTick();
 
   // ---------- wave flow (campaign / co-op only — deathmatch/teams/ctf/tag have no waves) ----------
   const aliveCount = enemies.filter(e => !e.dead).length;
@@ -3978,6 +3984,9 @@ function updateHUD(){
   } else if(MODE === 'mission'){
     el('waveLbl').textContent = 'Artifacts'; el('wave').textContent = `${missionReturned}/${MISSION_ARTIFACT_COUNT}`;
     el('leftLbl').textContent = 'Hostiles'; el('left').textContent = enemies.filter(e=>!e.dead).length;
+  } else if(MODE === 'campaign' && campaignMissionObjective){
+    el('waveLbl').textContent = 'Wave'; el('wave').textContent = wave;
+    el('leftLbl').textContent = 'Artifacts'; el('left').textContent = `${missionReturned}/${MISSION_ARTIFACT_COUNT}`;
   } else {
     el('waveLbl').textContent = 'Wave'; el('wave').textContent = wave;
     el('leftLbl').textContent = 'Hostiles'; el('left').textContent = enemies.filter(e=>!e.dead).length;
@@ -4595,8 +4604,15 @@ function showMapPicker(hostMode){
       <span>${escapeHtml(m.name)}${m.large ? ' <small>(large)</small>' : ''}</span>
       <span class="mbtn small pickMapBtn" data-i="${i}">Select</span>
     </li>`).join('');
+  campaignMissionObjective = false;
+  el('missionToggleState').textContent = 'OFF';
+  el('missionToggleWrap').classList.toggle('hide', hostMode !== null);
   showPanel('menuMapPick');
 }
+el('missionToggleWrap').addEventListener('click', () => {
+  campaignMissionObjective = !campaignMissionObjective;
+  el('missionToggleState').textContent = campaignMissionObjective ? 'ON' : 'OFF';
+});
 el('mapPickList').addEventListener('click', e => {
   const btn = e.target.closest('.pickMapBtn');
   if(!btn) return;
@@ -5332,6 +5348,8 @@ function startGame(){
   else if(MODE === 'ctf')        banner(`Round ${ctfRound} of 3`, `Team ${(player.team||0)+1} — capture the enemy flag, friendly fire is off`);
   else if(MODE === 'tag')        banner(tagId === player.id ? "YOU'RE IT" : 'Run!', tagId === player.id ? 'Tag someone to pass it on' : 'Whoever has the gun when time runs out loses');
   else if(MODE === 'mission')    banner('Mission', `Recover all ${MISSION_ARTIFACT_COUNT} artifacts and return them to the safe zone`);
+  else if(MODE === 'campaign' && campaignMissionObjective)
+                                 banner('Breach', `Hostiles inbound — recover all ${MISSION_ARTIFACT_COUNT} artifacts to win early`);
   else                           banner('Breach', 'Hostiles inbound');
 }
 
