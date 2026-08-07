@@ -3375,7 +3375,9 @@ function updateEnemy(e, dt){
         e.cool = T.cool * rand(1.15,.85);
         e.attackAnim = 0.35;
         if(T.ranged){
-          const a = Math.atan2(dy,dx) + rand(.07,-.07);
+          // dead-on aim (no spread) at a target holding still — standing in
+          // the open is what gets punished; moving is how you dodge
+          const a = Math.atan2(dy,dx) + (tp.isMoving ? rand(.07,-.07) : 0);
           bolts.push({ x:e.x+Math.cos(a)*.4, y:e.y+Math.sin(a)*.4,
                        dx:Math.cos(a)*7.2, dy:Math.sin(a)*7.2, dmg:T.dmg, life:2.4 });
           Sound.enemyShot();
