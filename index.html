@@ -1565,6 +1565,11 @@ function applyWorldTheme(theme){
   );
   sunSprite.visible = cfg.sun.i > 0;
   sunSprite.material.color.set(cfg.sun.color);
+  const cloudTint = new THREE.Color(cfg.hemi.sky).lerp(new THREE.Color(0xffffff), 0.5);
+  for(const spr of clouds){
+    spr.visible = cfg.sun.i > 0;   // indoor/facility gets no sky, so no clouds either
+    spr.material.color.copy(cloudTint);
+  }
   // distant scenery (sized off MAPW/MAPH) rebuilds unconditionally inside
   // rebuildMapMeshes() instead of here — this function early-returns when the
   // theme hasn't changed, but the map (and its dimensions) can still have
@@ -1914,6 +1919,43 @@ const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ color:0xffffff, fo
 sunSprite.scale.setScalar(VIEW*0.5);
 sunSprite.renderOrder = -999;
 scene.add(sunSprite);
+
+// Drifting cloud sprites — soft radial-gradient blobs, slowly orbiting the
+// camera at a fixed distance/height (same always-just-follow-the-camera
+// technique as the sky dome/scenery). A static sky reads as a backdrop; a few
+// slow-moving shapes in it read as an actual sky.
+const cloudCanvas = document.createElement('canvas'); cloudCanvas.width = cloudCanvas.height = 64;
+(() => {
+  const g = cloudCanvas.getContext('2d');
+  const grad = g.createRadialGradient(32,32,2,32,32,30);
+  grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+  grad.addColorStop(0.55, 'rgba(255,255,255,0.45)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad; g.fillRect(0,0,64,64);
+})();
+const cloudTex = new THREE.CanvasTexture(cloudCanvas);
+const CLOUD_COUNT = 16;
+const clouds = [];
+const cloudGroup = new THREE.Group();
+for(let i=0;i<CLOUD_COUNT;i++){
+  const mat = new THREE.SpriteMaterial({ map:cloudTex, color:0xffffff, transparent:true, opacity:0.85, fog:false, depthTest:false });
+  const spr = new THREE.Sprite(mat);
+  const w = VIEW*(0.9+Math.random()*1.3);
+  spr.scale.set(w, w*0.45, 1);
+  spr.userData = {
+    angle: Math.random()*Math.PI*2,
+    dist: VIEW*(1.3+Math.random()*0.7),
+    // low, near the horizon line — where the player is actually looking most
+    // of the time — instead of up near the zenith where an earlier version
+    // put them, well out of the normal forward-facing view
+    height: VIEW*(0.12+Math.random()*0.3),
+    speed: 0.015 + Math.random()*0.02,
+  };
+  spr.renderOrder = -998;
+  cloudGroup.add(spr);
+  clouds.push(spr);
+}
+scene.add(cloudGroup);
 const headlamp = new THREE.PointLight(0xcfeeff, 0.85, 9, 2); camera.add(headlamp);
 const muzzleLight = new THREE.PointLight(0xffcf8a, 0, 6, 2); camera.add(muzzleLight);
 
@@ -2184,9 +2226,9 @@ function makeCharacterGLTF(colors, armed, role){
   const mixer = new THREE.AnimationMixer(model);
   const actions = {};
   for(const clip of characterClipsByRole[role]){
-    if(clip.name === 'Idle' || clip.name === 'Walk' || clip.name === 'Shoot' || clip.name === 'Death'){
+    if(clip.name === 'Idle' || clip.name === 'Walk' || clip.name === 'Shoot' || clip.name === 'Punch' || clip.name === 'Death'){
       const action = mixer.clipAction(clip);
-      if(clip.name === 'Shoot' || clip.name === 'Death'){
+      if(clip.name === 'Shoot' || clip.name === 'Punch' || clip.name === 'Death'){
         action.setLoop(THREE.LoopOnce);
         action.clampWhenFinished = true;
       }
@@ -2231,12 +2273,17 @@ function makeCharacterGLTF(colors, armed, role){
     }
   }
 
-  yawGroup.userData = { mixer, actions, materials, leanGroup, walkWeight:0, gun };
+  // Unarmed characters (no gun prop) are the game's melee types — they should
+  // throw a punch on `attacking`, not mime aiming an invisible gun.
+  yawGroup.userData = { mixer, actions, materials, leanGroup, walkWeight:0, gun, meleeStyle: !armed };
   return yawGroup;
 }
 function makeCharacter(colors, armed, role='trooper'){
   return characterTemplates[role] ? makeCharacterGLTF(colors, armed, role) : makeCharacterBox(colors);
 }
+// measured directly in Blender (see the Death animation's authoring notes) —
+// how far above true ground level the collapsed pose's lowest point sits
+const DEATH_GROUND_OFFSET = 0.5466;
 // pose + physics-reactive lean + toppling death fall, shared by enemies & players
 function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, dt){
   const mesh = rec.mesh, lean = mesh.userData.leanGroup, u = mesh.userData;
@@ -2277,7 +2324,12 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     const t = Math.min(1, rec.deadT/0.7), ease = 1-(1-t)*(1-t);
     if(u.mixer && u.actions.Death){
       u.mixer.update(dt);                                // Death clip drives the whole fall via real bone motion
-      mesh.position.y = lerp(mesh.position.y||0, heightAt(ent.x, ent.y), dt*8);
+      // The authored collapse pose's lowest point doesn't quite reach hand-
+      // keyframed ground contact — measured in Blender at 0.5466 world units
+      // above true ground (consistent across all 3 character meshes) —
+      // without this the body visibly hovers/floats instead of lying flat.
+      // Scales with the character's own mesh scale (grunt/boss/etc all differ).
+      mesh.position.y = lerp(mesh.position.y||0, heightAt(ent.x, ent.y) - DEATH_GROUND_OFFSET*mesh.scale.y, dt*8);
     } else if(u.mixer){
       lean.rotation.x = -ease * 1.3;                    // falls backward, away from whoever shot them
       lean.rotation.z = rec.fallDir * ease * 0.35;       // slight sideways asymmetry so it's not robotic
@@ -2313,25 +2365,29 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
 
   if(u.mixer){
     // GLTF-driven character: crossfade Idle<->Walk by actual movement speed,
-    // and on the rising edge of `attacking` play a real Shoot clip (weapon
-    // raise + recoil kick) instead of just flashing the muzzle light.
+    // and on the rising edge of `attacking` play a real attack clip instead
+    // of just flashing the muzzle light — melee types (no gun prop) throw a
+    // punch; armed types raise their weapon into an aim+recoil pose.
     const targetWalk = rec.speedEMA > 0.3 ? 1 : 0;
     u.walkWeight = lerp(u.walkWeight, targetWalk, dt*8);
 
-    const shootTriggered = attacking && !rec.wasAttacking;
+    const attackAction = u.meleeStyle ? u.actions.Punch : u.actions.Shoot;
+    const attackDuration = u.meleeStyle ? 0.833 : 0.5;   // matches each clip's authored length (20f/12f @ 24fps)
+    const attackTriggered = attacking && !rec.wasAttacking;
     rec.wasAttacking = attacking;
-    if(shootTriggered && u.actions.Shoot){
-      u.actions.Shoot.reset().play();
-      rec.shootT = 0.5;   // matches the authored clip's real length (12 frames @ 24fps)
+    if(attackTriggered && attackAction){
+      attackAction.reset().play();
+      rec.attackT = attackDuration;
     }
-    if(rec.shootT > 0) rec.shootT = Math.max(0, rec.shootT - dt);
+    if(rec.attackT > 0) rec.attackT = Math.max(0, rec.attackT - dt);
     // eased blend in/out instead of an instant weight snap — a hard 0/1 cut
-    // between Idle/Walk and Shoot every trigger reads as a pop/stutter; this
-    // ramps over ~70ms, same lerp-toward-target pattern walkWeight uses above
-    rec.shootBlend = lerp(rec.shootBlend ?? 0, rec.shootT > 0 ? 1 : 0, Math.min(1, dt*14));
-    u.actions.Shoot?.setEffectiveWeight(rec.shootBlend);
-    u.actions.Idle?.setEffectiveWeight((1 - rec.shootBlend) * (1 - u.walkWeight));
-    u.actions.Walk?.setEffectiveWeight((1 - rec.shootBlend) * u.walkWeight);
+    // between Idle/Walk and the attack pose every trigger reads as a
+    // pop/stutter; this ramps over ~70ms, same lerp-toward-target pattern
+    // walkWeight uses above
+    rec.attackBlend = lerp(rec.attackBlend ?? 0, rec.attackT > 0 ? 1 : 0, Math.min(1, dt*14));
+    attackAction?.setEffectiveWeight(rec.attackBlend);
+    u.actions.Idle?.setEffectiveWeight((1 - rec.attackBlend) * (1 - u.walkWeight));
+    u.actions.Walk?.setEffectiveWeight((1 - rec.attackBlend) * u.walkWeight);
     u.mixer.update(dt);
     lean.rotation.x = lerp(lean.rotation.x||0, 0, dt*8);
     lean.rotation.z = lerp(lean.rotation.z||0, 0, dt*8);
@@ -2341,7 +2397,7 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     }
     if(u.gun){
       rec.gunFlash = Math.max(0, (rec.gunFlash||0) - dt*9);
-      if(shootTriggered) rec.gunFlash = 1;
+      if(attackTriggered) rec.gunFlash = 1;
       const { flashMesh, flashLight } = u.gun.userData;
       flashMesh.material.opacity = rec.gunFlash;
       flashMesh.scale.setScalar(0.7 + rec.gunFlash*0.9);
@@ -3019,6 +3075,14 @@ function render3D(dt){
   skyDome.position.set(camera.position.x, 0, camera.position.z);
   if(distantScenery) distantScenery.position.set(camera.position.x, 0, camera.position.z);
   sunSprite.position.set(camera.position.x + SUN_DIR.x*VIEW*2, SUN_DIR.y*VIEW*2, camera.position.z + SUN_DIR.z*VIEW*2);
+  for(const spr of clouds){
+    spr.userData.angle += spr.userData.speed * dt * 0.15;
+    spr.position.set(
+      camera.position.x + Math.cos(spr.userData.angle)*spr.userData.dist,
+      spr.userData.height,
+      camera.position.z + Math.sin(spr.userData.angle)*spr.userData.dist,
+    );
+  }
   headlamp.intensity = 0.85 + player.flash*0.4;
 
   syncEnemyMeshes(dt);
