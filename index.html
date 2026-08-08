@@ -4732,7 +4732,7 @@ const Net = (() => {
         if(st) st.name = (msg.name || 'Player').slice(0,16);
         renderLobbyList();
         Net.emit({ kind:'join', name: st ? st.name : 'Player' });
-        safeSend(conn, { type:'welcome', id: conn.peer, mode: MODE, mapIndex });
+        safeSend(conn, { type:'welcome', id: conn.peer, mode: MODE, mapIndex, team: st ? st.team : 0 });
       } else {
         hostStep(conn.peer, msg);
       }
@@ -4886,7 +4886,7 @@ const Net = (() => {
           setNetMsg('Connected — waiting for the host to start…');
         });
         hostConn.on('data', msg => {
-          if(msg.type === 'welcome'){ MODE = msg.mode; mapIndex = msg.mapIndex; el('lobbyMapLabel').textContent = 'Map: ' + MAPS[mapIndex].name; }
+          if(msg.type === 'welcome'){ MODE = msg.mode; mapIndex = msg.mapIndex; player.team = msg.team||0; el('lobbyMapLabel').textContent = 'Map: ' + MAPS[mapIndex].name; }
           else if(msg.type === 'state') applySnapshot(msg);
           else if(msg.type === 'event') handleNetEvent(msg.evt);
           else if(msg.type === 'start'){ wavesMissionObjective = !!msg.missionObjective; beginMatch(); }
