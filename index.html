@@ -1483,7 +1483,7 @@ const THEME_TEXTURES = { desert: buildDesertTextures(), ice: buildIceTextures(),
 
 const WORLD_THEMES = {
   facility: { fogColor:0x05080a, fogNear:3, fogFarMul:1, bg:0x05080a,
-    ambient:{color:0x9fd0e8, i:0.55}, hemi:{sky:0xbfe8ff, ground:0x05080a, i:0.35}, sun:{color:0xffffff, i:0},
+    ambient:{color:0x9fd0e8, i:0.38}, hemi:{sky:0xbfe8ff, ground:0x05080a, i:0.28}, sun:{color:0xffffff, i:0},
     mats: {
       [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1491,8 +1491,8 @@ const WORLD_THEMES = {
       [WALL.TECH]:   { roughness:0.7,  metalness:0, emissive:0x3fc8ff, emissiveIntensity:0.35, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.8, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,3] },
     } },
-  desert: { fogColor:0xc07840, fogNear:3, fogFarMul:1, bg:0xd89a5c,
-    ambient:{color:0xffdba0, i:0.65}, hemi:{sky:0xffd9a0, ground:0x7a4a28, i:0.55}, sun:{color:0xffe8c0, i:1.3},
+  desert: { fogColor:0xd89858, fogNear:3, fogFarMul:1, bg:0xf0b878,
+    ambient:{color:0xffdba0, i:0.22}, hemi:{sky:0xffd9a0, ground:0x7a4a28, i:0.18}, sun:{color:0xffe8c0, i:2.2},
     mats: {
       [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1500,8 +1500,8 @@ const WORLD_THEMES = {
       [WALL.TECH]:   { roughness:0.6,  metalness:0, emissive:0xffaa33, emissiveIntensity:0.4, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.88,metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
-  ice: { fogColor:0xaad4e8, fogNear:3, fogFarMul:1, bg:0xbfe0f0,
-    ambient:{color:0xdff3ff, i:0.7}, hemi:{sky:0xe8f8ff, ground:0x30506a, i:0.5}, sun:{color:0xeaffff, i:1.0},
+  ice: { fogColor:0xc0e4f5, fogNear:3, fogFarMul:1, bg:0xd8f0fa,
+    ambient:{color:0xdff3ff, i:0.22}, hemi:{sky:0xe8f8ff, ground:0x30506a, i:0.18}, sun:{color:0xeaffff, i:2.0},
     mats: {
       [WALL.BRICK]:  { roughness:0.25, metalness:0.05, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.8,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1509,8 +1509,8 @@ const WORLD_THEMES = {
       [WALL.TECH]:   { roughness:0.4,  metalness:0, emissive:0x66eaff, emissiveIntensity:0.5, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.3, metalness:0.1, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
-  volcanic: { fogColor:0x4a1a12, fogNear:2.4, fogFarMul:0.82, bg:0x3a140c,
-    ambient:{color:0xff8a4a, i:0.5}, hemi:{sky:0xff6a3a, ground:0x1a0805, i:0.6}, sun:{color:0xff7040, i:0.9},
+  volcanic: { fogColor:0x6a2818, fogNear:2.4, fogFarMul:0.82, bg:0x5a2010,
+    ambient:{color:0xff8a4a, i:0.2}, hemi:{sky:0xff6a3a, ground:0x1a0805, i:0.18}, sun:{color:0xff7040, i:1.9},
     mats: {
       [WALL.BRICK]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.5,  metalness:0.2, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1518,8 +1518,8 @@ const WORLD_THEMES = {
       [WALL.TECH]:   { roughness:0.55, metalness:0, emissive:0xff5010, emissiveIntensity:0.7, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.7, metalness:0.1, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
-  jungle: { fogColor:0x3a5c2e, fogNear:2.8, fogFarMul:0.75, bg:0x4a6e3a,
-    ambient:{color:0x8fdb6a, i:0.5}, hemi:{sky:0x9fe080, ground:0x1a3010, i:0.45}, sun:{color:0xc8ffb0, i:0.8},
+  jungle: { fogColor:0x4a7a3a, fogNear:2.8, fogFarMul:0.75, bg:0x5c8a4a,
+    ambient:{color:0x8fdb6a, i:0.2}, hemi:{sky:0x9fe080, ground:0x1a3010, i:0.16}, sun:{color:0xc8ffb0, i:1.8},
     mats: {
       [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1527,8 +1527,8 @@ const WORLD_THEMES = {
       [WALL.TECH]:   { roughness:0.65, metalness:0, emissive:0x7fffa0, emissiveIntensity:0.4, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.85,metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
-  toxic: { fogColor:0x5a6e2a, fogNear:2.6, fogFarMul:0.85, bg:0x4a5a1e,
-    ambient:{color:0x9aff5a, i:0.45}, hemi:{sky:0x8aff4a, ground:0x2a3a0a, i:0.5}, sun:{color:0xb0ff60, i:0.7},
+  toxic: { fogColor:0x7a9a3a, fogNear:2.6, fogFarMul:0.85, bg:0x6a8a2a,
+    ambient:{color:0x9aff5a, i:0.18}, hemi:{sky:0x8aff4a, ground:0x2a3a0a, i:0.16}, sun:{color:0xb0ff60, i:1.7},
     mats: {
       [WALL.BRICK]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.85, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1822,8 +1822,8 @@ const BUILD_H = WALL_H * 3.4;                       // tall-building walls reach
 const CEIL_H = BUILD_H + 5.0;
 
 scene.fog = new THREE.Fog(0x05080a, 3, VIEW);
-const ambientLight = new THREE.AmbientLight(0x9fd0e8, 0.55); scene.add(ambientLight);
-const hemiLight = new THREE.HemisphereLight(0xbfe8ff, 0x05080a, 0.35); scene.add(hemiLight);
+const ambientLight = new THREE.AmbientLight(0x9fd0e8, 0.3); scene.add(ambientLight);
+const hemiLight = new THREE.HemisphereLight(0xbfe8ff, 0x05080a, 0.22); scene.add(hemiLight);
 // outdoor worlds get a directional "sun" too (indoor facility maps leave it dim/off)
 const sunLight = new THREE.DirectionalLight(0xffffff, 0); sunLight.position.set(-12, 20, -8); scene.add(sunLight);
 
@@ -1915,7 +1915,7 @@ function buildDistantScenery(){
 // light agree with each other) — re-centered on the camera every frame like
 // the sky dome, so it reads as infinitely far away and never gets closer.
 const SUN_DIR = new THREE.Vector3(-12, 20, -8).normalize();
-const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ color:0xffffff, fog:false, transparent:true, opacity:0.9, depthTest:false }));
+const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ color:0xffffff, fog:false, transparent:true, opacity:0.9, depthWrite:false }));
 sunSprite.scale.setScalar(VIEW*0.5);
 sunSprite.renderOrder = -999;
 scene.add(sunSprite);
@@ -1938,7 +1938,7 @@ const CLOUD_COUNT = 16;
 const clouds = [];
 const cloudGroup = new THREE.Group();
 for(let i=0;i<CLOUD_COUNT;i++){
-  const mat = new THREE.SpriteMaterial({ map:cloudTex, color:0xffffff, transparent:true, opacity:0.85, fog:false, depthTest:false });
+  const mat = new THREE.SpriteMaterial({ map:cloudTex, color:0xffffff, transparent:true, opacity:0.85, fog:false, depthWrite:false });
   const spr = new THREE.Sprite(mat);
   const w = VIEW*(0.9+Math.random()*1.3);
   spr.scale.set(w, w*0.45, 1);
@@ -1967,21 +1967,89 @@ function makeCanvasTex(canvasEl, rx=1, ry=1){
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
+// Cel/toon shading (Breath of the Wild-style art direction): lighting is
+// quantized into a handful of soft bands instead of a smooth PBR falloff.
+// THREE.MeshToonMaterial does this natively via a `gradientMap` — an 8-texel
+// ramp from shadow to full brightness, sampled per-fragment by NdotL. Using
+// LinearFilter (not the usual NearestFilter) blends between adjacent bands
+// slightly, which is what keeps this reading as BotW's soft painterly shading
+// instead of Wind Waker's harder 2-3 tone cel look.
+const toonGradientCanvas = document.createElement('canvas');
+toonGradientCanvas.width = 8; toonGradientCanvas.height = 1;
+(() => {
+  const g = toonGradientCanvas.getContext('2d');
+  const bands = [70, 110, 158, 196, 218, 234, 246, 255];
+  for(let i=0;i<bands.length;i++){ g.fillStyle = `rgb(${bands[i]},${bands[i]},${bands[i]})`; g.fillRect(i,0,1,1); }
+})();
+const toonGradientMap = new THREE.CanvasTexture(toonGradientCanvas);
+toonGradientMap.minFilter = toonGradientMap.magFilter = THREE.LinearFilter;
+toonGradientMap.generateMipmaps = false;
+// Drop-in replacement for the old MeshStandardMaterial(opts) calls used
+// throughout the file — PBR-only opts like roughness/metalness are simply
+// ignored by MeshToonMaterial (harmless), everything else (color, map,
+// emissive, bumpMap, wireframe, transparent...) carries over unchanged.
+function toonMat(opts){ return new THREE.MeshToonMaterial({ ...opts, gradientMap: toonGradientMap }); }
+// Cel-shading's other signature ingredient, alongside the banded lighting
+// above: a dark outline. Classic "inverted hull" trick — a back-face-only,
+// uniformly-scaled-up duplicate of the same mesh (same skeleton binding for
+// skinned meshes, so it deforms identically frame to frame), added as a
+// sibling of the original. Rendered before real geometry can occlude it
+// normally, its BackSide culling means only the silhouette rim shows.
+function expandGeometryAlongNormals(geo, distance){
+  const g = geo.clone();
+  const pos = g.attributes.position, norm = g.attributes.normal;
+  const v = new THREE.Vector3(), n = new THREE.Vector3();
+  for(let i=0;i<pos.count;i++){
+    v.fromBufferAttribute(pos, i);
+    n.fromBufferAttribute(norm, i);
+    v.addScaledVector(n, distance);
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  pos.needsUpdate = true;
+  return g;
+}
+function addMeshOutline(mesh, parent, extraScale, color){
+  const outlineMat = new THREE.MeshBasicMaterial({ color: color ?? 0x111611, side: THREE.BackSide });
+  let outlineMesh;
+  if(mesh.isSkinnedMesh){
+    // A scaled-up SkinnedMesh silently renders at the SAME size as the
+    // original — its bind-matrix skinning doesn't respect an outer object
+    // scale the way a regular Mesh does (confirmed: identical world-space
+    // bounding boxes despite a 6% object-scale difference), so the "outline"
+    // is fully hidden behind the front-facing original and never shows.
+    // Baking the expansion directly into a cloned geometry's vertex
+    // positions (pushed outward along each vertex's own normal, in the
+    // mesh's own local units, before skinning runs) sidesteps that entirely.
+    mesh.geometry.computeBoundingSphere();
+    const pushDist = (mesh.geometry.boundingSphere?.radius || 60) * 0.018;
+    const outlineGeo = expandGeometryAlongNormals(mesh.geometry, pushDist);
+    outlineMesh = new THREE.SkinnedMesh(outlineGeo, outlineMat);
+    outlineMesh.bind(mesh.skeleton, mesh.bindMatrix);
+  } else {
+    outlineMesh = new THREE.Mesh(mesh.geometry, outlineMat);
+    outlineMesh.scale.copy(mesh.scale).multiplyScalar(extraScale ?? 1.05);
+  }
+  outlineMesh.position.copy(mesh.position);
+  outlineMesh.rotation.copy(mesh.rotation);
+  outlineMesh.renderOrder = mesh.renderOrder - 1;
+  parent.add(outlineMesh);
+  return outlineMesh;
+}
 // bumpMap reuses the exact same canvas source as `map` (Three.js is happy to
 // share one Texture object across both slots) — turns the noise/crack/rivet
 // patterns already painted into the diffuse texture into real surface relief
 // the scene's lights actually shade, instead of flat-looking painted-on detail.
 const wallMats = {
-  [WALL.BRICK]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BRICK]), roughness:0.95, bumpScale:0.045 }),
-  [WALL.STONE]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.STONE]), roughness:0.9, bumpScale:0.05 }),
-  [WALL.METAL]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.METAL]), roughness:0.5, metalness:0.4, bumpScale:0.03 }),
-  [WALL.TECH] : new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.TECH]), roughness:0.7,
+  [WALL.BRICK]: toonMat({ map: makeCanvasTex(textures[WALL.BRICK]), roughness:0.95, bumpScale:0.045 }),
+  [WALL.STONE]: toonMat({ map: makeCanvasTex(textures[WALL.STONE]), roughness:0.9, bumpScale:0.05 }),
+  [WALL.METAL]: toonMat({ map: makeCanvasTex(textures[WALL.METAL]), roughness:0.5, metalness:0.4, bumpScale:0.03 }),
+  [WALL.TECH] : toonMat({ map: makeCanvasTex(textures[WALL.TECH]), roughness:0.7,
                   emissive:0x3fc8ff, emissiveIntensity:0.35, bumpScale:0.025 }),
-  [WALL.BUILDING]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BUILDING], 1, 3), roughness:0.8, bumpScale:0.04 }),
+  [WALL.BUILDING]: toonMat({ map: makeCanvasTex(textures[WALL.BUILDING], 1, 3), roughness:0.8, bumpScale:0.04 }),
 };
 for(const k in wallMats) wallMats[k].bumpMap = wallMats[k].map;
-const floorMat = new THREE.MeshStandardMaterial({ roughness:1, bumpScale:0.05 });
-const ceilMat  = new THREE.MeshStandardMaterial({ roughness:1, side:THREE.DoubleSide, bumpScale:0.05 });
+const floorMat = toonMat({ roughness:1, bumpScale:0.05 });
+const ceilMat  = toonMat({ roughness:1, side:THREE.DoubleSide, bumpScale:0.05 });
 const rampMat  = wallMats[WALL.STONE].clone(); rampMat.side = THREE.DoubleSide;
 // Irregular wall geometry: a subdivided box with its TOP verts jittered (via
 // cheap sine "noise", deterministic per variant) into a jagged, non-flat
@@ -2175,10 +2243,10 @@ function makeCharacterBox(colors){
   const leanGroup = new THREE.Group();
   yawGroup.add(leanGroup);
 
-  const bodyMat = new THREE.MeshStandardMaterial({ color: colors.body, roughness:0.75 });
-  const trimMat = new THREE.MeshStandardMaterial({ color: colors.trim, roughness:0.85 });
-  const headMat = new THREE.MeshStandardMaterial({ color: colors.head, roughness:0.6 });
-  const eyeMat  = new THREE.MeshStandardMaterial({ color: colors.eye, emissive: colors.eye, emissiveIntensity:0.85 });
+  const bodyMat = toonMat({ color: colors.body, roughness:0.75 });
+  const trimMat = toonMat({ color: colors.trim, roughness:0.85 });
+  const headMat = toonMat({ color: colors.head, roughness:0.6 });
+  const eyeMat  = toonMat({ color: colors.eye, emissive: colors.eye, emissiveIntensity:0.85 });
 
   const legL = new THREE.Mesh(LEG_GEO, trimMat); legL.position.set(-0.09, 0.38, 0);
   const legR = new THREE.Mesh(LEG_GEO, trimMat); legR.position.set( 0.09, 0.38, 0);
@@ -2198,8 +2266,8 @@ function makeCharacterBox(colors){
 // bone so it automatically follows every animation the skeleton plays
 function makeGunModel(){
   const g = new THREE.Group();
-  const steel = new THREE.MeshStandardMaterial({ color:0x3a4148, roughness:0.4, metalness:0.6 });
-  const dark  = new THREE.MeshStandardMaterial({ color:0x181c20, roughness:0.6 });
+  const steel = toonMat({ color:0x3a4148, roughness:0.4, metalness:0.6 });
+  const dark  = toonMat({ color:0x181c20, roughness:0.6 });
   const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.05,0.05,0.42), steel); barrel.position.set(0,0.015,-0.28);
   const body   = new THREE.Mesh(new THREE.BoxGeometry(0.085,0.11,0.24), dark); body.position.set(0,-0.01,0.03);
   const grip   = new THREE.Mesh(new THREE.BoxGeometry(0.055,0.16,0.055), dark); grip.position.set(0,-0.13,0.13); grip.rotation.x = 0.32;
@@ -2238,15 +2306,26 @@ function makeCharacterGLTF(colors, armed, role){
   actions.Idle?.play(); actions.Walk?.play();
 
   const materials = [];
+  const outlineMeshes = [];
   const tint = new THREE.Color(colors.body);
-  model.traverse(child => {
-    if(child.isMesh && child.material){
-      const mat = child.material.clone();
-      mat.color?.multiply(tint);
-      child.material = mat;
-      materials.push(mat);
-    }
-  });
+  const meshChildren = [];
+  model.traverse(child => { if(child.isMesh && child.material) meshChildren.push(child); });
+  for(const child of meshChildren){
+    // Blender's glTF export bakes standard PBR materials (that's all glTF
+    // has), so a loaded character arrives as MeshStandardMaterial — convert
+    // to toon here so it matches the rest of the now-cel-shaded scene
+    // instead of standing out as the one PBR-lit thing in frame.
+    const src = child.material;
+    const mat = toonMat({
+      color: src.color, map: src.map || null,
+      emissive: src.emissive, emissiveIntensity: src.emissiveIntensity,
+      transparent: src.transparent, opacity: src.opacity,
+    });
+    mat.color?.multiply(tint);
+    child.material = mat;
+    materials.push(mat);
+    outlineMeshes.push(addMeshOutline(child, child.parent, 1.06));
+  }
 
   let gun = null;
   if(armed){
@@ -2458,7 +2537,7 @@ function syncPlayerMeshes(dt){
 /* ---- pickups (static per-map pool, just toggled/animated) + bolts -------- */
 const pickupGeo = new THREE.OctahedronGeometry(0.17, 0);
 const chestGeo = new THREE.BoxGeometry(0.32, 0.22, 0.22);
-function pickupMat(color){ return new THREE.MeshStandardMaterial({ color, emissive:color, emissiveIntensity:0.65, roughness:0.35 }); }
+function pickupMat(color){ return toonMat({ color, emissive:color, emissiveIntensity:0.65, roughness:0.35 }); }
 const pickupMats = { health: pickupMat('#ff5a5a'), ammo: pickupMat('#ffd479'), medkit: pickupMat('#f2f6ff') };
 for(const k of BUFF_KEYS) pickupMats[k] = pickupMat(BUFF_META[k].color);
 const weaponChestMats = Object.fromEntries(Object.entries(WEAPON_RARITY_COLOR).map(([k,c]) => [k, pickupMat(c)]));
@@ -2485,12 +2564,12 @@ let flagMeshes = [];
 function buildFlagMesh(team){
   const g = new THREE.Group();
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,1.1,6),
-    new THREE.MeshStandardMaterial({ color:0xcccccc, roughness:0.4, metalness:0.5 }));
+    toonMat({ color:0xcccccc, roughness:0.4, metalness:0.5 }));
   pole.position.y = 0.55;
   g.add(pole);
   const color = SKINS[team % SKINS.length].body;
   const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.34,0.22),
-    new THREE.MeshStandardMaterial({ color, emissive:color, emissiveIntensity:0.5, side:THREE.DoubleSide }));
+    toonMat({ color, emissive:color, emissiveIntensity:0.5, side:THREE.DoubleSide }));
   cloth.position.set(0.17, 0.92, 0);
   g.add(cloth);
   return g;
@@ -2511,10 +2590,10 @@ let artifactMeshes = [];
 function buildArtifactMesh(){
   const g = new THREE.Group();
   const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0),
-    new THREE.MeshStandardMaterial({ color:0xffd479, emissive:0xffb347, emissiveIntensity:0.35, roughness:0.4 }));
+    toonMat({ color:0xffd479, emissive:0xffb347, emissiveIntensity:0.35, roughness:0.4 }));
   g.add(core);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.014, 8, 20),
-    new THREE.MeshStandardMaterial({ color:0xb26aff, emissive:0xb26aff, emissiveIntensity:0.28 }));
+    toonMat({ color:0xb26aff, emissive:0xb26aff, emissiveIntensity:0.28 }));
   ring.rotation.x = Math.PI/2.3;
   g.add(ring);
   return g;
@@ -2539,10 +2618,10 @@ let megaArtifactMeshes = [];
 function buildMegaArtifactMesh(){
   const g = new THREE.Group();
   const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0),
-    new THREE.MeshStandardMaterial({ color:0xff4444, emissive:0xff2020, emissiveIntensity:0.55, roughness:0.3 }));
+    toonMat({ color:0xff4444, emissive:0xff2020, emissiveIntensity:0.55, roughness:0.3 }));
   g.add(core);
   const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0),
-    new THREE.MeshStandardMaterial({ color:0x2a0a0a, emissive:0xff2020, emissiveIntensity:0.2, wireframe:true }));
+    toonMat({ color:0x2a0a0a, emissive:0xff2020, emissiveIntensity:0.2, wireframe:true }));
   g.add(shard);
   return g;
 }
@@ -2639,7 +2718,7 @@ function spawnTracerFX(x1, y1, x2, y2, duration){
     x1, y1, h1, x2, y2, h2, sag: Math.min(0.6, duration*0.4),
   });
 }
-const shellMat = new THREE.MeshStandardMaterial({ color:0xd4af37, roughness:0.35, metalness:0.75, transparent:true });
+const shellMat = toonMat({ color:0xd4af37, roughness:0.35, metalness:0.75, transparent:true });
 // A spent casing ejecting sideways from the gun and falling — real ballistic
 // arc (not just an animated t-fraction like the other FX) since it needs to
 // keep falling/spinning consistently regardless of its random lifespan.
@@ -2716,7 +2795,7 @@ function spawnIceImpactFX(x, y){
 }
 function spawnIceChunkFX(x, y){
   const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35, 0),
-    new THREE.MeshStandardMaterial({ color:0xbfe9ff, roughness:0.15, transparent:true, opacity:0.92 }));
+    toonMat({ color:0xbfe9ff, roughness:0.15, transparent:true, opacity:0.92 }));
   const groundY = heightAt(x,y);
   mesh.position.set(x, groundY + 7, y);
   mesh.rotation.set(rand(TAU), rand(TAU), rand(TAU));
@@ -2788,7 +2867,7 @@ let droneMesh = null;
 function spawnDrone(){
   if(!droneMesh){
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8),
-      new THREE.MeshStandardMaterial({ color:0xffb0e0, emissive:0xffb0e0, emissiveIntensity:0.6 }));
+      toonMat({ color:0xffb0e0, emissive:0xffb0e0, emissiveIntensity:0.6 }));
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.02, 6, 16),
       new THREE.MeshBasicMaterial({ color:0xffe0f5 }));
     ring.rotation.x = Math.PI/2;
@@ -2862,14 +2941,14 @@ const gunRoughMap = new THREE.CanvasTexture(makeTex(g => {
 }));
 gunRoughMap.wrapS = gunRoughMap.wrapT = THREE.RepeatWrapping;
 gunRoughMap.repeat.set(3, 3);
-const gunSteel  = new THREE.MeshStandardMaterial({ color:0x2f3740, roughness:0.38, metalness:0.75, roughnessMap:gunRoughMap });
-const gunDark   = new THREE.MeshStandardMaterial({ color:0x14181c, roughness:0.6 });
-const gunWood   = new THREE.MeshStandardMaterial({ color:0x5a3a22, roughness:0.85 });
-const gunGlass  = new THREE.MeshStandardMaterial({ color:0x2a3a44, roughness:0.2, metalness:0.3,
+const gunSteel  = toonMat({ color:0x2f3740, roughness:0.38, metalness:0.75, roughnessMap:gunRoughMap });
+const gunDark   = toonMat({ color:0x14181c, roughness:0.6 });
+const gunWood   = toonMat({ color:0x5a3a22, roughness:0.85 });
+const gunGlass  = toonMat({ color:0x2a3a44, roughness:0.2, metalness:0.3,
   emissive:0x1a2a33, emissiveIntensity:0.35 });
-const gunRail   = new THREE.MeshStandardMaterial({ color:0x1e2226, roughness:0.45, metalness:0.65, roughnessMap:gunRoughMap });
-const gunSight  = new THREE.MeshStandardMaterial({ color:0xa2a8ae, roughness:0.3, metalness:0.8, roughnessMap:gunRoughMap });
-const gunTritium= new THREE.MeshStandardMaterial({ color:0x5cff8a, emissive:0x5cff8a, emissiveIntensity:0.9 });
+const gunRail   = toonMat({ color:0x1e2226, roughness:0.45, metalness:0.65, roughnessMap:gunRoughMap });
+const gunSight  = toonMat({ color:0xa2a8ae, roughness:0.3, metalness:0.8, roughnessMap:gunRoughMap });
+const gunTritium= toonMat({ color:0x5cff8a, emissive:0x5cff8a, emissiveIntensity:0.9 });
 function gbox(w,h,d,mat,x,y,z,rx=0,ry=0,rz=0){
   const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
   m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
@@ -3036,6 +3115,16 @@ function upgradeWeaponModel(key, url){
     const group = WEAPON_MODELS[key];
     const keep = new Set([group.userData.flash]);
     for(const child of [...group.children]) if(!keep.has(child)) group.remove(child);
+    // same PBR->toon conversion as makeCharacterGLTF — glTF only ever bakes
+    // standard PBR materials, so this needs converting to match the rest of
+    // the cel-shaded scene same as the character models do.
+    const meshChildren = [];
+    gltf.scene.traverse(child => { if(child.isMesh && child.material) meshChildren.push(child); });
+    for(const child of meshChildren){
+      const src = child.material;
+      child.material = toonMat({ color: src.color, map: src.map || null, emissive: src.emissive, emissiveIntensity: src.emissiveIntensity });
+      addMeshOutline(child, child.parent, 1.035, 0x0c0e0a);   // subtler than characters — a viewmodel fills too much of the screen for a thick rim
+    }
     group.add(gltf.scene);
   }).catch(err => console.warn(`Weapon model (${key}) failed to load — keeping the procedural model.`, err));
 }
