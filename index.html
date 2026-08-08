@@ -2372,7 +2372,7 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     u.walkWeight = lerp(u.walkWeight, targetWalk, dt*8);
 
     const attackAction = u.meleeStyle ? u.actions.Punch : u.actions.Shoot;
-    const attackDuration = u.meleeStyle ? 0.833 : 0.5;   // matches each clip's authored length (20f/12f @ 24fps)
+    const attackDuration = u.meleeStyle ? 1.0 : 0.667;   // matches each clip's authored length (24f/16f @ 24fps)
     const attackTriggered = attacking && !rec.wasAttacking;
     rec.wasAttacking = attacking;
     if(attackTriggered && attackAction){
