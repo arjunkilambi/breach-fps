@@ -949,42 +949,48 @@ const MAPS = [
 // victory. `selectedStory` (set from the Story picker) selects which of
 // these `STORIES` entries is active; every place that used to read
 // STORY_CHAPTERS directly now calls storyChapters() instead.
+// Each campaign's 4 chapter texts + its ending line are written to a
+// classic plot-mountain arc: ch1 exposition, ch2 rising action, ch3
+// complication/twist, ch4 climax (the finale Mega Warlord fight), ending
+// falling action + resolution. All three share one overarching thread —
+// "the Overlord" isn't unique to any single sector — so the campaigns read
+// as parallel fronts of the same escalating threat rather than isolated one-offs.
 const STORIES = [
   { title:'The Signal', subtitle:'Sector 7 → Ring Circuit → The Foundry → Emberfall',
-    ending:'The Overlord falls. Sector 7 is silent again — whatever came through the breach came alone.',
+    ending:'The Overlord falls, and the signal finally goes quiet. But Command has already flagged two more facilities with the same failure signature — Sector 7 was never the first foundry, and it won’t be the last.',
     chapters: [
       { mapIndex:0,  title:'Chapter 1 — The Signal',
-        text:'Sector 7 has gone dark. You’re the only responder who made it past the perimeter.' },
+        text:'Sector 7 went dark eighteen hours ago. Every team sent in after it stopped reporting within the hour. You’re the only responder who made it past the perimeter — and the signal that pulled you here is still transmitting, somewhere inside.' },
       { mapIndex:1,  title:'Chapter 2 — Into the Ice',
-        text:'Whatever broke containment came from the ice fields. The trail leads to Ring Circuit.' },
+        text:'Whatever broke containment in Sector 7 didn’t start there. The signal’s fragments trace back through the ice fields at Ring Circuit — and the deeper the trail goes, the less this looks like an accident.' },
       { mapIndex:4,  title:'Chapter 3 — The Furnace',
-        text:'The Foundry’s reactors are still hot. So is whatever has been nesting inside.' },
+        text:'The Foundry’s reactors have been cold for a decade. Someone brought them back online on purpose, and fed them everything Sector 7 and Ring Circuit lost. This was never a containment breach — it was a build order.' },
       { mapIndex:11, title:'Chapter 4 — The Overlord',
-        text:'Emberfall. This is where it ends — one way or another.', finale:true },
+        text:'Emberfall is where the signal originates, and where whatever’s been assembling itself is waiting to finish the job. This is where it ends — one way or another.', finale:true },
     ] },
   { title:'Blackout Protocol', subtitle:'The Maze → The Pit → The Wastes → Dust Canyon',
-    ending:'The signal behind the blackout goes quiet. Somewhere under the Wastes, the maze keeps rebuilding itself — waiting for the next responder.',
+    ending:'The blackout finally breaks — but Command flags the exact same failure signature at a facility three sectors over before your dropship even clears the wastes. Whatever built the thing in The Maze, it isn’t finished building.',
     chapters: [
       { mapIndex:2, title:'Chapter 1 — Blackout',
-        text:'Every corridor in the complex looks the same now that the lights are out. Something rerouted the maze on purpose.' },
+        text:'A research complex went dark the same night its containment logs stopped syncing. Command calls it a blackout. This is the second facility this month with the exact same failure — and you’re the one sent in to find out why.' },
       { mapIndex:6, title:'Chapter 2 — Under Pressure',
-        text:'The gas vents lead down, not out. Whatever’s herding you wants you in The Pit.' },
+        text:'The gas vents don’t lead out, they lead down. Something has been herding every survivor, and every drone Command has sent in, toward The Pit — floor by floor, like it’s clearing a path for someone.' },
       { mapIndex:7, title:'Chapter 3 — Surface Break',
-        text:'You clawed your way out into open wastes — and it followed you into the daylight.' },
+        text:'You break out into open wastes expecting daylight to end it. Instead it follows — and for the first time you get a clear look at what’s been rerouting the whole facility around you. It isn’t hunting. It’s building something, and it needs the open ground to finish.' },
       { mapIndex:9, title:'Chapter 4 — Dead Reckoning',
-        text:'Dust Canyon, end of the line. Whatever’s been rerouting you built this trap to be its last.', finale:true },
+        text:'Dust Canyon is the last open ground before Command’s perimeter. Whatever’s been herding you here built this trap to be its last one — for you, or for itself.', finale:true },
     ] },
   { title:'Silent Front', subtitle:'Crossfire → Open Plaza → Skyline → Frostspire',
-    ending:'The front falls silent again. Frostspire’s peak is quiet, snow already burying what’s left of the Overlord — but Command logs three more signals just like it, elsewhere on the grid.',
+    ending:'The front falls silent again, and Frostspire’s summit turns out to hold nothing but wind and snow — no cache, no relay, nothing it was climbing toward. Which means wherever it was really going, it already got there before you did.',
     chapters: [
       { mapIndex:5, title:'Chapter 1 — First Contact',
-        text:'Crossfire’s comms went dead mid-transmission. Command wants boots on the ground, not answers.' },
+        text:'Crossfire’s outpost went silent mid-transmission — no distress call, no retreat order, just static. Command doesn’t know what’s out there yet. You’re the first one sent to find out.' },
       { mapIndex:3, title:'Chapter 2 — No Man’s Land',
-        text:'The jungle pushed you out into open ground. Nowhere left to hide, and it knows that.' },
+        text:'It pushed your squad out of the jungle and into open ground, and that should have been the advantage. Instead you realize the plaza was exactly where it wanted this fight — open sightlines cut both ways.' },
       { mapIndex:8, title:'Chapter 3 — High Ground',
-        text:'It’s climbing to the ridgelines. Command thinks it’s trying to reach Frostspire.' },
+        text:'It isn’t running from you, it’s climbing — toward Frostspire’s summit, on purpose, like there’s something up there worth reaching. Command’s maps show nothing at those coordinates. That’s exactly why it’s headed there.' },
       { mapIndex:10, title:'Chapter 4 — Zero Hour',
-        text:'Frostspire’s summit, dead of winter. Whatever’s been herding this front ends here.', finale:true },
+        text:'Frostspire’s peak, dead of winter, no cover left between you and whatever’s been leading this front the entire time. Zero hour.', finale:true },
     ] },
 ];
 let selectedStory = 0;
@@ -2002,11 +2008,20 @@ const BELT_GEO  = new THREE.BoxGeometry(0.35,0.05,0.21);
 const HEAD_GEO  = new THREE.BoxGeometry(0.22,0.22,0.22);
 const EYE_GEO   = new THREE.BoxGeometry(0.15,0.045,0.02);
 
-let characterTemplate = null, characterClips = null;
-new GLTFLoader().loadAsync('https://threejs.org/examples/models/gltf/Soldier.glb').then(gltf => {
-  characterTemplate = gltf.scene;
-  characterClips = gltf.animations;
-}).catch(err => console.warn('Character model failed to load — using the boxy fallback.', err));
+// Three body-type tiers, all bound to the same shared skeleton (so they share
+// one set of animation clips — Idle/Walk/Run from the original asset, plus
+// Shoot/Death authored in Blender): 'trooper' (player + light enemies),
+// 'enforcer' (mid-weight enemies), 'warlord' (bosses). Hosted locally
+// (assets/char_*.glb) instead of fetched from a remote CDN.
+const CHARACTER_ROLES = ['trooper', 'enforcer', 'warlord'];
+const ROLE_BY_TYPE = { grunt:'trooper', gunner:'trooper', brute:'enforcer', boss:'warlord', megawarlord:'warlord' };
+const characterTemplates = {}, characterClipsByRole = {};
+for(const role of CHARACTER_ROLES){
+  new GLTFLoader().loadAsync(`assets/char_${role}.glb`).then(gltf => {
+    characterTemplates[role] = gltf.scene;
+    characterClipsByRole[role] = gltf.animations;
+  }).catch(err => console.warn(`Character model (${role}) failed to load — using the boxy fallback.`, err));
+}
 
 function makeCharacterBox(colors){
   const yawGroup = new THREE.Group();
@@ -2053,18 +2068,25 @@ function makeGunModel(){
   g.userData = { flashMesh, flashLight };
   return g;
 }
-function makeCharacterGLTF(colors, armed){
+function makeCharacterGLTF(colors, armed, role){
   const yawGroup = new THREE.Group();
   const leanGroup = new THREE.Group();
   yawGroup.add(leanGroup);
 
-  const model = window.skeletonClone(characterTemplate);
+  const model = window.skeletonClone(characterTemplates[role]);
   leanGroup.add(model);
 
   const mixer = new THREE.AnimationMixer(model);
   const actions = {};
-  for(const clip of characterClips){
-    if(clip.name === 'Idle' || clip.name === 'Walk') actions[clip.name] = mixer.clipAction(clip);
+  for(const clip of characterClipsByRole[role]){
+    if(clip.name === 'Idle' || clip.name === 'Walk' || clip.name === 'Shoot' || clip.name === 'Death'){
+      const action = mixer.clipAction(clip);
+      if(clip.name === 'Shoot' || clip.name === 'Death'){
+        action.setLoop(THREE.LoopOnce);
+        action.clampWhenFinished = true;
+      }
+      actions[clip.name] = action;
+    }
   }
   actions.Idle?.play(); actions.Walk?.play();
 
@@ -2107,8 +2129,8 @@ function makeCharacterGLTF(colors, armed){
   yawGroup.userData = { mixer, actions, materials, leanGroup, walkWeight:0, gun };
   return yawGroup;
 }
-function makeCharacter(colors, armed){
-  return characterTemplate ? makeCharacterGLTF(colors, armed) : makeCharacterBox(colors);
+function makeCharacter(colors, armed, role='trooper'){
+  return characterTemplates[role] ? makeCharacterGLTF(colors, armed, role) : makeCharacterBox(colors);
 }
 // pose + physics-reactive lean + toppling death fall, shared by enemies & players
 function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, dt){
@@ -2132,9 +2154,14 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
   if(isDead){
     if(!rec.wasDead){
       rec.wasDead = true; rec.deadT = 0;
-      if(u.mixer){
-        // settle to a neutral standing pose before freezing, instead of
-        // stopping mid-stride — makes the topple read as a real collapse
+      if(u.mixer && u.actions.Death){
+        // real skeletal collapse — knees buckle, hips drop, spine folds, arms
+        // fling — instead of just rotating the whole character as one block
+        u.actions.Idle?.setEffectiveWeight(0);
+        u.actions.Walk?.setEffectiveWeight(0);
+        u.actions.Shoot?.setEffectiveWeight(0);
+        u.actions.Death.reset().setEffectiveWeight(1).play();
+      } else if(u.mixer){
         u.actions.Idle?.setEffectiveWeight(1);
         u.actions.Walk?.setEffectiveWeight(0);
         u.mixer.update(0);
@@ -2143,14 +2170,22 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     }
     rec.deadT += dt;
     const t = Math.min(1, rec.deadT/0.7), ease = 1-(1-t)*(1-t);
-    if(u.mixer){
+    if(u.mixer && u.actions.Death){
+      u.mixer.update(dt);                                // Death clip drives the whole fall via real bone motion
+      mesh.position.y = lerp(mesh.position.y||0, heightAt(ent.x, ent.y), dt*8);
+    } else if(u.mixer){
       lean.rotation.x = -ease * 1.3;                    // falls backward, away from whoever shot them
       lean.rotation.z = rec.fallDir * ease * 0.35;       // slight sideways asymmetry so it's not robotic
+      mesh.position.y = heightAt(ent.x, ent.y) - 0.05 - ease*0.22;
     } else {
       lean.rotation.z = rec.fallDir * ease * 1.35;
+      mesh.position.y = heightAt(ent.x, ent.y) - 0.05 - ease*0.22;
     }
-    mesh.position.y = heightAt(ent.x, ent.y) - 0.05 - ease*0.22;
     return;
+  }
+  if(rec.wasDead && u.mixer && u.actions.Death){
+    // respawning — stop holding the clamped death pose and let Idle/Walk take back over
+    u.actions.Death.stop();
   }
   rec.wasDead = false;
   mesh.position.y = lerp(mesh.position.y||0, heightAt(ent.x, ent.y) + (ent.z||0), dt*8);
@@ -2172,11 +2207,22 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
   mesh.rotation.y = prevYaw + diff * Math.min(1, dt*10);   // yaw only — never touches x/z
 
   if(u.mixer){
-    // GLTF-driven character: crossfade Idle<->Walk by actual movement speed
+    // GLTF-driven character: crossfade Idle<->Walk by actual movement speed,
+    // and on the rising edge of `attacking` play a real Shoot clip (weapon
+    // raise + recoil kick) instead of just flashing the muzzle light.
     const targetWalk = rec.speedEMA > 0.3 ? 1 : 0;
     u.walkWeight = lerp(u.walkWeight, targetWalk, dt*8);
-    u.actions.Idle?.setEffectiveWeight(1 - u.walkWeight);
-    u.actions.Walk?.setEffectiveWeight(u.walkWeight);
+
+    const shootTriggered = attacking && !rec.wasAttacking;
+    rec.wasAttacking = attacking;
+    if(shootTriggered && u.actions.Shoot){
+      u.actions.Shoot.reset().setEffectiveWeight(1).play();
+      rec.shootT = 0.5;   // matches the authored clip's real length (12 frames @ 24fps)
+    }
+    if(rec.shootT > 0) rec.shootT = Math.max(0, rec.shootT - dt);
+    const shooting = rec.shootT > 0;
+    u.actions.Idle?.setEffectiveWeight(shooting ? 0 : 1 - u.walkWeight);
+    u.actions.Walk?.setEffectiveWeight(shooting ? 0 : u.walkWeight);
     u.mixer.update(dt);
     lean.rotation.x = lerp(lean.rotation.x||0, 0, dt*8);
     lean.rotation.z = lerp(lean.rotation.z||0, 0, dt*8);
@@ -2186,8 +2232,7 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     }
     if(u.gun){
       rec.gunFlash = Math.max(0, (rec.gunFlash||0) - dt*9);
-      if(attacking && !rec.wasAttacking) rec.gunFlash = 1;
-      rec.wasAttacking = attacking;
+      if(shootTriggered) rec.gunFlash = 1;
       const { flashMesh, flashLight } = u.gun.userData;
       flashMesh.material.opacity = rec.gunFlash;
       flashMesh.scale.setScalar(0.7 + rec.gunFlash*0.9);
@@ -2216,7 +2261,7 @@ function syncEnemyMeshes(dt){
     seen.add(e.id);
     let rec = enemyMeshes.get(e.id);
     if(!rec){
-      const mesh = makeCharacter(e.type.colors, !!e.type.ranged);
+      const mesh = makeCharacter(e.type.colors, !!e.type.ranged, ROLE_BY_TYPE[e.type.key] || 'trooper');
       mesh.scale.setScalar(e.type.scale);
       scene.add(mesh);
       rec = { mesh, fallDir: Math.random()<0.5?-1:1, wasDead:false, deadT:0 };
@@ -2641,13 +2686,24 @@ function updateDrone(dt){
 }
 
 /* ---- first-person weapon viewmodels: one distinct silhouette per gun ------- */
-const gunSteel  = new THREE.MeshStandardMaterial({ color:0x2a3138, roughness:0.4, metalness:0.55 });
+// A small brushed-metal roughness map (reusing the world texture generators'
+// canvas + noise() pattern) — gives the smg/shotgun/sniper/lmg's flat-colored
+// steel/rail/sight materials a non-uniform metallic sheen instead of a single
+// flat specular highlight, without a full geometry remodel of each weapon.
+const gunRoughMap = new THREE.CanvasTexture(makeTex(g => {
+  g.fillStyle = '#8a8a8a'; g.fillRect(0, 0, TS, TS);
+  for(let y = 0; y < TS; y += 2){ g.fillStyle = `rgba(255,255,255,${0.03 + Math.random()*0.05})`; g.fillRect(0, y, TS, 1); }
+  noise(g, 700, 0.10);
+}));
+gunRoughMap.wrapS = gunRoughMap.wrapT = THREE.RepeatWrapping;
+gunRoughMap.repeat.set(3, 3);
+const gunSteel  = new THREE.MeshStandardMaterial({ color:0x2f3740, roughness:0.38, metalness:0.75, roughnessMap:gunRoughMap });
 const gunDark   = new THREE.MeshStandardMaterial({ color:0x14181c, roughness:0.6 });
 const gunWood   = new THREE.MeshStandardMaterial({ color:0x5a3a22, roughness:0.85 });
 const gunGlass  = new THREE.MeshStandardMaterial({ color:0x2a3a44, roughness:0.2, metalness:0.3,
   emissive:0x1a2a33, emissiveIntensity:0.35 });
-const gunRail   = new THREE.MeshStandardMaterial({ color:0x1c2024, roughness:0.5, metalness:0.5 });
-const gunSight  = new THREE.MeshStandardMaterial({ color:0x9aa0a6, roughness:0.35, metalness:0.7 });
+const gunRail   = new THREE.MeshStandardMaterial({ color:0x1e2226, roughness:0.45, metalness:0.65, roughnessMap:gunRoughMap });
+const gunSight  = new THREE.MeshStandardMaterial({ color:0xa2a8ae, roughness:0.3, metalness:0.8, roughnessMap:gunRoughMap });
 const gunTritium= new THREE.MeshStandardMaterial({ color:0x5cff8a, emissive:0x5cff8a, emissiveIntensity:0.9 });
 function gbox(w,h,d,mat,x,y,z,rx=0,ry=0,rz=0){
   const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
@@ -2802,6 +2858,24 @@ const WEAPON_MODELS = {
 for(const key in WEAPON_MODELS) camera.add(WEAPON_MODELS[key]);
 let weaponModel = WEAPON_MODELS.pistol;
 weaponModel.visible = true;
+
+// Blender-modeled, beveled + PBR-textured rifle/pistol meshes swap in
+// asynchronously in place of their flat-primitive procedural counterparts
+// once loaded — built at the exact same part coordinates as the gbox/gcyl
+// calls above, so they drop into the existing group at local-origin with no
+// repositioning, and the group's existing muzzle-flash light/position,
+// visibility toggling, and camera-relative animation in updateWeaponView()
+// all keep working unchanged. Falls back to the procedural model on failure.
+function upgradeWeaponModel(key, url){
+  new GLTFLoader().loadAsync(url).then(gltf => {
+    const group = WEAPON_MODELS[key];
+    const keep = new Set([group.userData.flash]);
+    for(const child of [...group.children]) if(!keep.has(child)) group.remove(child);
+    group.add(gltf.scene);
+  }).catch(err => console.warn(`Weapon model (${key}) failed to load — keeping the procedural model.`, err));
+}
+upgradeWeaponModel('rifle', 'assets/weapon_rifle.glb');
+upgradeWeaponModel('pistol', 'assets/weapon_pistol.glb');
 
 function updateWeaponView(){
   const w = WEAPONS[player.weapon], heavy = w.heavy;
@@ -3820,8 +3894,8 @@ const _cinePos = new THREE.Vector3(), _cineTo = new THREE.Vector3(),
 // real enemy/player uses — moving `ent.x/y` toward a target over time gets a
 // genuine Idle->Walk crossfade + correct facing "for free"; setting `dead`
 // gets the exact same collapse/topple animation a real kill uses.
-function spawnCutsceneActor(x, y, colors, scale, ranged){
-  const mesh = makeCharacter(colors, !!ranged);
+function spawnCutsceneActor(x, y, colors, scale, ranged, role='warlord'){
+  const mesh = makeCharacter(colors, !!ranged, role);
   mesh.scale.setScalar(scale);
   scene.add(mesh);
   const actor = { mesh, rec:{ mesh, fallDir:1, wasDead:false, deadT:0 }, ent:{ x, y, z:0 }, dead:false, animPhase:0 };
@@ -5891,7 +5965,7 @@ Object.defineProperty(window, '__breach', { configurable:true, get(){ return {
   switchWeapon, tryReload, damageEnemy, damagePlayer, handleNetEvent, awardCoins, flushPendingCoins,
   purchaseShieldTier, purchaseUpgrade, sendFriendRequest, respondToRequest, openChat,
   sendChatMessage, loadFriendsData, renderArmory, update, render3D, setZoom, resetJoy, el, escapeHtml,
-  refreshFlowFields, rebuildMapMeshes, spawnEnemy, makeCharacter, TYPES, SKINS, characterTemplate,
+  refreshFlowFields, rebuildMapMeshes, spawnEnemy, makeCharacter, TYPES, SKINS, characterTemplates,
   nextEnemyId, enemyMeshes, playerMeshes, useMedkit, medkitCap, MEDKIT_BASE_CAP, MEDKIT_BONUS_CAP, MEDKIT_HEAL,
 }; } });
 }
