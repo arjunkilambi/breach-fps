@@ -390,6 +390,12 @@
     <div class="mbtn ghost small" id="btnBackMapPick">Back</div>
   </div>
 
+  <div class="panelbox hide" id="menuStoryPick">
+    <div class="lbl">Choose Campaign</div>
+    <ul class="lobbylist" id="storyPickList"></ul>
+    <div class="mbtn ghost small" id="btnBackStoryPick">Back</div>
+  </div>
+
   <div class="panelbox hide" id="menuJoin">
     <input id="joinCode" maxlength="5" placeholder="ROOM CODE" autocomplete="off" spellcheck="false" />
     <div class="mbtn" id="btnJoinGo">Connect</div>
@@ -936,20 +942,53 @@ const MAPS = [
   { name:'Frostspire',  theme:'ice',      build:buildMap11, w:MAPW_11, h:MAPH_11, spawns:SPAWNS_11, pickups:PICKUPS_11, start:SPAWNS_11[0], ramps:RAMPS_11, safeZones:SAFEZONES_11, hazards:HAZARDS_11, large:true },
   { name:'Emberfall',   theme:'volcanic', build:buildMap12, w:MAPW_12, h:MAPH_12, spawns:SPAWNS_12, pickups:PICKUPS_12, start:SPAWNS_12[0], ramps:RAMPS_12, safeZones:SAFEZONES_12, hazards:HAZARDS_12, large:true },
 ];
-// Story Mode — a fixed 4-chapter campaign (exposition, two rising-action beats,
-// climax), reusing the Mega Warlord as each chapter's boss. Clearing a
-// chapter's warlord swaps the map and shows the next chapter's title card;
-// clearing the finale's warlord ends the run in victory.
-const STORY_CHAPTERS = [
-  { mapIndex:0,  title:'Chapter 1 — The Signal',
-    text:'Sector 7 has gone dark. You’re the only responder who made it past the perimeter.' },
-  { mapIndex:1,  title:'Chapter 2 — Into the Ice',
-    text:'Whatever broke containment came from the ice fields. The trail leads to Ring Circuit.' },
-  { mapIndex:4,  title:'Chapter 3 — The Furnace',
-    text:'The Foundry’s reactors are still hot. So is whatever has been nesting inside.' },
-  { mapIndex:11, title:'Chapter 4 — The Overlord',
-    text:'Emberfall. This is where it ends — one way or another.', finale:true },
+// Story Mode — a choice of fixed 4-chapter campaigns (exposition, two
+// rising-action beats, climax), each reusing the Mega Warlord as its
+// chapters' boss. Clearing a chapter's warlord swaps the map and shows the
+// next chapter's title card; clearing the finale's warlord ends the run in
+// victory. `selectedStory` (set from the Story picker) selects which of
+// these `STORIES` entries is active; every place that used to read
+// STORY_CHAPTERS directly now calls storyChapters() instead.
+const STORIES = [
+  { title:'The Signal', subtitle:'Sector 7 → Ring Circuit → The Foundry → Emberfall',
+    ending:'The Overlord falls. Sector 7 is silent again — whatever came through the breach came alone.',
+    chapters: [
+      { mapIndex:0,  title:'Chapter 1 — The Signal',
+        text:'Sector 7 has gone dark. You’re the only responder who made it past the perimeter.' },
+      { mapIndex:1,  title:'Chapter 2 — Into the Ice',
+        text:'Whatever broke containment came from the ice fields. The trail leads to Ring Circuit.' },
+      { mapIndex:4,  title:'Chapter 3 — The Furnace',
+        text:'The Foundry’s reactors are still hot. So is whatever has been nesting inside.' },
+      { mapIndex:11, title:'Chapter 4 — The Overlord',
+        text:'Emberfall. This is where it ends — one way or another.', finale:true },
+    ] },
+  { title:'Blackout Protocol', subtitle:'The Maze → The Pit → The Wastes → Dust Canyon',
+    ending:'The signal behind the blackout goes quiet. Somewhere under the Wastes, the maze keeps rebuilding itself — waiting for the next responder.',
+    chapters: [
+      { mapIndex:2, title:'Chapter 1 — Blackout',
+        text:'Every corridor in the complex looks the same now that the lights are out. Something rerouted the maze on purpose.' },
+      { mapIndex:6, title:'Chapter 2 — Under Pressure',
+        text:'The gas vents lead down, not out. Whatever’s herding you wants you in The Pit.' },
+      { mapIndex:7, title:'Chapter 3 — Surface Break',
+        text:'You clawed your way out into open wastes — and it followed you into the daylight.' },
+      { mapIndex:9, title:'Chapter 4 — Dead Reckoning',
+        text:'Dust Canyon, end of the line. Whatever’s been rerouting you built this trap to be its last.', finale:true },
+    ] },
+  { title:'Silent Front', subtitle:'Crossfire → Open Plaza → Skyline → Frostspire',
+    ending:'The front falls silent again. Frostspire’s peak is quiet, snow already burying what’s left of the Overlord — but Command logs three more signals just like it, elsewhere on the grid.',
+    chapters: [
+      { mapIndex:5, title:'Chapter 1 — First Contact',
+        text:'Crossfire’s comms went dead mid-transmission. Command wants boots on the ground, not answers.' },
+      { mapIndex:3, title:'Chapter 2 — No Man’s Land',
+        text:'The jungle pushed you out into open ground. Nowhere left to hide, and it knows that.' },
+      { mapIndex:8, title:'Chapter 3 — High Ground',
+        text:'It’s climbing to the ridgelines. Command thinks it’s trying to reach Frostspire.' },
+      { mapIndex:10, title:'Chapter 4 — Zero Hour',
+        text:'Frostspire’s summit, dead of winter. Whatever’s been herding this front ends here.', finale:true },
+    ] },
 ];
+let selectedStory = 0;
+function storyChapters(){ return STORIES[selectedStory].chapters; }
 let mapIndex = 0;
 let SPAWNS = MAPS[0].spawns, PICKUPS = MAPS[0].pickups, START = MAPS[0].start, RAMPS = MAPS[0].ramps || [];
 let SAFEZONES = MAPS[0].safeZones || [];
@@ -3745,7 +3784,7 @@ function megaArtifactTick(){
 }
 
 /* -------------------------------- Story Mode -------------------------------- */
-// A fixed-sequence narrative campaign — see STORY_CHAPTERS above. Chapter
+// A fixed-sequence narrative campaign — see STORIES above. Chapter
 // advancement/completion always goes through Net.emit so host/solo and every
 // client run the exact same transition (Net.emit calls handleNetEvent locally
 // too, so the host doesn't need a separate direct-call path).
@@ -3851,7 +3890,7 @@ function updateCutscene(dt){
 // Chapter 1 has no warlord to reveal yet — just an establishing shot over the
 // player's own spawn point, descending into the normal first-person view.
 function playIntroCutscene(onDone){
-  const ch = STORY_CHAPTERS[0];
+  const ch = storyChapters()[0];
   const gy = heightAt(START[0], START[1]);
   playCutscene([{
     fromPos:[START[0]-3, gy+9, START[1]-9], toPos:[START[0], gy+EYE_H, START[1]-0.01],
@@ -3879,7 +3918,7 @@ function playChapterRevealCutscene(ch, onDone){
 // animation a real kill triggers — updateCharacterVisual keys off `dead`),
 // camera pulling back from the wreckage.
 function playFinaleCutscene(onDone){
-  const ch = STORY_CHAPTERS[STORY_CHAPTERS.length-1];
+  const ch = storyChapters()[storyChapters().length-1];
   const sz = SAFEZONES[0] || { x:START[0]-2, y:START[1]-2, w:4, h:4 };
   const cx = sz.x + sz.w/2, cy = sz.y + sz.h/2;
   const gy = heightAt(cx, cy);
@@ -3897,7 +3936,7 @@ function playFinaleCutscene(onDone){
 // while MODE is 'story'.
 function advanceStoryChapter(){
   storyChapter++;
-  if(storyChapter >= STORY_CHAPTERS.length){ triggerStoryVictory(); return; }
+  if(storyChapter >= storyChapters().length){ triggerStoryVictory(); return; }
   Net.emit({ kind:'storychapter', chapter: storyChapter });
 }
 function triggerStoryVictory(){
@@ -4492,8 +4531,8 @@ function handleNetEvent(evt){
       break;
     case 'storychapter':
       storyChapter = evt.chapter;
-      applyStoryChapterMap(STORY_CHAPTERS[storyChapter]);
-      playChapterRevealCutscene(STORY_CHAPTERS[storyChapter], () => {});
+      applyStoryChapterMap(storyChapters()[storyChapter]);
+      playChapterRevealCutscene(storyChapters()[storyChapter], () => {});
       break;
     case 'storyfinale':
       playFinaleCutscene(() => {
@@ -4650,7 +4689,7 @@ const Net = (() => {
     }
     if(s.storyChapter !== undefined && s.storyChapter !== storyChapter && MODE === 'story'){
       storyChapter = s.storyChapter;   // late-join/reconnect: snap straight to the host's current chapter's map
-      applyStoryChapterMap(STORY_CHAPTERS[storyChapter]);
+      applyStoryChapterMap(storyChapters()[storyChapter]);
     }
     if(s.megaWarlordCycle !== undefined){
       ensureMegaCycle(wave);   // deterministic — recomputes this cycle's mega-artifact positions locally if needed
@@ -4732,7 +4771,7 @@ const Net = (() => {
         if(st) st.name = (msg.name || 'Player').slice(0,16);
         renderLobbyList();
         Net.emit({ kind:'join', name: st ? st.name : 'Player' });
-        safeSend(conn, { type:'welcome', id: conn.peer, mode: MODE, mapIndex, team: st ? st.team : 0 });
+        safeSend(conn, { type:'welcome', id: conn.peer, mode: MODE, mapIndex, team: st ? st.team : 0, story: selectedStory });
       } else {
         hostStep(conn.peer, msg);
       }
@@ -4886,7 +4925,7 @@ const Net = (() => {
           setNetMsg('Connected — waiting for the host to start…');
         });
         hostConn.on('data', msg => {
-          if(msg.type === 'welcome'){ MODE = msg.mode; mapIndex = msg.mapIndex; player.team = msg.team||0; el('lobbyMapLabel').textContent = 'Map: ' + MAPS[mapIndex].name; }
+          if(msg.type === 'welcome'){ MODE = msg.mode; mapIndex = msg.mapIndex; player.team = msg.team||0; selectedStory = msg.story||0; el('lobbyMapLabel').textContent = 'Map: ' + MAPS[mapIndex].name; }
           else if(msg.type === 'state') applySnapshot(msg);
           else if(msg.type === 'event') handleNetEvent(msg.evt);
           else if(msg.type === 'start'){ wavesMissionObjective = !!msg.missionObjective; beginMatch(); }
@@ -4987,8 +5026,33 @@ function setNetMsg(msg){
   if(c) c.textContent = msg;
 }
 function showPanel(id){
-  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse','menuMapPick','menuLogin','menuArmory','menuLegend','menuFriends','menuChat']) el(p).classList.toggle('hide', p !== id);
+  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse','menuMapPick','menuStoryPick','menuLogin','menuArmory','menuLegend','menuFriends','menuChat']) el(p).classList.toggle('hide', p !== id);
 }
+let pendingStoryHostMode = null;   // null = solo Story Mode; 'story' = hosting
+function showStoryPicker(hostMode){
+  pendingStoryHostMode = hostMode;
+  el('storyPickList').innerHTML = STORIES.map((s,i) => `<li class="roomrow mapRow">
+      <span>${escapeHtml(s.title)}<br><small>${escapeHtml(s.subtitle)}</small></span>
+      <span class="mbtn small pickStoryBtn" data-i="${i}">Select</span>
+    </li>`).join('');
+  showPanel('menuStoryPick');
+}
+el('storyPickList').addEventListener('click', e => {
+  const btn = e.target.closest('.pickStoryBtn');
+  if(!btn) return;
+  selectedStory = +btn.dataset.i;
+  storyChapter = 0; mapIndex = storyChapters()[0].mapIndex;
+  if(pendingStoryHostMode === 'story'){
+    showPanel('menuLobby');
+    Net.startHost('story');
+  } else {
+    MODE = 'story'; netMode = 'solo';
+    showPanel('');
+    el('keysPanel').classList.remove('hide');
+    el('btnDeploy').classList.remove('hide');
+  }
+});
+el('btnBackStoryPick').addEventListener('click', () => showPanel(pendingStoryHostMode === 'story' ? 'menuMulti' : 'menuMain'));
 let pendingHostMode = null;   // null = picking a map for solo; else 'coop'/'deathmatch'
 function showMapPicker(hostMode){
   pendingHostMode = hostMode;
@@ -5650,14 +5714,9 @@ el('btnMatchExit').addEventListener('click', () => {
 
 el('btnSolo').addEventListener('click', () => showMapPicker(null));
 el('btnMissions').addEventListener('click', () => showMapPicker('solo-mission'));
-// Story Mode's map is fixed per chapter, so it skips the map picker entirely —
-// same direct-to-deploy shape as 'solo-mission'.
-el('btnStory').addEventListener('click', () => {
-  storyChapter = 0; mapIndex = STORY_CHAPTERS[0].mapIndex; MODE = 'story'; netMode = 'solo';
-  showPanel('');
-  el('keysPanel').classList.remove('hide');
-  el('btnDeploy').classList.remove('hide');
-});
+// Story Mode picks a campaign (not a map — each campaign's maps are fixed
+// per chapter), so it routes through its own picker instead of showMapPicker.
+el('btnStory').addEventListener('click', () => showStoryPicker(null));
 el('btnMulti').addEventListener('click', () => showPanel('menuMulti'));
 el('btnBackMulti').addEventListener('click', () => showPanel('menuMain'));
 el('btnShowJoin').addEventListener('click', () => showPanel('menuJoin'));
@@ -5670,11 +5729,7 @@ el('btnHostTeams').addEventListener('click', () => showMapPicker('teams'));
 el('btnHostCTF').addEventListener('click', () => showMapPicker('ctf'));
 el('btnHostTag').addEventListener('click', () => showMapPicker('tag'));
 el('btnHostMission').addEventListener('click', () => showMapPicker('mission'));
-el('btnHostStory').addEventListener('click', () => {
-  storyChapter = 0; mapIndex = STORY_CHAPTERS[0].mapIndex;
-  showPanel('menuLobby');
-  Net.startHost('story');
-});
+el('btnHostStory').addEventListener('click', () => showStoryPicker('story'));
 el('btnTag5').addEventListener('click', () => Net.setTagMinutes(5));
 el('btnTag10').addEventListener('click', () => Net.setTagMinutes(10));
 el('btnTag15').addEventListener('click', () => Net.setTagMinutes(15));
@@ -5700,7 +5755,7 @@ el('btnPreset2v2').addEventListener('click', () => Net.setTeamPreset(2, 2));
 el('btnPreset3v3').addEventListener('click', () => Net.setTeamPreset(2, 3));
 
 function startGame(){
-  if(MODE === 'story'){ storyChapter = 0; mapIndex = STORY_CHAPTERS[0].mapIndex; }
+  if(MODE === 'story'){ storyChapter = 0; mapIndex = storyChapters()[0].mapIndex; }
   selectMap(mapIndex);
   applyWorldTheme(MAPS[mapIndex].theme || 'facility');
   clearRubble();
@@ -5762,8 +5817,8 @@ function startGame(){
   else if(MODE === 'campaign' && wavesMissionObjective)
                                  banner('Breach', `Hostiles inbound — recover all ${MISSION_ARTIFACT_COUNT} artifacts to win early`);
   else if(MODE === 'story'){
-    if(wave === 0) playIntroCutscene(() => banner(STORY_CHAPTERS[0].title, 'Hostiles inbound'));
-    else banner(STORY_CHAPTERS[storyChapter].title, 'Hostiles inbound');
+    if(wave === 0) playIntroCutscene(() => banner(storyChapters()[0].title, 'Hostiles inbound'));
+    else banner(storyChapters()[storyChapter].title, 'Hostiles inbound');
   }
   else                           banner('Breach', 'Hostiles inbound');
 }
@@ -5799,7 +5854,7 @@ function showMatchEndScreen(winnerName, winnerTeam, tagLoserName, missionWin, st
   document.exitPointerLock?.();
   if(storyWin){
     el('matchEndTitle').textContent = 'THE END';
-    el('matchEndSub').textContent = 'The Overlord falls. Sector 7 is silent again — whatever came through the breach came alone.';
+    el('matchEndSub').textContent = STORIES[selectedStory].ending;
   } else if(missionWin){
     el('matchEndTitle').textContent = 'MISSION COMPLETE!';
     el('matchEndSub').textContent = `All ${MISSION_ARTIFACT_COUNT} artifacts secured`;
