@@ -1558,6 +1558,15 @@ function applyWorldTheme(theme){
   ambientLight.color.set(cfg.ambient.color); ambientLight.intensity = cfg.ambient.i;
   hemiLight.color.set(cfg.hemi.sky); hemiLight.groundColor.set(cfg.hemi.ground); hemiLight.intensity = cfg.hemi.i;
   sunLight.color.set(cfg.sun.color); sunLight.intensity = cfg.sun.i;
+  paintSkyDome(
+    new THREE.Color(cfg.bg),                                   // horizon band matches the fog/background color it fades into
+    new THREE.Color(cfg.bg).lerp(new THREE.Color(cfg.hemi.sky), 0.6).lerp(new THREE.Color(0x0a1018), 0.15), // zenith: theme sky tint, slightly deepened
+    new THREE.Color(cfg.bg).lerp(new THREE.Color(0x000000), 0.6),
+  );
+  // distant scenery (sized off MAPW/MAPH) rebuilds unconditionally inside
+  // rebuildMapMeshes() instead of here — this function early-returns when the
+  // theme hasn't changed, but the map (and its dimensions) can still have
+  // changed even when two consecutive maps share a theme.
   rampMat.map?.dispose();
   rampMat.color.set(theme === 'facility' ? 0xffffff : 0xffffff);
   rampMat.map = rampMat.bumpMap = makeCanvasTex(textures[WALL.STONE], 2, 2);
@@ -1810,6 +1819,73 @@ const ambientLight = new THREE.AmbientLight(0x9fd0e8, 0.55); scene.add(ambientLi
 const hemiLight = new THREE.HemisphereLight(0xbfe8ff, 0x05080a, 0.35); scene.add(hemiLight);
 // outdoor worlds get a directional "sun" too (indoor facility maps leave it dim/off)
 const sunLight = new THREE.DirectionalLight(0xffffff, 0); sunLight.position.set(-12, 20, -8); scene.add(sunLight);
+
+// A vertex-colored gradient sky dome, replacing the flat single-color
+// `scene.background` — reads as a real (if simple) sky instead of a void once
+// the fog fades everything else out. Built once; repainted per theme by
+// applyWorldTheme(). fog:false so it stays crisp regardless of view distance —
+// it IS the thing beyond the fog, not something meant to fade into it.
+const SKY_R = VIEW * 4;
+const skyGeo = new THREE.SphereGeometry(SKY_R, 20, 14);
+skyGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(skyGeo.attributes.position.count * 3), 3));
+const skyMat = new THREE.MeshBasicMaterial({ vertexColors:true, side:THREE.BackSide, fog:false, depthWrite:false });
+const skyDome = new THREE.Mesh(skyGeo, skyMat);
+skyDome.renderOrder = -1000;
+scene.add(skyDome);
+function paintSkyDome(horizon, zenith, ground){
+  const pos = skyGeo.attributes.position, col = skyGeo.attributes.color;
+  const c = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const ny = pos.getY(i) / SKY_R;   // -1 (straight down) .. +1 (straight up)
+    if(ny >= -0.1) c.copy(horizon).lerp(zenith, clamp((ny+0.1)/0.45, 0, 1));
+    else c.copy(horizon).lerp(ground, clamp((-0.1-ny)/0.5, 0, 1));
+    col.setXYZ(i, c.r, c.g, c.b);
+  }
+  col.needsUpdate = true;
+}
+// Cheap low-poly silhouettes (mountains/treeline/structures depending on
+// theme) ringing the map just past the fog-out distance, so the world reads
+// as sitting in a place rather than dissolving into flat fog at the edges.
+// Flat-shaded (MeshBasicMaterial, no lighting) and instanced — a few dozen
+// large static triangles, negligible render cost — and left fog-affected
+// (unlike the sky dome) so they fade into the horizon instead of popping.
+const DISTANT_STYLE = {
+  facility: { shape:'box',  color:0x0d1720, heightMul:0.9 },
+  toxic:    { shape:'box',  color:0x2f3d12, heightMul:0.9 },
+  desert:   { shape:'peak', color:0x8a5a34, heightMul:1.25 },
+  volcanic: { shape:'peak', color:0x321109, heightMul:1.5 },
+  ice:      { shape:'peak', color:0xcfe9f5, heightMul:1.6 },
+  jungle:   { shape:'peak', color:0x1c3512, heightMul:0.65 },
+};
+const DISTANT_PEAK_GEO = new THREE.ConeGeometry(0.5, 1, 5);
+const DISTANT_BOX_GEO  = new THREE.BoxGeometry(1, 1, 1);
+let distantScenery = null;
+function buildDistantScenery(){
+  if(distantScenery) scene.remove(distantScenery);
+  const theme = MAPS[mapIndex].theme || 'facility';
+  const style = DISTANT_STYLE[theme] || DISTANT_STYLE.facility;
+  const geo = style.shape === 'peak' ? DISTANT_PEAK_GEO : DISTANT_BOX_GEO;
+  const mat = new THREE.MeshBasicMaterial({ color: style.color, fog:true });
+  const cx = MAPW/2, cy = MAPH/2;
+  const R = Math.max(MAPW, MAPH) * 0.85 + VIEW * 1.3;
+  const N = 30;
+  distantScenery = new THREE.InstancedMesh(geo, mat, N);
+  const m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  const yAxis = new THREE.Vector3(0,1,0);
+  for(let i=0;i<N;i++){
+    const a = (i/N)*Math.PI*2 + (Math.random()-0.5)*0.18;
+    const r = R * (0.92 + Math.random()*0.18);
+    const h = (VIEW*0.55 + Math.random()*VIEW*0.85) * style.heightMul;
+    const w = VIEW*(0.45+Math.random()*0.55);
+    p.set(cx + Math.cos(a)*r, h/2 - 1.2, cy + Math.sin(a)*r);
+    q.setFromAxisAngle(yAxis, Math.random()*Math.PI*2);
+    s.set(w, h, w);
+    m.compose(p, q, s);
+    distantScenery.setMatrixAt(i, m);
+  }
+  distantScenery.instanceMatrix.needsUpdate = true;
+  scene.add(distantScenery);
+}
 const headlamp = new THREE.PointLight(0xcfeeff, 0.85, 9, 2); camera.add(headlamp);
 const muzzleLight = new THREE.PointLight(0xffcf8a, 0, 6, 2); camera.add(muzzleLight);
 
@@ -1997,6 +2073,7 @@ function rebuildMapMeshes(){
     }
   }
   scene.add(hazardGroup);
+  buildDistantScenery();
 }
 
 /* ---- characters (players + enemies): real rigged GLTF model, with a boxy
