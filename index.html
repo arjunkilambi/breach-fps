@@ -1486,63 +1486,66 @@ function buildToxicTextures(){
 const THEME_TEXTURES = { desert: buildDesertTextures(), ice: buildIceTextures(), volcanic: buildVolcanicTextures(),
   jungle: buildJungleTextures(), toxic: buildToxicTextures() };
 
-// Palette tuned for a gritty, desaturated tactical-shooter look (muted earth
-// tones, overcast/ash skies, restrained accent glow) instead of the bright,
-// saturated "video-gamey" colors this started with — closer to how a modern
-// military shooter lights its levels than a fantasy one.
+// Palette calibrated to Black Ops 7's actual direction specifically, not
+// generic "realistic military shooter": vibrant, colorful bases (its maps
+// read closer to Black Ops Cold War than the muted realism of Black Ops 6)
+// with bright neon-tech accents deliberately layered over cold, dark
+// espionage architecture — that contrast (not uniform desaturation) is the
+// signature, so the TECH accent below is punched up hard everywhere while
+// the structural materials stay grounded.
 const WORLD_THEMES = {
-  facility: { fogColor:0x0a0c0e, fogNear:3, fogFarMul:1, bg:0x0a0c0e,
-    ambient:{color:0x8a9aa2, i:0.42}, hemi:{sky:0x9aa8ac, ground:0x05080a, i:0.28}, sun:{color:0xd8e0e2, i:0},
+  facility: { fogColor:0x080c10, fogNear:3, fogFarMul:1, bg:0x080c10,
+    ambient:{color:0x6a90b5, i:0.4}, hemi:{sky:0x5ab0e0, ground:0x05080a, i:0.32}, sun:{color:0xd8e0e2, i:0},
     mats: {
       [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.METAL]:  { roughness:0.45, metalness:0.55, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.TECH]:   { roughness:0.7,  metalness:0, emissive:0x2a8fc0, emissiveIntensity:0.28, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.42, metalness:0.6, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.55, metalness:0, emissive:0x28d0ff, emissiveIntensity:0.75, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.8, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,3] },
     } },
-  desert: { fogColor:0x9c8262, fogNear:3, fogFarMul:1, bg:0xb0977a,
-    ambient:{color:0xe8cfa0, i:0.42}, hemi:{sky:0xd8c2a0, ground:0x5a4530, i:0.4}, sun:{color:0xffdfae, i:1.05},
+  desert: { fogColor:0xb8895a, fogNear:3, fogFarMul:1, bg:0xc79c66,
+    ambient:{color:0xffd9a0, i:0.55}, hemi:{sky:0xffcf90, ground:0x6a4a28, i:0.48}, sun:{color:0xffe0ab, i:1.2},
     mats: {
       [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.METAL]:  { roughness:0.5,  metalness:0.55, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.TECH]:   { roughness:0.6,  metalness:0, emissive:0xd68a2c, emissiveIntensity:0.3, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.48, metalness:0.55, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.55, metalness:0, emissive:0xff9822, emissiveIntensity:0.55, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.88,metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
-  ice: { fogColor:0x8fa4ad, fogNear:3, fogFarMul:1, bg:0x9db2ba,
-    ambient:{color:0xc8dbe0, i:0.48}, hemi:{sky:0xd0e0e5, ground:0x384850, i:0.38}, sun:{color:0xdfeef2, i:0.75},
+  ice: { fogColor:0x9dc2d8, fogNear:3, fogFarMul:1, bg:0xaad2e6,
+    ambient:{color:0xd8ecf8, i:0.6}, hemi:{sky:0xc8ecff, ground:0x2c4a60, i:0.48}, sun:{color:0xe8faff, i:0.95},
     mats: {
       [WALL.BRICK]:  { roughness:0.3,  metalness:0.05, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.8,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.METAL]:  { roughness:0.4,  metalness:0.6, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.TECH]:   { roughness:0.45, metalness:0, emissive:0x4aa8c0, emissiveIntensity:0.35, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.38, metalness:0.62, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.4,  metalness:0, emissive:0x40d0ff, emissiveIntensity:0.65, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.35,metalness:0.1, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
-  volcanic: { fogColor:0x362018, fogNear:2.4, fogFarMul:0.82, bg:0x2e1811,
-    ambient:{color:0xd8845a, i:0.38}, hemi:{sky:0xc85a3a, ground:0x160604, i:0.48}, sun:{color:0xe86038, i:0.75},
+  volcanic: { fogColor:0x30180f, fogNear:2.4, fogFarMul:0.82, bg:0x28140d,
+    ambient:{color:0xe8895a, i:0.42}, hemi:{sky:0xd8623a, ground:0x180604, i:0.5}, sun:{color:0xf06838, i:0.85},
     mats: {
       [WALL.BRICK]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.5,  metalness:0.2, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.METAL]:  { roughness:0.55, metalness:0.55, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.TECH]:   { roughness:0.55, metalness:0, emissive:0xe84010, emissiveIntensity:0.6, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.52, metalness:0.58, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.5,  metalness:0, emissive:0xff4400, emissiveIntensity:0.8, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.7, metalness:0.1, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
-  jungle: { fogColor:0x4a5c3e, fogNear:2.8, fogFarMul:0.75, bg:0x566e48,
-    ambient:{color:0x7a9560, i:0.38}, hemi:{sky:0x8a9f74, ground:0x1a2a12, i:0.32}, sun:{color:0xb8d89a, i:0.65},
+  jungle: { fogColor:0x4f7a3e, fogNear:2.8, fogFarMul:0.75, bg:0x5c8a48,
+    ambient:{color:0x9fd87a, i:0.48}, hemi:{sky:0xa8e888, ground:0x1c3512, i:0.4}, sun:{color:0xd0ffb0, i:0.78},
     mats: {
       [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.METAL]:  { roughness:0.55, metalness:0.4, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.TECH]:   { roughness:0.65, metalness:0, emissive:0x5ad080, emissiveIntensity:0.3, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.5,  metalness:0.42, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.6,  metalness:0, emissive:0x6dffa0, emissiveIntensity:0.55, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.85,metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
-  toxic: { fogColor:0x5a6238, fogNear:2.6, fogFarMul:0.85, bg:0x4e5630,
-    ambient:{color:0x8a9a52, i:0.36}, hemi:{sky:0x7a8a46, ground:0x222a08, i:0.36}, sun:{color:0x9aae5c, i:0.55},
+  toxic: { fogColor:0x6a7a30, fogNear:2.6, fogFarMul:0.85, bg:0x5c6c26,
+    ambient:{color:0xaaff66, i:0.42}, hemi:{sky:0x9cff50, ground:0x263208, i:0.44}, sun:{color:0xb8ff70, i:0.62},
     mats: {
       [WALL.BRICK]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.85, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.METAL]:  { roughness:0.5,  metalness:0.45, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
-      [WALL.TECH]:   { roughness:0.6,  metalness:0, emissive:0x8ad83a, emissiveIntensity:0.45, repeat:[1,1] },
+      [WALL.METAL]:  { roughness:0.48, metalness:0.48, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
+      [WALL.TECH]:   { roughness:0.55, metalness:0, emissive:0xb0ff3a, emissiveIntensity:0.7, repeat:[1,1] },
       [WALL.BUILDING]:{ roughness:0.8, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
 };
