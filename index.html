@@ -2273,6 +2273,7 @@ function makeGunModel(){
   const grip   = new THREE.Mesh(new THREE.BoxGeometry(0.055,0.16,0.055), dark); grip.position.set(0,-0.13,0.13); grip.rotation.x = 0.32;
   const mag    = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.13,0.05), steel); mag.position.set(0,-0.15,0.03); mag.rotation.x = 0.1;
   g.add(barrel, body, grip, mag);
+  for(const part of [barrel, body, grip, mag]) addMeshOutline(part, g, 1.18, 0x0c0e0a);
   const flashMesh = new THREE.Mesh(new THREE.SphereGeometry(0.06,8,6),
     new THREE.MeshBasicMaterial({ color:0xffe0a0, transparent:true, opacity:0 }));
   flashMesh.position.set(0, 0.015, -0.5);
@@ -2548,6 +2549,10 @@ function rebuildPickupMeshes(){
     const isChest = p.kind === 'weapon';
     const mesh = new THREE.Mesh(isChest ? chestGeo : pickupGeo, isChest ? weaponChestMats[p.weaponKey] : pickupMats[p.kind]);
     mesh.position.set(p.x, 0.4, p.y);
+    // outline parented directly to the pickup mesh itself (not a sibling with
+    // a copied transform) so it spins in lockstep automatically — pickups
+    // continuously rotate every frame in syncPickupMeshes() below
+    addMeshOutline(mesh, mesh, 1.14, 0x0c0e0a).position.set(0,0,0);
     scene.add(mesh);
     return mesh;
   });
@@ -2567,6 +2572,7 @@ function buildFlagMesh(team){
     toonMat({ color:0xcccccc, roughness:0.4, metalness:0.5 }));
   pole.position.y = 0.55;
   g.add(pole);
+  addMeshOutline(pole, g, 1.25, 0x0c0e0a);   // the flat cloth plane is skipped — a zero-thickness inverted hull doesn't read cleanly
   const color = SKINS[team % SKINS.length].body;
   const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.34,0.22),
     toonMat({ color, emissive:color, emissiveIntensity:0.5, side:THREE.DoubleSide }));
@@ -2967,6 +2973,12 @@ function gsphere(r,mat,x,y,z){
 function makeGunGroup(parts, flashPos){
   const g = new THREE.Group();
   g.add(...parts);
+  // Per-part outlines (each gbox/gcyl part is small/non-skinned, so the
+  // simple scale-based inverted-hull trick — proven on the character
+  // pauldrons/weapon glTFs — applies directly) so the procedural weapons
+  // (smg/shotgun/sniper/lmg, and enemy hand-guns via makeGunModel below)
+  // match the cel-shaded outline look everything else in the scene now has.
+  for(const part of parts) addMeshOutline(part, g, 1.16, 0x0c0e0a);
   const flash = new THREE.PointLight(0xffcf8a, 0, 3, 2); flash.position.copy(flashPos); g.add(flash);
   g.userData = { flash };
   g.visible = false;
