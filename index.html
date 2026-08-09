@@ -485,9 +485,19 @@
   import * as THREE from 'three';
   import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
   import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
+  import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+  import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+  import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+  import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+  import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
   window.THREE = THREE;
   window.GLTFLoader = GLTFLoader;
   window.skeletonClone = skeletonClone;
+  window.EffectComposer = EffectComposer;
+  window.RenderPass = RenderPass;
+  window.UnrealBloomPass = UnrealBloomPass;
+  window.ShaderPass = ShaderPass;
+  window.OutputPass = OutputPass;
   window.dispatchEvent(new Event('THREE_READY'));
 </script>
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -1559,7 +1569,9 @@ function applyWorldTheme(theme){
     textures[k] = set[k];
     const m = wallMats[k], mc = cfg.mats[k];
     if(m.map) m.map.dispose();
-    m.map = m.bumpMap = makeCanvasTex(textures[k], mc.repeat[0], mc.repeat[1]);
+    if(m.normalMap) m.normalMap.dispose();
+    m.map = makeCanvasTex(textures[k], mc.repeat[0], mc.repeat[1]);
+    m.normalMap = makeNormalTex(textures[k], mc.repeat[0], mc.repeat[1]);
     m.roughness = mc.roughness; m.metalness = mc.metalness;
     m.emissive.set(mc.emissive); m.emissiveIntensity = mc.emissiveIntensity;
     m.needsUpdate = true;
@@ -1587,9 +1599,11 @@ function applyWorldTheme(theme){
   // theme hasn't changed, but the map (and its dimensions) can still have
   // changed even when two consecutive maps share a theme.
   rampMat.map?.dispose();
+  rampMat.normalMap?.dispose();
   rampMat.color.set(theme === 'facility' ? 0xffffff : 0xffffff);
-  rampMat.map = rampMat.bumpMap = makeCanvasTex(textures[WALL.STONE], 2, 2);
-  rampMat.bumpScale = 0.05;
+  rampMat.map = makeCanvasTex(textures[WALL.STONE], 2, 2);
+  rampMat.normalMap = makeNormalTex(textures[WALL.STONE], 2, 2);
+  rampMat.normalScale.set(1.1, 1.1);
   rampMat.roughness = cfg.mats[WALL.STONE].roughness;
   rampMat.needsUpdate = true;
 }
@@ -1692,7 +1706,14 @@ const ctx2d = nameOverlay.getContext('2d');           // nameplates only — the
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.shadowMap.enabled = false;                   // keep it light — this is a browser tab, not a AAA engine
+// Real-time shadows from the sun — the single biggest remaining lever for
+// "does this look real": contact shadows under characters/cover, walls
+// occluding each other, instead of everything looking equally lit. Soft PCF
+// filtering costs more than hard shadows but reads far less like a 2005
+// engine. The shadow camera follows the player every frame (see render3D) —
+// a fixed frustum can't cover maps up to 128x96 units.
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 // Filmic tone mapping — single biggest lever for a "real game" look instead
 // of flat/raw lighting: highlights roll off naturally instead of clipping to
 // solid white, shadows read with more depth. This is what most modern AAA
@@ -1704,6 +1725,66 @@ scene.background = new THREE.Color(0x05080a);
 const camera = new THREE.PerspectiveCamera(78, 1, 0.05, 60);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
+
+// Post-processing: SELECTIVE bloom, not a naive full-screen luminance
+// threshold. A plain threshold pass also catches anything merely bright —
+// sun-lit sand, the cloud/haze sprites — and blows them into glowing white
+// blobs that have nothing to do with light emission. Real engines bloom only
+// things that actually emit light (neon signage, lava, muzzle flash), so
+// this renders the scene TWICE: once with everything except bloom-tagged
+// objects hidden (via camera.layers) to get an isolated glow source, blurs
+// that, then additively composites it over the normal full render.
+// Any mesh that should glow gets `.layers.enable(BLOOM_LAYER)` — see
+// applyBloomLayer() below, called at every emissive-material creation site
+// (tech walls, muzzle flashes, pickups, flags, artifacts, tritium sights,
+// character eye-glow).
+const BLOOM_LAYER = 1;
+const bloomLayers = new THREE.Layers();
+bloomLayers.set(BLOOM_LAYER);
+
+const bloomComposer = new EffectComposer(renderer);
+bloomComposer.renderToScreen = false;
+bloomComposer.addPass(new RenderPass(scene, camera));
+// UnrealBloomPass is tuned for point-source glow (a neon sign, a muzzle
+// flash) — it blows out completely once a bloom-tagged surface fills a
+// large fraction of the screen (standing close to a tech/lava wall), since
+// its contribution scales with the *area* of bright pixels, not just their
+// count. Kept deliberately restrained (low strength/radius) for exactly
+// that case; still reads as a clear glow on flashes/sights/small emissive
+// props, just doesn't wash the whole frame out up close on a big surface.
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.25, 0.2);
+bloomComposer.addPass(bloomPass);
+
+const bloomMixShader = {
+  uniforms: { baseTexture: { value: null }, bloomTexture: { value: bloomComposer.renderTarget2.texture } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `uniform sampler2D baseTexture; uniform sampler2D bloomTexture; varying vec2 vUv;
+    void main(){ gl_FragColor = texture2D(baseTexture, vUv) + vec4(1.0) * texture2D(bloomTexture, vUv); }`,
+};
+const bloomMixPass = new ShaderPass(new THREE.ShaderMaterial(bloomMixShader), 'baseTexture');
+bloomMixPass.needsSwap = true;
+
+// OutputPass is required here — without it the renderer's own tone mapping/
+// color-space conversion never gets applied to the composited result.
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(bloomMixPass);
+composer.addPass(new OutputPass());
+
+// Recursively flags every mesh in `root` whose material actually emits
+// light (non-black `emissive`, meaningful `emissiveIntensity`) for the
+// bloom-only render pass above. Call after building/coloring any new mesh —
+// safe to call redundantly (setting a layer bit twice is a no-op).
+function isBloomMaterial(m){
+  return !!(m && m.emissive && m.emissive.getHex() !== 0 && (m.emissiveIntensity === undefined || m.emissiveIntensity > 0.02));
+}
+function applyBloomLayer(root){
+  root.traverse(child => {
+    if(!child.isMesh || !child.material) return;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    if(mats.some(isBloomMaterial)) child.layers.enable(BLOOM_LAYER);
+  });
+}
 
 // recoilKick: added to camera pitch (radians) per shot, decaying automatically
 // (see the recoil decay in update()) — this is a VIEW/aim offset, never the
@@ -1792,6 +1873,8 @@ function resize(){
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
   renderer.setSize(w, h);
+  composer.setSize(w, h);
+  bloomComposer.setSize(w, h);
   camera.aspect = w/h;
   camera.updateProjectionMatrix();
   nameOverlay.width = w; nameOverlay.height = h;
@@ -1844,6 +1927,21 @@ const ambientLight = new THREE.AmbientLight(0x9fd0e8, 0.55); scene.add(ambientLi
 const hemiLight = new THREE.HemisphereLight(0xbfe8ff, 0x05080a, 0.35); scene.add(hemiLight);
 // outdoor worlds get a directional "sun" too (indoor facility maps leave it dim/off)
 const sunLight = new THREE.DirectionalLight(0xffffff, 0); sunLight.position.set(-12, 20, -8); scene.add(sunLight);
+scene.add(sunLight.target);
+// Real shadow-casting sun. Its position/target get re-centered on the
+// camera every frame (render3D) — a directional light's shadow camera is a
+// fixed-size box, so with a fixed position it'd only ever cover a ~68-unit
+// patch around the map origin and go dark everywhere else on a 128x96 map.
+const SUN_SHADOW_DIST = 60;                          // how far back along SUN_DIR the light "sits"
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.near = 1;
+sunLight.shadow.camera.far = SUN_SHADOW_DIST + 100;
+sunLight.shadow.camera.left = -VIEW; sunLight.shadow.camera.right = VIEW;
+sunLight.shadow.camera.top = VIEW; sunLight.shadow.camera.bottom = -VIEW;
+sunLight.shadow.bias = -0.0015;
+sunLight.shadow.normalBias = 0.025;
+sunLight.shadow.camera.updateProjectionMatrix();
 
 // A vertex-colored gradient sky dome, replacing the flat single-color
 // `scene.background` — reads as a real (if simple) sky instead of a void once
@@ -1985,21 +2083,63 @@ function makeCanvasTex(canvasEl, rx=1, ry=1){
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-// bumpMap reuses the exact same canvas source as `map` (Three.js is happy to
-// share one Texture object across both slots) — turns the noise/crack/rivet
-// patterns already painted into the diffuse texture into real surface relief
-// the scene's lights actually shade, instead of flat-looking painted-on detail.
+// Real per-pixel normal map, Sobel-derived from the same canvas's luminance,
+// instead of Three's screen-space-derivative bumpMap — same "the noise/
+// crack/rivet pattern already painted into the diffuse texture becomes real
+// shaded relief" idea, but a precomputed normal map lights more cleanly
+// (bumpMap's derivative approach can alias/shimmer, especially under the
+// shadow map's own filtering). Wraps at the edges so a tiled/repeated
+// texture's normals don't show a seam where the gradient doesn't continue.
+function canvasToNormalCanvas(sourceCanvas, strength){
+  const w = sourceCanvas.width, h = sourceCanvas.height;
+  const srcData = sourceCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const height = new Float32Array(w*h);
+  for(let i=0;i<w*h;i++){
+    height[i] = (0.299*srcData[i*4] + 0.587*srcData[i*4+1] + 0.114*srcData[i*4+2]) / 255;
+  }
+  const at = (x,y) => height[((y%h+h)%h)*w + ((x%w+w)%w)];
+  const out = document.createElement('canvas');
+  out.width = w; out.height = h;
+  const octx = out.getContext('2d');
+  const img = octx.createImageData(w, h);
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const tl=at(x-1,y-1), t=at(x,y-1), tr=at(x+1,y-1);
+      const l=at(x-1,y),           r=at(x+1,y);
+      const bl=at(x-1,y+1), b=at(x,y+1), br=at(x+1,y+1);
+      const dx = (tr + 2*r + br) - (tl + 2*l + bl);
+      const dy = (bl + 2*b + br) - (tl + 2*t + tr);
+      let nx = -dx*strength, ny = -dy*strength, nz = 1;
+      const len = Math.hypot(nx, ny, nz);
+      nx/=len; ny/=len; nz/=len;
+      const idx = (y*w+x)*4;
+      img.data[idx]   = (nx*0.5+0.5)*255;
+      img.data[idx+1] = (ny*0.5+0.5)*255;
+      img.data[idx+2] = (nz*0.5+0.5)*255;
+      img.data[idx+3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  return out;
+}
+function makeNormalTex(canvasEl, rx=1, ry=1, strength=1.6){
+  const t = new THREE.CanvasTexture(canvasToNormalCanvas(canvasEl, strength));
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  t.magFilter = THREE.LinearFilter;
+  return t;
+}
 const wallMats = {
-  [WALL.BRICK]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BRICK]), roughness:0.95, bumpScale:0.045 }),
-  [WALL.STONE]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.STONE]), roughness:0.9, bumpScale:0.05 }),
-  [WALL.METAL]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.METAL]), roughness:0.5, metalness:0.4, bumpScale:0.03 }),
+  [WALL.BRICK]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BRICK]), roughness:0.95, normalScale:new THREE.Vector2(1.1,1.1) }),
+  [WALL.STONE]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.STONE]), roughness:0.9, normalScale:new THREE.Vector2(1.2,1.2) }),
+  [WALL.METAL]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.METAL]), roughness:0.5, metalness:0.4, normalScale:new THREE.Vector2(0.7,0.7) }),
   [WALL.TECH] : new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.TECH]), roughness:0.7,
-                  emissive:0x3fc8ff, emissiveIntensity:0.35, bumpScale:0.025 }),
-  [WALL.BUILDING]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BUILDING], 1, 3), roughness:0.8, bumpScale:0.04 }),
+                  emissive:0x3fc8ff, emissiveIntensity:0.35, normalScale:new THREE.Vector2(0.55,0.55) }),
+  [WALL.BUILDING]: new THREE.MeshStandardMaterial({ map: makeCanvasTex(textures[WALL.BUILDING], 1, 3), roughness:0.8, normalScale:new THREE.Vector2(0.9,0.9) }),
 };
-for(const k in wallMats) wallMats[k].bumpMap = wallMats[k].map;
-const floorMat = new THREE.MeshStandardMaterial({ roughness:1, bumpScale:0.05 });
-const ceilMat  = new THREE.MeshStandardMaterial({ roughness:1, side:THREE.DoubleSide, bumpScale:0.05 });
+for(const k in wallMats) wallMats[k].normalMap = makeNormalTex(textures[k], wallMats[k].map.repeat.x, wallMats[k].map.repeat.y);
+const floorMat = new THREE.MeshStandardMaterial({ roughness:1, normalScale:new THREE.Vector2(1,1) });
+const ceilMat  = new THREE.MeshStandardMaterial({ roughness:1, side:THREE.DoubleSide, normalScale:new THREE.Vector2(1,1) });
 const rampMat  = wallMats[WALL.STONE].clone(); rampMat.side = THREE.DoubleSide;
 // Irregular wall geometry: a subdivided box with its TOP verts jittered (via
 // cheap sine "noise", deterministic per variant) into a jagged, non-flat
@@ -2030,8 +2170,12 @@ const BUILDING_GEO_VARIANTS = [0,1,2].map(i => makeIrregularBoxGeometry(BUILD_H,
 function refreshFloorCeilTex(){
   if(floorMat.map) floorMat.map.dispose();
   if(ceilMat.map)  ceilMat.map.dispose();
-  floorMat.map = floorMat.bumpMap = makeCanvasTex(textures[5], MAPW, MAPH);
-  ceilMat.map  = ceilMat.bumpMap  = makeCanvasTex(textures[6], MAPW, MAPH);
+  if(floorMat.normalMap) floorMat.normalMap.dispose();
+  if(ceilMat.normalMap)  ceilMat.normalMap.dispose();
+  floorMat.map = makeCanvasTex(textures[5], MAPW, MAPH);
+  ceilMat.map  = makeCanvasTex(textures[6], MAPW, MAPH);
+  floorMat.normalMap = makeNormalTex(textures[5], MAPW, MAPH);
+  ceilMat.normalMap  = makeNormalTex(textures[6], MAPW, MAPH);
 }
 
 /* ---- ramp/platform mesh: a closed solid built from explicit quads (top
@@ -2106,15 +2250,18 @@ function rebuildMapMeshes(){
     inst[t][vi].setMatrixAt(cursor[t][vi]++, m);
   }
   wallGroup = new THREE.Group();
-  for(const k in inst) for(const mesh of inst[k]) wallGroup.add(mesh);
+  for(const k in inst) for(const mesh of inst[k]){ mesh.castShadow = true; mesh.receiveShadow = true; wallGroup.add(mesh); }
+  applyBloomLayer(wallGroup);   // only the TECH-type instances actually carry an emissive material
   scene.add(wallGroup);
 
   floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(MAPW, MAPH), floorMat);
   floorMesh.rotation.x = -Math.PI/2; floorMesh.position.set(MAPW/2, 0, MAPH/2);
+  floorMesh.receiveShadow = true;
   scene.add(floorMesh);
 
   ceilMesh = new THREE.Mesh(new THREE.PlaneGeometry(MAPW, MAPH), ceilMat);
   ceilMesh.rotation.x = Math.PI/2; ceilMesh.position.set(MAPW/2, CEIL_H, MAPH/2);
+  ceilMesh.receiveShadow = true;
   scene.add(ceilMesh);
 
   rampGroup = new THREE.Group();
@@ -2122,6 +2269,7 @@ function rebuildMapMeshes(){
     if(r.destroyed) continue;
     const mesh = new THREE.Mesh(buildRampGeometry(r), rampMat);
     mesh.userData.ramp = r;
+    mesh.castShadow = true; mesh.receiveShadow = true;
     rampGroup.add(mesh);
   }
   scene.add(rampGroup);
@@ -2208,7 +2356,9 @@ function makeCharacterBox(colors){
   const eyes = new THREE.Mesh(EYE_GEO, eyeMat); eyes.position.set(0, 0.90, 0.115);
 
   leanGroup.add(legL, legR, torso, belt, armL, armR, head, eyes);
+  for(const part of [legL, legR, torso, belt, armL, armR, head, eyes]){ part.castShadow = true; part.receiveShadow = true; }
   yawGroup.userData = { legL, legR, armL, armR, torso, head, bodyMat, leanGroup };
+  applyBloomLayer(yawGroup);   // catches the emissive eyeMat
   return yawGroup;
 }
 // small procedural rifle, hand-scale (not camera-scale like the WEAPON_MODELS
@@ -2222,10 +2372,12 @@ function makeGunModel(){
   const body   = new THREE.Mesh(new THREE.BoxGeometry(0.085,0.11,0.24), dark); body.position.set(0,-0.01,0.03);
   const grip   = new THREE.Mesh(new THREE.BoxGeometry(0.055,0.16,0.055), dark); grip.position.set(0,-0.13,0.13); grip.rotation.x = 0.32;
   const mag    = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.13,0.05), steel); mag.position.set(0,-0.15,0.03); mag.rotation.x = 0.1;
+  for(const part of [barrel, body, grip, mag]) part.castShadow = true;
   g.add(barrel, body, grip, mag);
   const flashMesh = new THREE.Mesh(new THREE.SphereGeometry(0.06,8,6),
     new THREE.MeshBasicMaterial({ color:0xffe0a0, transparent:true, opacity:0 }));
   flashMesh.position.set(0, 0.015, -0.5);
+  flashMesh.layers.enable(BLOOM_LAYER);   // MeshBasicMaterial has no `emissive` for the generic tagger to catch
   g.add(flashMesh);
   const flashLight = new THREE.PointLight(0xffcf8a, 0, 3, 2);
   flashLight.position.copy(flashMesh.position);
@@ -2263,6 +2415,7 @@ function makeCharacterGLTF(colors, armed, role){
       mat.color?.multiply(tint);
       child.material = mat;
       materials.push(mat);
+      child.castShadow = true; child.receiveShadow = true;
     }
   });
 
@@ -2295,6 +2448,7 @@ function makeCharacterGLTF(colors, armed, role){
   // Unarmed characters (no gun prop) are the game's melee types — they should
   // throw a punch on `attacking`, not mime aiming an invisible gun.
   yawGroup.userData = { mixer, actions, materials, leanGroup, gun, meleeStyle: !armed };
+  applyBloomLayer(yawGroup);   // catches any emissive visor/eye material baked into the source glb
   return yawGroup;
 }
 function makeCharacter(colors, armed, role='trooper'){
@@ -2507,6 +2661,8 @@ function rebuildPickupMeshes(){
     const isChest = p.kind === 'weapon';
     const mesh = new THREE.Mesh(isChest ? chestGeo : pickupGeo, isChest ? weaponChestMats[p.weaponKey] : pickupMats[p.kind]);
     mesh.position.set(p.x, 0.4, p.y);
+    mesh.castShadow = true;
+    mesh.layers.enable(BLOOM_LAYER);
     scene.add(mesh);
     return mesh;
   });
@@ -2525,12 +2681,14 @@ function buildFlagMesh(team){
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,1.1,6),
     new THREE.MeshStandardMaterial({ color:0xcccccc, roughness:0.4, metalness:0.5 }));
   pole.position.y = 0.55;
+  pole.castShadow = true;
   g.add(pole);
   const color = SKINS[team % SKINS.length].body;
   const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.34,0.22),
     new THREE.MeshStandardMaterial({ color, emissive:color, emissiveIntensity:0.5, side:THREE.DoubleSide }));
   cloth.position.set(0.17, 0.92, 0);
   g.add(cloth);
+  applyBloomLayer(g);
   return g;
 }
 function rebuildFlagMeshes(){
@@ -2550,11 +2708,13 @@ function buildArtifactMesh(){
   const g = new THREE.Group();
   const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0),
     new THREE.MeshStandardMaterial({ color:0xffd479, emissive:0xffb347, emissiveIntensity:0.35, roughness:0.4 }));
+  core.castShadow = true;
   g.add(core);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.014, 8, 20),
     new THREE.MeshStandardMaterial({ color:0xb26aff, emissive:0xb26aff, emissiveIntensity:0.28 }));
   ring.rotation.x = Math.PI/2.3;
   g.add(ring);
+  applyBloomLayer(g);
   return g;
 }
 function rebuildArtifactMeshes(){
@@ -2582,6 +2742,7 @@ function buildMegaArtifactMesh(){
   const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0),
     new THREE.MeshStandardMaterial({ color:0x2a0a0a, emissive:0xff2020, emissiveIntensity:0.2, wireframe:true }));
   g.add(shard);
+  applyBloomLayer(g);
   return g;
 }
 function rebuildMegaArtifactMeshes(){
@@ -2711,6 +2872,7 @@ function spawnMuzzleSmokeFX(px, py, ang){
 function spawnDebrisFX(geometry, material, footX, footY, meshY, preferredDir, climb){
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.y = meshY;
+  mesh.castShadow = true; mesh.receiveShadow = true;
   const group = new THREE.Group();
   group.position.set(footX, 0, footY);
   group.add(mesh);
@@ -2927,7 +3089,15 @@ function makeGunGroup(parts, flashPos){
   const g = new THREE.Group();
   g.add(...parts);
   const flash = new THREE.PointLight(0xffcf8a, 0, 3, 2); flash.position.copy(flashPos); g.add(flash);
-  g.userData = { flash };
+  // a real visible muzzle-flash flare, not just the point light illuminating
+  // nearby surfaces — matches what enemy/other-player guns already show, and
+  // is what actually blooms since a bare PointLight isn't bloom-taggable
+  const flashMesh = new THREE.Mesh(new THREE.SphereGeometry(0.045,8,6),
+    new THREE.MeshBasicMaterial({ color:0xffe0a0, transparent:true, opacity:0 }));
+  flashMesh.position.copy(flashPos);
+  flashMesh.layers.enable(BLOOM_LAYER);
+  g.add(flashMesh);
+  g.userData = { flash, flashMesh };
   g.visible = false;
   return g;
 }
@@ -3058,7 +3228,7 @@ const WEAPON_MODELS = {
     gbox(0.012,0.012,0.012,gunTritium, 0, 0.09,-0.02),              // tritium sight dot
   ], new THREE.Vector3(0,0.0,-0.47)),
 };
-for(const key in WEAPON_MODELS) camera.add(WEAPON_MODELS[key]);
+for(const key in WEAPON_MODELS){ camera.add(WEAPON_MODELS[key]); applyBloomLayer(WEAPON_MODELS[key]); }
 let weaponModel = WEAPON_MODELS.pistol;
 weaponModel.visible = true;
 
@@ -3072,9 +3242,10 @@ weaponModel.visible = true;
 function upgradeWeaponModel(key, url){
   new GLTFLoader().loadAsync(url).then(gltf => {
     const group = WEAPON_MODELS[key];
-    const keep = new Set([group.userData.flash]);
+    const keep = new Set([group.userData.flash, group.userData.flashMesh]);
     for(const child of [...group.children]) if(!keep.has(child)) group.remove(child);
     group.add(gltf.scene);
+    applyBloomLayer(gltf.scene);
   }).catch(err => console.warn(`Weapon model (${key}) failed to load — keeping the procedural model.`, err));
 }
 upgradeWeaponModel('rifle', 'assets/weapon_rifle.glb');
@@ -3121,6 +3292,10 @@ function updateWeaponView(dt){
   weaponModel.rotation.z = 0.03 + kickEase*0.03 + wpnSprintPose*0.25;
   weaponModel.scale.setScalar(heavy ? 1.12 : 0.92);
   weaponModel.userData.flash.intensity = player.flash > 0.12 ? player.flash*3.2 : 0;
+  if(weaponModel.userData.flashMesh){
+    weaponModel.userData.flashMesh.material.opacity = player.flash > 0.12 ? player.flash : 0;
+    weaponModel.userData.flashMesh.scale.setScalar(0.7 + player.flash*0.9);
+  }
   muzzleLight.intensity = player.flash > 0.12 ? player.flash*1.6 : 0;
 }
 
@@ -3142,6 +3317,11 @@ function render3D(dt){
   skyDome.position.set(camera.position.x, 0, camera.position.z);
   if(distantScenery) distantScenery.position.set(camera.position.x, 0, camera.position.z);
   sunSprite.position.set(camera.position.x + SUN_DIR.x*VIEW*2, SUN_DIR.y*VIEW*2, camera.position.z + SUN_DIR.z*VIEW*2);
+  // the shadow-casting sun follows the player the same way — its shadow
+  // camera has a fixed-size frustum (see the shadow setup above), so it has
+  // to stay centered on whatever part of the map is actually in view
+  sunLight.position.set(camera.position.x + SUN_DIR.x*SUN_SHADOW_DIST, camera.position.y + SUN_DIR.y*SUN_SHADOW_DIST, camera.position.z + SUN_DIR.z*SUN_SHADOW_DIST);
+  sunLight.target.position.copy(camera.position);
   for(const spr of clouds){
     spr.userData.angle += spr.userData.speed * dt * 0.15;
     spr.position.set(
@@ -3162,7 +3342,22 @@ function render3D(dt){
   updateFX(dt);
   if(!cutsceneActive) updateWeaponView(dt);
 
-  renderer.render(scene, camera);
+  // selective bloom: isolate bloom-tagged objects (camera sees only layer 1),
+  // blur them into bloomComposer's target, then restore normal visibility and
+  // composite that blurred glow additively over the full scene.
+  // scene.background has to be blanked for this pass — with it left in place,
+  // every pixel NOT covered by a bloom-tagged mesh (the sky, open ground in a
+  // wide-open area like a desert plaza) falls through to the background
+  // color instead of black, and that gets extracted/blurred/added back into
+  // the final image too — a uniform screen-wide wash, not a glow.
+  const bgSave = scene.background;
+  scene.background = null;
+  camera.layers.set(BLOOM_LAYER);
+  bloomComposer.render();
+  camera.layers.set(0);
+  scene.background = bgSave;
+  bloomMixPass.uniforms.bloomTexture.value = bloomComposer.renderTarget2.texture;
+  composer.render();
 }
 
 /* --------------------------------- combat -------------------------------- */
