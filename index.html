@@ -132,7 +132,7 @@
   /* permanent light vignette — darkens the frame edges for a lens/cinematic
      feel instead of the flat, uniformly-lit look of a raw 3D viewport */
   #vigStatic{position:absolute;inset:0;pointer-events:none;
-    background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(0,0,0,.5) 100%)}
+    background:radial-gradient(ellipse at 50% 50%,transparent 62%,rgba(0,0,0,.3) 100%)}
 
   /* ---------- voice ---------- */
   #voiceBtn{position:absolute;top:172px;left:22px;pointer-events:auto;cursor:pointer;
@@ -490,6 +490,8 @@
   import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
   import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
   import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+  import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+  import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
   window.THREE = THREE;
   window.GLTFLoader = GLTFLoader;
   window.skeletonClone = skeletonClone;
@@ -498,6 +500,8 @@
   window.UnrealBloomPass = UnrealBloomPass;
   window.ShaderPass = ShaderPass;
   window.OutputPass = OutputPass;
+  window.GTAOPass = GTAOPass;
+  window.SMAAPass = SMAAPass;
   window.dispatchEvent(new Event('THREE_READY'));
 </script>
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -625,20 +629,20 @@ const RAMPS_2 = [{x:5,y:9,w:4,h:3,axis:'x',dir:1,rampSpan:2.5,height:0.9}];
 const SAFEZONES_2 = [{x:24,y:9,w:2,h:2}];
 const HAZARDS_2 = [{x:16.7,y:2.3,w:1.6,h:1.6},{x:2.3,y:21.7,w:1.6,h:1.6},{x:29.7,y:14.3,w:1.6,h:1.6}];   // ice — falling glacier chunks
 
-// 3 — The Maze: three staggered wall partitions, wide gaps, tight cover stubs
+// 3 — The Depot: open floor with scattered standalone cover blocks and a
+// walkable central structure — clear sightlines across the map instead of
+// the long staggered corridor-forcing partitions this used to have.
 function buildMap3(){
   grid.fill(WALL.NONE);
   outline(0,0,MAPW,MAPH,WALL.BRICK);
-  fill(2,6,12,1,WALL.METAL);  fill(18,6,12,1,WALL.METAL);
-  fill(2,12,10,1,WALL.METAL); fill(16,12,14,1,WALL.METAL);
-  fill(2,18,14,1,WALL.METAL); fill(20,18,10,1,WALL.METAL);
-  fill(9,2,1,3,WALL.STONE);
-  fill(22,9,1,3,WALL.STONE);
-  fill(9,15,1,3,WALL.STONE);
+  fill(6,5,3,3,WALL.STONE);
+  fill(24,5,3,3,WALL.METAL);
+  fill(6,15,3,3,WALL.STONE);
+  fill(24,15,3,3,WALL.METAL);
   fill(4,9,2,2,WALL.TECH);
   fill(26,15,2,2,WALL.TECH);
-  // a tall watchtower in the middle gap between the first two partitions
-  outline(13,8,6,4,WALL.BUILDING); carve([15,11],[16,11]);
+  // a low walkable structure in the middle of the floor, not a tall maze tower
+  outline(13,10,4,4,WALL.BUILDING); carve([15,10],[16,10]);
 }
 const SPAWNS_3 = [[1.5,22.5],[30.5,1.5],[8.5,1.5],[23.5,22.5],[19.5,9.5],
                    [1.5,10.5],[30.5,13.5],[12.5,19.5],[10.5,10.5]];
@@ -929,33 +933,59 @@ function buildScaledMap(baseBuild, baseW, baseH, factor){
     }
   };
 }
+// Adds an outer "wilderness" ring around a map's original core layout — how
+// "significantly bigger maps" is achieved without hand-redesigning every
+// interior: the core is always built anchored at the grid origin (0,0), so
+// its walls/spawns/pickups/ramps keep their original coordinates completely
+// unchanged; the new margin around it is genuinely new space, not a
+// stretched-out version of the old one, connected through a few gates carved
+// in the core's own outer wall and populated by decorateMap() (trees + a
+// handful of small hut/building structures) after the grid is built.
+const WILDERNESS_MARGIN = 56;
+function withWilderness(coreBuildFn, coreW, coreH){
+  return function(){
+    coreBuildFn();
+    const midX = coreW >> 1, midY = coreH >> 1;
+    carve([midX,0],[midX+1,0], [midX,coreH-1],[midX+1,coreH-1],
+          [0,midY],[0,midY+1], [coreW-1,midY],[coreW-1,midY+1]);
+    outline(0,0,MAPW,MAPH,WALL.BRICK);   // new outer shell around the FULL expanded bounds
+  };
+}
 function scaledMapEntry(name, build, w0, h0, spawns, pickups, start, factor, ramps=[], safeZones=[], theme='facility', hazards=[]){
+  const coreW = w0*factor, coreH = h0*factor;
   return {
-    name, theme, build: buildScaledMap(build, w0, h0, factor),
-    w: w0*factor, h: h0*factor,
+    name, theme, build: withWilderness(buildScaledMap(build, w0, h0, factor), coreW, coreH),
+    w: coreW + WILDERNESS_MARGIN*2, h: coreH + WILDERNESS_MARGIN*2,
     spawns: scaleSpawns(spawns, factor),
     pickups: scalePickups(pickups, factor),
     start: [start[0]*factor, start[1]*factor],
     ramps: scaleRamps(ramps, factor),
     safeZones: scaleSafeZones(safeZones, factor),
     hazards: scaleHazards(hazards, factor),
-    large: factor > 1,
+    large: true,
   };
 }
-const SCALE = 4;   // existing maps quadruple in size — 32x24 -> 128x96
+function expandedMapEntry(name, theme, build, coreW, coreH, spawns, pickups, start, ramps=[], safeZones=[], hazards=[]){
+  return {
+    name, theme, build: withWilderness(build, coreW, coreH),
+    w: coreW + WILDERNESS_MARGIN*2, h: coreH + WILDERNESS_MARGIN*2,
+    spawns, pickups, start, ramps, safeZones, hazards, large: true,
+  };
+}
+const SCALE = 4;   // existing maps quadruple in size — 32x24 -> 128x96 core (plus the wilderness margin on top)
 const MAPS = [
   scaledMapEntry('Sector 7',     buildMap,  32,24, SPAWNS_1, PICKUPS_1, [10.5,12.5], SCALE, RAMPS_1, SAFEZONES_1, 'jungle', HAZARDS_1),
   scaledMapEntry('Ring Circuit', buildMap2, 32,24, SPAWNS_2, PICKUPS_2, SPAWNS_2[0], SCALE, RAMPS_2, SAFEZONES_2, 'ice', HAZARDS_2),
-  scaledMapEntry('The Maze',     buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE, RAMPS_3, SAFEZONES_3, 'toxic', HAZARDS_3),
+  scaledMapEntry('The Depot',    buildMap3, 32,24, SPAWNS_3, PICKUPS_3, SPAWNS_3[0], SCALE, RAMPS_3, SAFEZONES_3, 'toxic', HAZARDS_3),
   scaledMapEntry('Open Plaza',   buildMap4, 32,24, SPAWNS_4, PICKUPS_4, SPAWNS_4[0], SCALE, RAMPS_4, SAFEZONES_4, 'desert', HAZARDS_4),
   scaledMapEntry('The Foundry',  buildMap5, 32,24, SPAWNS_5, PICKUPS_5, SPAWNS_5[0], SCALE, RAMPS_5, SAFEZONES_5, 'volcanic', HAZARDS_5),
   scaledMapEntry('Crossfire',    buildMap6, 32,24, SPAWNS_6, PICKUPS_6, SPAWNS_6[0], SCALE, RAMPS_6, SAFEZONES_6, 'jungle', HAZARDS_6),
   scaledMapEntry('The Pit',      buildMap7, 32,24, SPAWNS_7, PICKUPS_7, SPAWNS_7[0], SCALE, RAMPS_7, SAFEZONES_7, 'toxic', HAZARDS_7),
-  { name:'The Wastes', theme:'desert', build:buildMap8, w:MAPW_8, h:MAPH_8, spawns:SPAWNS_8, pickups:PICKUPS_8, start:SPAWNS_8[0], ramps:RAMPS_8, safeZones:SAFEZONES_8, hazards:HAZARDS_8, large:true },
-  { name:'Skyline',    theme:'ice',    build:buildMap9, w:MAPW_9, h:MAPH_9, spawns:SPAWNS_9, pickups:PICKUPS_9, start:SPAWNS_9[0], ramps:RAMPS_9, safeZones:SAFEZONES_9, hazards:HAZARDS_9, large:true },
-  { name:'Dust Canyon', theme:'desert',   build:buildMap10, w:MAPW_10, h:MAPH_10, spawns:SPAWNS_10, pickups:PICKUPS_10, start:SPAWNS_10[0], ramps:RAMPS_10, safeZones:SAFEZONES_10, hazards:HAZARDS_10, large:true },
-  { name:'Frostspire',  theme:'ice',      build:buildMap11, w:MAPW_11, h:MAPH_11, spawns:SPAWNS_11, pickups:PICKUPS_11, start:SPAWNS_11[0], ramps:RAMPS_11, safeZones:SAFEZONES_11, hazards:HAZARDS_11, large:true },
-  { name:'Emberfall',   theme:'volcanic', build:buildMap12, w:MAPW_12, h:MAPH_12, spawns:SPAWNS_12, pickups:PICKUPS_12, start:SPAWNS_12[0], ramps:RAMPS_12, safeZones:SAFEZONES_12, hazards:HAZARDS_12, large:true },
+  expandedMapEntry('The Wastes',   'desert',   buildMap8,  MAPW_8, MAPH_8,   SPAWNS_8, PICKUPS_8, SPAWNS_8[0], RAMPS_8, SAFEZONES_8, HAZARDS_8),
+  expandedMapEntry('Skyline',      'ice',      buildMap9,  MAPW_9, MAPH_9,   SPAWNS_9, PICKUPS_9, SPAWNS_9[0], RAMPS_9, SAFEZONES_9, HAZARDS_9),
+  expandedMapEntry('Dust Canyon',  'desert',   buildMap10, MAPW_10, MAPH_10, SPAWNS_10, PICKUPS_10, SPAWNS_10[0], RAMPS_10, SAFEZONES_10, HAZARDS_10),
+  expandedMapEntry('Frostspire',   'ice',      buildMap11, MAPW_11, MAPH_11, SPAWNS_11, PICKUPS_11, SPAWNS_11[0], RAMPS_11, SAFEZONES_11, HAZARDS_11),
+  expandedMapEntry('Emberfall',    'volcanic', buildMap12, MAPW_12, MAPH_12, SPAWNS_12, PICKUPS_12, SPAWNS_12[0], RAMPS_12, SAFEZONES_12, HAZARDS_12),
 ];
 // Story Mode — a choice of fixed 4-chapter campaigns (exposition, two
 // rising-action beats, climax), each reusing the Mega Warlord as its
@@ -983,8 +1013,8 @@ const STORIES = [
       { mapIndex:11, title:'Chapter 4 — The Overlord',
         text:'Emberfall is where the signal originates, and where whatever’s been assembling itself is waiting to finish the job. This is where it ends — one way or another.', finale:true },
     ] },
-  { title:'Blackout Protocol', subtitle:'The Maze → The Pit → The Wastes → Dust Canyon',
-    ending:'The blackout finally breaks — but Command flags the exact same failure signature at a facility three sectors over before your dropship even clears the wastes. Whatever built the thing in The Maze, it isn’t finished building.',
+  { title:'Blackout Protocol', subtitle:'The Depot → The Pit → The Wastes → Dust Canyon',
+    ending:'The blackout finally breaks — but Command flags the exact same failure signature at a facility three sectors over before your dropship even clears the wastes. Whatever built the thing in The Depot, it isn’t finished building.',
     chapters: [
       { mapIndex:2, title:'Chapter 1 — Blackout',
         text:'A research complex went dark the same night its containment logs stopped syncing. Command calls it a blackout. This is the second facility this month with the exact same failure — and you’re the one sent in to find out why.' },
@@ -1027,6 +1057,125 @@ const BUILDING_MAX_HP = 150, RAMP_MAX_HP = 120;
 const buildingHP = new Map();        // cell index (y*MAPW+x) -> remaining HP
 let destroyedCells = [];             // host-authoritative list of destroyed cell indices, synced to clients
 let destroyedRampIdx = [];           // host-authoritative list of destroyed ramp indices, synced to clients
+/* ---- procedural map decoration: huts + trees scattered across the
+   wilderness margin (and, sparsely, the core) added by withWilderness().
+   Everything here is derived purely from a hash of grid coordinates —
+   never Math.random() — so host and every client independently building
+   the same map (same theme, same dimensions) land on an identical layout;
+   using real randomness would desync where a hut's walls actually are. --- */
+function cellHash(x, y, salt){
+  let h = (x*374761393 + y*668265263 + salt*2246822519) >>> 0;
+  h = Math.imul(h ^ (h>>>13), 1274126177) >>> 0;
+  return (h ^ (h>>>16)) >>> 0;
+}
+function tooCloseToAny(x, y, points, minDist){
+  for(const p of points) if(Math.hypot(p[0]-x, p[1]-y) < minDist) return true;
+  return false;
+}
+// A handful of small walkable structures (real WALL.BUILDING geometry, so
+// they get real collision/shadows/normal maps for free) ringed around the
+// map at a fixed radius — deterministic candidate positions, skipped if the
+// footprint isn't actually clear of existing walls/spawns/pickups.
+const HUT_SIZE = 9;
+function placeHuts(){
+  const cx = MAPW/2, cy = MAPH/2;
+  const R = Math.min(MAPW, MAPH)/2 - WILDERNESS_MARGIN*0.55;
+  const avoid = [...SPAWNS, ...PICKUPS.map(p=>[p[0],p[1]])];
+  let placed = 0;
+  for(let i=0; i<10 && placed<6; i++){
+    const ang = (i/10)*Math.PI*2 + 0.35;
+    const hx = clamp((cx + Math.cos(ang)*R)|0, 3, MAPW-HUT_SIZE-3);
+    const hy = clamp((cy + Math.sin(ang)*R)|0, 3, MAPH-HUT_SIZE-3);
+    let clear = true;
+    for(let j=-2; j<HUT_SIZE+2 && clear; j++) for(let k=-2; k<HUT_SIZE+2 && clear; k++){
+      if(at(hx+k, hy+j) !== WALL.NONE) clear = false;
+    }
+    if(!clear || tooCloseToAny(hx+HUT_SIZE/2, hy+HUT_SIZE/2, avoid, HUT_SIZE)) continue;
+    const wallKind = (cellHash(hx,hy,7) % 2) ? WALL.STONE : WALL.METAL;
+    outline(hx, hy, HUT_SIZE, HUT_SIZE, wallKind);
+    const doorX = hx + (HUT_SIZE>>1);
+    carve([doorX, hy], [doorX+1, hy], [doorX, hy+HUT_SIZE-1], [doorX+1, hy+HUT_SIZE-1]);
+    placed++;
+  }
+}
+// Freestanding decorative trees (InstancedMesh — cheap regardless of count),
+// scattered on a coarse grid step across whatever floor is actually open.
+// Purely visual (no collision) — a stylized low-poly game doesn't need
+// pixel-perfect trunk collision, and adding it would mean a second
+// grid/solid() system just for foliage.
+let TREE_GEOS = null, TREE_MATS_CACHE = {};
+const TREE_STYLE_BY_THEME = {
+  jungle:   { trunk:0x2f2013, foliage:0x2c5c26, shape:'cone' },
+  toxic:    { trunk:0x241c10, foliage:0x5a7a24, shape:'cone' },
+  desert:   { trunk:0x3a2c18, foliage:0x54602a, shape:'sparse' },
+  ice:      { trunk:0x2e2a22, foliage:0x9db2b8, shape:'cone' },
+  volcanic: { trunk:0x161010, foliage:0x1e1614, shape:'sparse' },
+};
+function findDecorationSpots(step, density, minGapFromFeatures, salt){
+  const avoid = [...SPAWNS, ...PICKUPS.map(p=>[p[0],p[1]]), ...RAMPS.map(r=>[r.x+r.w/2, r.y+r.h/2]),
+    ...SAFEZONES.map(z=>[z.x+z.w/2, z.y+z.h/2])];
+  const spots = [];
+  for(let gy=step; gy<MAPH-step; gy+=step){
+    for(let gx=step; gx<MAPW-step; gx+=step){
+      const h = cellHash(gx, gy, salt);
+      if((h % 1000)/1000 > density) continue;
+      const jx = gx + (((h>>>8)%100)/100 - 0.5)*step*0.6;
+      const jy = gy + (((h>>>16)%100)/100 - 0.5)*step*0.6;
+      const cx = jx|0, cy = jy|0;
+      if(solid(cx,cy) || solid(cx+1,cy) || solid(cx-1,cy) || solid(cx,cy+1) || solid(cx,cy-1)) continue;
+      if(tooCloseToAny(jx, jy, avoid, minGapFromFeatures)) continue;
+      spots.push({ x:jx, y:jy, hash:h });
+    }
+  }
+  return spots;
+}
+let treeMeshes = [];
+function rebuildTrees(){
+  for(const m of treeMeshes) scene.remove(m);
+  treeMeshes = [];
+  const theme = MAPS[mapIndex].theme;
+  const style = TREE_STYLE_BY_THEME[theme];
+  if(!style) return;   // facility interiors get none
+  const spots = findDecorationSpots(7, 0.55, 2.4, 31);
+  if(!spots.length) return;
+  if(!TREE_GEOS){
+    TREE_GEOS = {
+      trunk: new THREE.CylinderGeometry(0.06,0.09,1.0,5),
+      cone: new THREE.ConeGeometry(0.55,1.3,6),
+      sparse: new THREE.IcosahedronGeometry(0.4,0),
+    };
+  }
+  const matKey = theme;
+  if(!TREE_MATS_CACHE[matKey]){
+    TREE_MATS_CACHE[matKey] = {
+      trunk: new THREE.MeshStandardMaterial({ color: style.trunk, roughness:0.9 }),
+      foliage: new THREE.MeshStandardMaterial({ color: style.foliage, roughness:0.85 }),
+    };
+  }
+  const mats = TREE_MATS_CACHE[matKey];
+  const foliageGeo = TREE_GEOS[style.shape];
+  const trunkInst = new THREE.InstancedMesh(TREE_GEOS.trunk, mats.trunk, spots.length);
+  const foliageInst = new THREE.InstancedMesh(foliageGeo, mats.foliage, spots.length);
+  trunkInst.castShadow = true; trunkInst.receiveShadow = true;
+  foliageInst.castShadow = true; foliageInst.receiveShadow = true;
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), yAxis = new THREE.Vector3(0,1,0), s3 = new THREE.Vector3();
+  spots.forEach((sp,i) => {
+    const scale = 0.8 + ((sp.hash>>>4) % 500)/500 * 0.7;
+    q.setFromAxisAngle(yAxis, ((sp.hash>>>12) % 1000)/1000 * Math.PI*2);
+    const gy = heightAt(sp.x, sp.y);
+    s3.setScalar(scale);
+    m4.compose(new THREE.Vector3(sp.x, gy + 0.5*scale, sp.y), q, s3);
+    trunkInst.setMatrixAt(i, m4);
+    m4.compose(new THREE.Vector3(sp.x, gy + 1.15*scale, sp.y), q, s3);
+    foliageInst.setMatrixAt(i, m4);
+  });
+  trunkInst.instanceMatrix.needsUpdate = true;
+  foliageInst.instanceMatrix.needsUpdate = true;
+  applyBloomLayer(trunkInst); applyBloomLayer(foliageInst);   // no-op unless the theme's materials are ever made emissive, harmless either way
+  scene.add(trunkInst, foliageInst);
+  treeMeshes = [trunkInst, foliageInst];
+}
+
 function selectMap(idx){
   mapIndex = clamp(idx, 0, MAPS.length-1);
   const m = MAPS[mapIndex];
@@ -1040,6 +1189,9 @@ function selectMap(idx){
   destroyedCells = [];
   destroyedRampIdx = [];
   for(const r of RAMPS){ r.hp = RAMP_MAX_HP; r.destroyed = false; }
+  placeHuts();   // grid-based, so it has to run before rebuildMapMeshes() reads the grid;
+                  // deterministic (hashed off cell coords, no Math.random) so every client
+                  // building the same map independently gets an identical result
 }
 selectMap(0);
 
@@ -1505,7 +1657,7 @@ const THEME_TEXTURES = { desert: buildDesertTextures(), ice: buildIceTextures(),
 // the structural materials stay grounded.
 const WORLD_THEMES = {
   facility: { fogColor:0x080c10, fogNear:3, fogFarMul:1, bg:0x080c10,
-    ambient:{color:0x6a90b5, i:0.4}, hemi:{sky:0x5ab0e0, ground:0x05080a, i:0.32}, sun:{color:0xd8e0e2, i:0},
+    ambient:{color:0x6a90b5, i:0.5}, hemi:{sky:0x5ab0e0, ground:0x05080a, i:0.42}, sun:{color:0xd8e0e2, i:0},
     mats: {
       [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1514,7 +1666,7 @@ const WORLD_THEMES = {
       [WALL.BUILDING]:{ roughness:0.8, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,3] },
     } },
   desert: { fogColor:0xb8895a, fogNear:3, fogFarMul:1, bg:0xc79c66,
-    ambient:{color:0xffd9a0, i:0.55}, hemi:{sky:0xffcf90, ground:0x6a4a28, i:0.48}, sun:{color:0xffe0ab, i:1.2},
+    ambient:{color:0xffd9a0, i:0.66}, hemi:{sky:0xffcf90, ground:0x6a4a28, i:0.58}, sun:{color:0xffe0ab, i:1.2},
     mats: {
       [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1523,7 +1675,7 @@ const WORLD_THEMES = {
       [WALL.BUILDING]:{ roughness:0.88,metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
   ice: { fogColor:0x9dc2d8, fogNear:3, fogFarMul:1, bg:0xaad2e6,
-    ambient:{color:0xd8ecf8, i:0.6}, hemi:{sky:0xc8ecff, ground:0x2c4a60, i:0.48}, sun:{color:0xe8faff, i:0.95},
+    ambient:{color:0xd8ecf8, i:0.72}, hemi:{sky:0xc8ecff, ground:0x2c4a60, i:0.58}, sun:{color:0xe8faff, i:0.95},
     mats: {
       [WALL.BRICK]:  { roughness:0.3,  metalness:0.05, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.8,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1532,7 +1684,7 @@ const WORLD_THEMES = {
       [WALL.BUILDING]:{ roughness:0.35,metalness:0.1, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
   volcanic: { fogColor:0x30180f, fogNear:2.4, fogFarMul:0.82, bg:0x28140d,
-    ambient:{color:0xe8895a, i:0.42}, hemi:{sky:0xd8623a, ground:0x180604, i:0.5}, sun:{color:0xf06838, i:0.85},
+    ambient:{color:0xe8895a, i:0.52}, hemi:{sky:0xd8623a, ground:0x180604, i:0.58}, sun:{color:0xf06838, i:0.85},
     mats: {
       [WALL.BRICK]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.5,  metalness:0.2, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1541,7 +1693,7 @@ const WORLD_THEMES = {
       [WALL.BUILDING]:{ roughness:0.7, metalness:0.1, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
   jungle: { fogColor:0x4f7a3e, fogNear:2.8, fogFarMul:0.75, bg:0x5c8a48,
-    ambient:{color:0x9fd87a, i:0.48}, hemi:{sky:0xa8e888, ground:0x1c3512, i:0.4}, sun:{color:0xd0ffb0, i:0.78},
+    ambient:{color:0x9fd87a, i:0.58}, hemi:{sky:0xa8e888, ground:0x1c3512, i:0.5}, sun:{color:0xd0ffb0, i:0.78},
     mats: {
       [WALL.BRICK]:  { roughness:0.95, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1550,7 +1702,7 @@ const WORLD_THEMES = {
       [WALL.BUILDING]:{ roughness:0.85,metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,2] },
     } },
   toxic: { fogColor:0x6a7a30, fogNear:2.6, fogFarMul:0.85, bg:0x5c6c26,
-    ambient:{color:0xaaff66, i:0.42}, hemi:{sky:0x9cff50, ground:0x263208, i:0.44}, sun:{color:0xb8ff70, i:0.62},
+    ambient:{color:0xaaff66, i:0.5}, hemi:{sky:0x9cff50, ground:0x263208, i:0.52}, sun:{color:0xb8ff70, i:0.62},
     mats: {
       [WALL.BRICK]:  { roughness:0.9,  metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
       [WALL.STONE]:  { roughness:0.85, metalness:0, emissive:0x000000, emissiveIntensity:0, repeat:[1,1] },
@@ -1719,7 +1871,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 // solid white, shadows read with more depth. This is what most modern AAA
 // engines (including the one this is chasing the look of) use by default.
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.35;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x05080a);
 const camera = new THREE.PerspectiveCamera(78, 1, 0.05, 60);
@@ -1764,12 +1916,38 @@ const bloomMixShader = {
 const bloomMixPass = new ShaderPass(new THREE.ShaderMaterial(bloomMixShader), 'baseTexture');
 bloomMixPass.needsSwap = true;
 
+// Ground-truth ambient occlusion — the thing that makes contact points
+// (a character's feet on the floor, a crate against a wall) actually darken
+// the way real geometry does instead of looking like it's hovering a hair
+// off the surface it's touching. Runs on the base render, before bloom is
+// composited on top (AO shouldn't eat the bloom glow).
+const gtaoPass = new GTAOPass(scene, camera, window.innerWidth, window.innerHeight);
+gtaoPass.output = GTAOPass.OUTPUT.Default;
+// Kept deliberately subtle — GTAO (like every SSAO-family technique) reads
+// large depth discontinuities as occlusion, which false-positives hard at
+// silhouette edges against empty space (a distant mountain shape against the
+// sky/fog). A small radius + low blend keeps the real win — contact
+// shadows where a character actually touches the floor, corners where walls
+// meet — without rim-darkening distant background silhouettes into flat
+// dark shapes.
+if(gtaoPass.updateGtaoMaterial) gtaoPass.updateGtaoMaterial({ radius: 0.14, distanceExponent: 1, thickness: 1, scale: 1, samples: 16, distanceFallOff: 0.5 });
+if('blendIntensity' in gtaoPass) gtaoPass.blendIntensity = 0.4;
+
 // OutputPass is required here — without it the renderer's own tone mapping/
 // color-space conversion never gets applied to the composited result.
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
+composer.addPass(gtaoPass);
 composer.addPass(bloomMixPass);
 composer.addPass(new OutputPass());
+// SMAA — EffectComposer's offscreen render targets don't inherit the
+// canvas's own antialias:true (that only applies when rendering straight to
+// the canvas' default framebuffer, which the composer no longer does), so
+// without this every edge in the scene would be noticeably more jagged than
+// before post-processing existed. Goes last — it wants the final tonemapped
+// LDR image, not the linear HDR-ish buffer bloom/AO work on.
+const smaaPass = new SMAAPass(window.innerWidth*renderer.getPixelRatio(), window.innerHeight*renderer.getPixelRatio());
+composer.addPass(smaaPass);
 
 // Recursively flags every mesh in `root` whose material actually emits
 // light (non-black `emissive`, meaningful `emissiveIntensity`) for the
@@ -2072,7 +2250,7 @@ for(let i=0;i<CLOUD_COUNT;i++){
   clouds.push(spr);
 }
 scene.add(cloudGroup);
-const headlamp = new THREE.PointLight(0xcfeeff, 0.85, 9, 2); camera.add(headlamp);
+const headlamp = new THREE.PointLight(0xcfeeff, 1.2, 11, 1.8); camera.add(headlamp);
 const muzzleLight = new THREE.PointLight(0xffcf8a, 0, 6, 2); camera.add(muzzleLight);
 
 function makeCanvasTex(canvasEl, rx=1, ry=1){
@@ -2454,9 +2632,16 @@ function makeCharacterGLTF(colors, armed, role){
 function makeCharacter(colors, armed, role='trooper'){
   return characterTemplates[role] ? makeCharacterGLTF(colors, armed, role) : makeCharacterBox(colors);
 }
-// measured directly in Blender (see the Death animation's authoring notes) —
-// how far above true ground level the collapsed pose's lowest point sits
-const DEATH_GROUND_OFFSET = 0.5466;
+// Measured directly in Blender against the Death clip's actual final frame —
+// how far above (positive) or below (negative) true ground level the
+// collapsed pose's lowest point sits. Re-measured after fixing a real
+// authoring bug: the Death animation's hip "drop" keyframes were on the
+// wrong local bone axis (this rig's Y, not Z, is the one that maps to world
+// height) and moved the hips only ~0.005m in world space — the whole body
+// stayed suspended near standing height, rotated over, rather than actually
+// collapsing to the ground. Now negative because the corrected pose sinks
+// slightly past ground at its lowest point when unshifted.
+const DEATH_GROUND_OFFSET = -0.2679188;
 const GUN_KICK_AXIS = new THREE.Vector3(1,0,0), GUN_KICK_QUAT = new THREE.Quaternion();
 // pose + physics-reactive lean + toppling death fall, shared by enemies & players
 function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, dt){
@@ -4312,6 +4497,7 @@ function applyStoryChapterMap(ch){
   applyWorldTheme(MAPS[mapIndex].theme || 'facility');
   clearRubble();
   rebuildMapMeshes();
+  rebuildTrees();
   enemies = []; bolts = []; pendingShots = [];
   resetPickups();
   resetHazards();
@@ -6388,6 +6574,7 @@ function startGame(){
   applyWorldTheme(MAPS[mapIndex].theme || 'facility');
   clearRubble();
   rebuildMapMeshes();
+  rebuildTrees();
   enemies = []; bolts = []; pendingShots = []; nextEnemyId = 1;
   wave = 0; kills = 0; score = 0; spawning = false; waveTimer = 0; lastAlive = -1;
   const spawn = (MODE === 'deathmatch' || MODE === 'tag') ? SPAWNS[(Math.random()*SPAWNS.length)|0]
