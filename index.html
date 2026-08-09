@@ -2244,7 +2244,7 @@ function makeCharacterGLTF(colors, armed, role){
   const mixer = new THREE.AnimationMixer(model);
   const actions = {};
   for(const clip of characterClipsByRole[role]){
-    if(clip.name === 'Idle' || clip.name === 'Walk' || clip.name === 'Shoot' || clip.name === 'Punch' || clip.name === 'Death'){
+    if(clip.name === 'Idle' || clip.name === 'Walk' || clip.name === 'Run' || clip.name === 'Shoot' || clip.name === 'Punch' || clip.name === 'Death'){
       const action = mixer.clipAction(clip);
       if(clip.name === 'Shoot' || clip.name === 'Punch' || clip.name === 'Death'){
         action.setLoop(THREE.LoopOnce);
@@ -2253,7 +2253,7 @@ function makeCharacterGLTF(colors, armed, role){
       actions[clip.name] = action;
     }
   }
-  actions.Idle?.play(); actions.Walk?.play();
+  actions.Idle?.play(); actions.Walk?.play(); actions.Run?.play();
 
   const materials = [];
   const tint = new THREE.Color(colors.body);
@@ -2294,7 +2294,7 @@ function makeCharacterGLTF(colors, armed, role){
 
   // Unarmed characters (no gun prop) are the game's melee types — they should
   // throw a punch on `attacking`, not mime aiming an invisible gun.
-  yawGroup.userData = { mixer, actions, materials, leanGroup, walkWeight:0, gun, meleeStyle: !armed };
+  yawGroup.userData = { mixer, actions, materials, leanGroup, gun, meleeStyle: !armed };
   return yawGroup;
 }
 function makeCharacter(colors, armed, role='trooper'){
@@ -2384,12 +2384,20 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
   mesh.rotation.y = prevYaw + diff * Math.min(1, dt*10);   // yaw only — never touches x/z
 
   if(u.mixer){
-    // GLTF-driven character: crossfade Idle<->Walk by actual movement speed,
-    // and on the rising edge of `attacking` play a real attack clip instead
-    // of just flashing the muzzle light — melee types (no gun prop) throw a
-    // punch; armed types raise their weapon into an aim+recoil pose.
-    const targetWalk = rec.speedEMA > 0.3 ? 1 : 0;
-    u.walkWeight = lerp(u.walkWeight, targetWalk, dt*8);
+    // GLTF-driven character: a real three-way Idle/Walk/Run locomotion blend
+    // by actual measured speed instead of a binary Idle<->Walk cut — the
+    // rig's own baked Run clip was exported but never wired up, so anything
+    // moving faster than a walk (a sprinting other-player, a fast enemy) used
+    // to visibly slide because its feet were still cycling at walk cadence.
+    // `loco` is a continuous 0(idle)->1(walk)->2(run) position in blend
+    // space; the three weights below form a standard triangular blend so
+    // adjacent clips crossfade and the far one is always fully zeroed.
+    const targetLoco = rec.speedEMA <= 0.3 ? 0
+      : rec.speedEMA >= 4.4 ? 2
+      : rec.speedEMA <= 1.8 ? (rec.speedEMA-0.3)/(1.8-0.3)
+      : 1 + (rec.speedEMA-1.8)/(4.4-1.8);
+    rec.loco = lerp(rec.loco ?? 0, targetLoco, Math.min(1, dt*8));
+    const idleW = clamp(1 - rec.loco, 0, 1), walkW = clamp(1 - Math.abs(rec.loco-1), 0, 1), runW = clamp(rec.loco-1, 0, 1);
 
     const attackAction = u.meleeStyle ? u.actions.Punch : u.actions.Shoot;
     const attackDuration = u.meleeStyle ? 1.0 : 0.667;   // matches each clip's authored length (24f/16f @ 24fps)
@@ -2403,11 +2411,12 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     // eased blend in/out instead of an instant weight snap — a hard 0/1 cut
     // between Idle/Walk and the attack pose every trigger reads as a
     // pop/stutter; this ramps over ~70ms, same lerp-toward-target pattern
-    // walkWeight uses above
+    // the locomotion blend uses above
     rec.attackBlend = lerp(rec.attackBlend ?? 0, rec.attackT > 0 ? 1 : 0, Math.min(1, dt*14));
     attackAction?.setEffectiveWeight(rec.attackBlend);
-    u.actions.Idle?.setEffectiveWeight((1 - rec.attackBlend) * (1 - u.walkWeight));
-    u.actions.Walk?.setEffectiveWeight((1 - rec.attackBlend) * u.walkWeight);
+    u.actions.Idle?.setEffectiveWeight((1 - rec.attackBlend) * idleW);
+    u.actions.Walk?.setEffectiveWeight((1 - rec.attackBlend) * walkW);
+    u.actions.Run?.setEffectiveWeight((1 - rec.attackBlend) * runW);
     u.mixer.update(dt);
     lean.rotation.x = lerp(lean.rotation.x||0, 0, dt*8);
     lean.rotation.z = lerp(lean.rotation.z||0, 0, dt*8);
@@ -2471,12 +2480,14 @@ function syncPlayerMeshes(dt){
       seen.add(id);
       let rec = playerMeshes.get(id);
       if(!rec){
-        const mesh = makeCharacter(SKINS[op.skin % SKINS.length]);
+        // real players always carry a weapon (unlike melee enemy types) — armed:true
+        // gives them the gun prop + aim/recoil Shoot pose instead of a bare-handed Punch
+        const mesh = makeCharacter(SKINS[op.skin % SKINS.length], true);
         scene.add(mesh);
         rec = { mesh, fallDir: Math.random()<0.5?-1:1, wasDead:false, deadT:0 };
         playerMeshes.set(id, rec);
       }
-      updateCharacterVisual(rec, op, !op.alive, op.animPhase||0, false, false, dt);
+      updateCharacterVisual(rec, op, !op.alive, op.animPhase||0, (op.shotPulse||0) > 0, (op.painTime||0) > 0, dt);
     }
   }
   for(const [id,rec] of playerMeshes) if(!seen.has(id)){ scene.remove(rec.mesh); playerMeshes.delete(id); }
@@ -3379,6 +3390,7 @@ function fire(){
   player.cooldown = frenzy ? Math.min(w.rof, 0.045) : w.rof;
   player.kick = Math.min(player.kick + w.kick, 16);
   player.flash = 1;
+  player.shotPulse = 0.15;   // lets other clients see this player's Shoot pose + muzzle flash — see updateCharacterVisual
   if(player.buffs.phantom > 0) player.phantomRevealT = 0.6;   // attacking briefly reveals a Phantom
   Sound.shoot(player.weapon);
   spawnShellFX(player.x, player.y, player.a);
@@ -3460,6 +3472,7 @@ function damagePlayer(dmg, shooter){
   }
   player.hp -= dmg;
   player.hurt = 1;
+  player.painTime = 0.16;   // drives the other-player-visible hit-flinch — see updateCharacterVisual's `hurting` flash
   Sound.hurt();
   if(player.hp <= 0){
     player.hp = 0;
@@ -3491,6 +3504,7 @@ function damageOtherPlayer(target, dmg, shooter){
     if(dmg <= 0){ Net.emit({ kind:'shieldblock', targetId: target.id }); return; }
   }
   target.hp = Math.max(0, target.hp - dmg);
+  target.painTime = 0.16;   // drives the other-player-visible hit-flinch — see updateCharacterVisual's `hurting` flash
   if(target.hp <= 0){
     target.alive = false; target.deaths = (target.deaths||0) + 1;
     target.respawnAt = now + 3;
@@ -4577,6 +4591,8 @@ function update(dt){
     player.hurt = Math.max(0, player.hurt - dt*2);
     vig.style.opacity = String(player.hurt * 0.85);
   }
+  if(player.painTime > 0) player.painTime = Math.max(0, player.painTime - dt);
+  if(player.shotPulse > 0) player.shotPulse = Math.max(0, player.shotPulse - dt);
   vig.classList.toggle('shielded', player.titanShield > 0);
 
   // ---------- multiplayer: apply local prediction/reconciliation + net tick ----------
@@ -4596,6 +4612,7 @@ function frame(t){
   update(dt);
   render3D(dt);
   renderNameplates();
+  renderObjectiveMarkers();
   drawMinimap();
   if(el('scoreboard').classList.contains('show')) renderScoreboard();
 }
@@ -4646,8 +4663,24 @@ function drawMinimap(){
   if(netMode !== 'solo'){
     for(const op of otherPlayers.values()){
       if(!op.alive) continue;
-      mg.fillStyle = SKINS[op.skin % SKINS.length].body;
-      mg.beginPath(); mg.arc(ox+op.x*cell, oy+op.y*cell, 2.4, 0, TAU); mg.fill();
+      const isTagger = MODE === 'tag' && tagId === op.id;
+      mg.fillStyle = isTagger ? '#ff4a4a' : SKINS[op.skin % SKINS.length].body;
+      mg.beginPath(); mg.arc(ox+op.x*cell, oy+op.y*cell, isTagger ? 3.4 : 2.4, 0, TAU); mg.fill();
+      if(isTagger){ mg.strokeStyle = '#fff'; mg.lineWidth = 1; mg.stroke(); }
+    }
+  }
+  if(MODE === 'ctf'){
+    // always-visible flag blips — a diamond so they read distinctly from the
+    // round player/enemy dots even at minimap scale, and a bright ring while
+    // in transit (carried) since that's the moment position matters most
+    for(const f of flags){
+      const fx = ox+f.x*cell, fy = oy+f.y*cell;
+      mg.fillStyle = SKINS[f.team % SKINS.length].body;
+      mg.beginPath();
+      mg.moveTo(fx, fy-4); mg.lineTo(fx+3.4, fy); mg.lineTo(fx, fy+4); mg.lineTo(fx-3.4, fy);
+      mg.closePath(); mg.fill();
+      mg.strokeStyle = f.carriedBy ? '#fff' : 'rgba(0,0,0,.6)'; mg.lineWidth = f.carriedBy ? 1.4 : 1;
+      mg.stroke();
     }
   }
   // player + view cone
@@ -4919,6 +4952,8 @@ const Net = (() => {
       decayBuffs(st.buffs, dt);
       if(st.buffs.titanshield <= 0) st.titanShield = 0;
       st.phantomRevealT = Math.max(0, (st.phantomRevealT||0) - dt);
+      if(st.painTime > 0) st.painTime = Math.max(0, st.painTime - dt);
+      if(st.shotPulse > 0) st.shotPulse = Math.max(0, st.shotPulse - dt);
       integrateKnockback(st, dt, 0.26);
       if(!st.alive) continue;
       const k = st.input.keys || {};
@@ -4949,6 +4984,7 @@ const Net = (() => {
       const minGap = Math.max(0.03, (st.buffs.frenzy > 0 ? 0.045 : w.rof) * 0.6);
       if(now - st.lastShotAt < minGap) return;
       st.lastShotAt = now;
+      st.shotPulse = 0.15;   // lets other clients see this remote player's Shoot pose + muzzle flash
       if(st.buffs.phantom > 0) st.phantomRevealT = 0.6;
       resolveShot(st.x, st.y, msg.a, msg.dmg, st, true, msg.chainShock, msg.boomshot, w.muzzleVel);
     }
@@ -4957,7 +4993,7 @@ const Net = (() => {
   function playerSnap(p){
     return { id:p.id, name:p.name, x:p.x, y:p.y, a:p.a, hp:p.hp, alive:p.alive, weapon:p.weapon,
       kills:p.kills||0, deaths:p.deaths||0, buffs:p.buffs, skin:p.skin, animPhase:p.animPhase||0, z:p.z||0,
-      titanShield:p.titanShield||0, team:p.team||0 };
+      titanShield:p.titanShield||0, team:p.team||0, painTime:p.painTime||0, shotPulse:p.shotPulse||0 };
   }
   function buildSnapshot(){
     return {
@@ -5042,6 +5078,7 @@ const Net = (() => {
       g.netX = ps.x; g.netY = ps.y; g.a = ps.a; g.hp = ps.hp; g.alive = ps.alive; g.weapon = ps.weapon;
       g.kills = ps.kills; g.deaths = ps.deaths; g.buffs = ps.buffs; g.name = ps.name; g.skin = ps.skin;
       g.animPhase = ps.animPhase; g.z = ps.z||0; g.titanShield = ps.titanShield||0; g.team = ps.team||0;
+      g.painTime = ps.painTime||0; g.shotPulse = ps.shotPulse||0;
     }
     for(const id of [...otherPlayers.keys()]) if(!seen.has(id)){ otherPlayers.delete(id); dropVoicePeer(id); }
     meshConnectAll();
@@ -5533,12 +5570,92 @@ function renderNameplates(){
     if(_nameVec.z > 1) continue;                     // behind the camera
     const px = (_nameVec.x*0.5+0.5)*W, py = (1-(_nameVec.y*0.5+0.5))*H;
     if(px < -40 || px > W+40 || py < -20 || py > H+20) continue;
-    const label = op.name || 'Player';
+    // In Tag, the current tagger is called out explicitly rather than left to
+    // be spotted at a glance — that's the whole feature the user asked for.
+    const isTagger = MODE === 'tag' && tagId === op.id;
+    const label = isTagger ? `⚠ ${op.name || 'Player'} — IT` : (op.name || 'Player');
     const w = ctx2d.measureText(label).width + 12;
-    ctx2d.fillStyle = 'rgba(4,10,14,.6)';
+    ctx2d.fillStyle = isTagger ? 'rgba(120,10,10,.75)' : 'rgba(4,10,14,.6)';
     ctx2d.fillRect(px-w/2, py-14, w, 18);
-    ctx2d.fillStyle = '#c9f7ff';
+    if(isTagger){ ctx2d.strokeStyle = '#ff4a4a'; ctx2d.lineWidth = 1.4; ctx2d.strokeRect(px-w/2, py-14, w, 18); }
+    ctx2d.fillStyle = isTagger ? '#ffd9d9' : '#c9f7ff';
     ctx2d.fillText(label, px, py);
+  }
+}
+
+// Shared world->screen projector for HUD objective markers (CTF flags, the
+// Tag "it" indicator): projects to normal on-screen coordinates when the
+// target is in view, otherwise clamps to the screen edge and flips into an
+// arrow pointing the right way even when the target is behind the camera
+// (mirroring the NDC coords handles that case correctly).
+const _markerVec = new THREE.Vector3();
+function projectMarker(wx, wy, wz){
+  _markerVec.set(wx, wy, wz);
+  _markerVec.project(camera);
+  const behind = _markerVec.z > 1;
+  let ndx = _markerVec.x, ndy = _markerVec.y;
+  if(behind){ ndx = -ndx; ndy = -ndy; }
+  const W = nameOverlay.width, H = nameOverlay.height;
+  const halfW = W/2 - 46, halfH = H/2 - 46;
+  const onscreen = !behind && Math.abs(ndx)*(W/2) <= halfW && Math.abs(ndy)*(H/2) <= halfH;
+  let px, py;
+  if(onscreen){
+    px = (ndx*0.5+0.5)*W; py = (1-(ndy*0.5+0.5))*H;
+  } else {
+    const dirX = ndx, dirY = -ndy;   // screen y grows downward, NDC y grows upward
+    const scale = Math.min(dirX ? halfW/Math.abs(dirX) : Infinity, dirY ? halfH/Math.abs(dirY) : Infinity);
+    px = W/2 + dirX*scale; py = H/2 + dirY*scale;
+  }
+  return { px, py, onscreen };
+}
+function drawObjectiveMarker(wx, wy, colorCss, label){
+  const dist = Math.hypot(wx-player.x, wy-player.y);
+  const { px, py, onscreen } = projectMarker(wx, heightAt(wx,wy)+1.3, wy);
+  ctx2d.font = '600 11px "SF Mono", ui-monospace, monospace';
+  ctx2d.textAlign = 'center';
+  if(onscreen){
+    ctx2d.fillStyle = colorCss;
+    ctx2d.beginPath();
+    ctx2d.moveTo(px, py-10); ctx2d.lineTo(px+7, py-2); ctx2d.lineTo(px, py+4); ctx2d.lineTo(px-7, py-2);
+    ctx2d.closePath(); ctx2d.fill();
+    ctx2d.strokeStyle = 'rgba(0,0,0,.6)'; ctx2d.lineWidth = 1.4; ctx2d.stroke();
+    const text = `${label} · ${dist.toFixed(0)}m`;
+    const tw = ctx2d.measureText(text).width + 10;
+    ctx2d.fillStyle = 'rgba(4,10,14,.65)';
+    ctx2d.fillRect(px-tw/2, py+8, tw, 15);
+    ctx2d.fillStyle = '#fff';
+    ctx2d.fillText(text, px, py+19);
+  } else {
+    const cx = nameOverlay.width/2, cy = nameOverlay.height/2;
+    const ang = Math.atan2(py-cy, px-cx);
+    const dirX = Math.cos(ang), dirY = Math.sin(ang), perpX = -dirY, perpY = dirX;
+    ctx2d.fillStyle = colorCss;
+    ctx2d.beginPath();
+    ctx2d.moveTo(px+dirX*10, py+dirY*10);
+    ctx2d.lineTo(px-dirX*6+perpX*6, py-dirY*6+perpY*6);
+    ctx2d.lineTo(px-dirX*6-perpX*6, py-dirY*6-perpY*6);
+    ctx2d.closePath(); ctx2d.fill();
+    ctx2d.strokeStyle = 'rgba(0,0,0,.6)'; ctx2d.lineWidth = 1.4; ctx2d.stroke();
+    ctx2d.fillStyle = colorCss;
+    ctx2d.fillText(`${dist.toFixed(0)}m`, px-dirX*22, py-dirY*22+4);
+  }
+}
+function hexCss(n){ return '#' + n.toString(16).padStart(6,'0'); }
+function renderObjectiveMarkers(){
+  if(MODE === 'ctf'){
+    for(const f of flags){
+      const teamColor = hexCss(SKINS[f.team % SKINS.length].body);
+      if(f.carriedBy === player.id){
+        const home = flags.find(o => o.team === player.team);
+        if(home) drawObjectiveMarker(home.homeX, home.homeY, '#8ef5ff', 'RETURN TO CAPTURE');
+        continue;
+      }
+      const label = (f.team === player.team ? 'YOUR FLAG' : 'ENEMY FLAG') + (f.carriedBy ? ' (TAKEN)' : '');
+      drawObjectiveMarker(f.x, f.y, teamColor, label);
+    }
+  } else if(MODE === 'tag' && tagId && tagId !== player.id){
+    const tagger = allPlayers().find(p => p.id === tagId);
+    if(tagger && tagger.alive) drawObjectiveMarker(tagger.x, tagger.y, '#ff4a4a', `${tagger.name || 'TAGGER'} — IT`);
   }
 }
 
