@@ -2284,6 +2284,7 @@ function makeCharacterGLTF(colors, armed, role){
         new THREE.Vector3(0,0,-1), new THREE.Vector3(1,0,0), new THREE.Vector3(0,-1,0));
       gun.quaternion.setFromRotationMatrix(gunBasis);
       gun.position.set(0, -0.03, 0);
+      gun.userData.baseQuat = gun.quaternion.clone();   // per-shot recoil kick is applied relative to this
       handBone.add(gun);
     }
   }
@@ -2299,6 +2300,7 @@ function makeCharacter(colors, armed, role='trooper'){
 // measured directly in Blender (see the Death animation's authoring notes) —
 // how far above true ground level the collapsed pose's lowest point sits
 const DEATH_GROUND_OFFSET = 0.5466;
+const GUN_KICK_AXIS = new THREE.Vector3(1,0,0), GUN_KICK_QUAT = new THREE.Quaternion();
 // pose + physics-reactive lean + toppling death fall, shared by enemies & players
 function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, dt){
   const mesh = rec.mesh, lean = mesh.userData.leanGroup, u = mesh.userData;
@@ -2412,11 +2414,18 @@ function updateCharacterVisual(rec, ent, isDead, walkPhase, attacking, hurting, 
     }
     if(u.gun){
       rec.gunFlash = Math.max(0, (rec.gunFlash||0) - dt*9);
-      if(attackTriggered) rec.gunFlash = 1;
-      const { flashMesh, flashLight } = u.gun.userData;
+      rec.gunKick  = Math.max(0, (rec.gunKick||0)  - dt*11);
+      if(attackTriggered){ rec.gunFlash = 1; rec.gunKick = 1; }
+      const { flashMesh, flashLight, baseQuat } = u.gun.userData;
       flashMesh.material.opacity = rec.gunFlash;
       flashMesh.scale.setScalar(0.7 + rec.gunFlash*0.9);
       flashLight.intensity = rec.gunFlash*4;
+      // per-shot muzzle-rise kick — enemies visibly punch their weapon back on
+      // every shot instead of just flashing, mirroring the player's own recoil
+      if(baseQuat){
+        const kickAngle = -Math.pow(rec.gunKick, 0.6) * 0.22;
+        u.gun.quaternion.copy(baseQuat).multiply(GUN_KICK_QUAT.setFromAxisAngle(GUN_KICK_AXIS, kickAngle));
+      }
     }
   } else {
     const swing = Math.sin(walkPhase*1.6);
@@ -3057,16 +3066,45 @@ function upgradeWeaponModel(key, url){
 upgradeWeaponModel('rifle', 'assets/weapon_rifle.glb');
 upgradeWeaponModel('pistol', 'assets/weapon_pistol.glb');
 
-function updateWeaponView(){
+// weapon-sway state — the viewmodel "lags" behind a fast mouse turn and eases
+// back to center, the signature modern-shooter weapon-inertia feel; tracked
+// as frame-to-frame deltas of the player's own aim rather than a second
+// mouse listener, and the sprint-out pose that tucks the gun in/down
+let wpnSwayX = 0, wpnSwayY = 0, wpnLastA = null, wpnLastPitch = null, wpnSprintPose = 0;
+function updateWeaponView(dt){
   const w = WEAPONS[player.weapon], heavy = w.heavy;
   const nextModel = WEAPON_MODELS[player.weapon];
   if(nextModel !== weaponModel){ weaponModel.visible = false; weaponModel = nextModel; weaponModel.visible = true; }
   const bobX = Math.sin(player.bob)*0.012, bobY = Math.abs(Math.cos(player.bob))*0.01;
+
+  if(wpnLastA == null){ wpnLastA = player.a; wpnLastPitch = player.pitch; }
+  const dYaw = player.a - wpnLastA, dPitch = player.pitch - wpnLastPitch;
+  wpnLastA = player.a; wpnLastPitch = player.pitch;
+  const swayTargetX = clamp(-dYaw * 2.6, -0.045, 0.045);
+  const swayTargetY = clamp(dPitch * 2.2, -0.035, 0.035);
+  wpnSwayX = lerp(wpnSwayX, swayTargetX, Math.min(1, dt*9));
+  wpnSwayY = lerp(wpnSwayY, swayTargetY, Math.min(1, dt*9));
+
+  // COD-style sprint-out: tucks the weapon down and across the body while
+  // sprinting on the ground, snapping back the moment you stop, reload, or jump
+  const sprintTarget = (player.sprinting && player.z <= 0.05 && player.reloading <= 0) ? 1 : 0;
+  wpnSprintPose = lerp(wpnSprintPose, sprintTarget, Math.min(1, dt*10));
+
+  // sharp-peak/fast-settle recoil curve (not linear) — reads as a punchier kick
+  const kickEase = Math.pow(Math.min(1, player.kick/16), 0.6);
   const kick = player.kick*0.0035;
   const rl = player.reloading > 0 ? Math.sin((1-player.reloading/w.reload)*Math.PI)*0.14 : 0;
-  weaponModel.position.set(0.19+bobX, -0.20+bobY+kick*0.4-rl*0.35, -0.30+kick*0.1);
-  weaponModel.rotation.x = -kick*0.06 - rl*0.3;
-  weaponModel.rotation.z = 0.03;
+  // landing dip: eased rather than linear so the peak arrives smoothly
+  const landDip = Math.sin(Math.min(1, player.landKick||0) * Math.PI*0.5);
+
+  weaponModel.position.set(
+    0.19 + bobX + wpnSwayX - wpnSprintPose*0.14,
+    -0.20 + bobY + kick*0.4 - rl*0.35 - landDip*0.05 - wpnSprintPose*0.16,
+    -0.30 + kick*0.1 + wpnSprintPose*0.08,
+  );
+  weaponModel.rotation.x = -kickEase*0.09 - rl*0.3 + wpnSwayY - wpnSprintPose*0.6;
+  weaponModel.rotation.y = wpnSwayX*0.6 + wpnSprintPose*0.5;
+  weaponModel.rotation.z = 0.03 + kickEase*0.03 + wpnSprintPose*0.25;
   weaponModel.scale.setScalar(heavy ? 1.12 : 0.92);
   weaponModel.userData.flash.intensity = player.flash > 0.12 ? player.flash*3.2 : 0;
   muzzleLight.intensity = player.flash > 0.12 ? player.flash*1.6 : 0;
@@ -3108,7 +3146,7 @@ function render3D(dt){
   syncMegaArtifactMeshes();
   syncBoltMeshes();
   updateFX(dt);
-  if(!cutsceneActive) updateWeaponView();
+  if(!cutsceneActive) updateWeaponView(dt);
 
   renderer.render(scene, camera);
 }
@@ -4291,6 +4329,7 @@ function update(dt){
   const mag = Math.hypot(fx,fy);
   player.isMoving = mag > 0.001;
   const sprinting = keys['shift'] && mag > 0 && (keys['w'] || keys['arrowup']);
+  player.sprinting = sprinting;   // read by updateWeaponView() for the sprint-out viewmodel pose
   const speedBoost = player.buffs.overdrive > 0 ? 1.5 : 1;
   if(mag > 0.001 && player.alive){
     const analogScale = (!keyboardActive && joyMag > 0.05) ? joyMag : 1;
@@ -4319,7 +4358,12 @@ function update(dt){
     let nz = player.z + player.vz * dt;
     if(nz >= maxZ){ nz = maxZ; player.vz = 0; }
     player.z = Math.max(0, nz);
-    if(player.z <= 0){ player.vz = 0; player.jumpsUsed = 0; player.jumpApex = 0; }
+    if(player.z <= 0){
+      // touchdown — a quick downward viewmodel dip, scaled by how high the
+      // jump that just ended was (see updateWeaponView for the visual side)
+      if((player.jumpApex||0) > 0.04) player.landKick = Math.min(1, (player.jumpApex||0) * 2.2);
+      player.vz = 0; player.jumpsUsed = 0; player.jumpApex = 0;
+    }
     else player.jumpApex = Math.max(player.jumpApex||0, player.z);
   }
 
@@ -4327,6 +4371,7 @@ function update(dt){
   player.cooldown = Math.max(0, player.cooldown - dt);
   player.kick     = Math.max(0, player.kick - dt*46);
   player.flash    = Math.max(0, player.flash - dt*9);
+  player.landKick = Math.max(0, (player.landKick||0) - dt*4.5);
   // recoil settles back toward zero on its own (muzzle climb recovering) —
   // an offset on top of the player's real aim, never mutating it directly
   player.recoilPitch = lerp(player.recoilPitch||0, 0, Math.min(1, dt*7));
@@ -6037,6 +6082,7 @@ function startGame(){
   account.ownedWeapons = new Set(DEFAULT_OWNED_WEAPONS);   // fresh loadout each match — everything past the pistol must be found in a chest
   player.kick = 0; player.flash = 0; player.hurt = 0; player.reloading = 0; player.cooldown = 0;
   player.vx = 0; player.vy = 0; player.z = 0; player.vz = 0; player.jumpsUsed = 0; player.jumpApex = 0;
+  player.landKick = 0; player.sprinting = false;
   player.recoilPitch = 0; player.recoilYaw = 0;
   player.buffs = freshBuffs(); player.kills = 0; player.deaths = 0; player.medkits = 0;
   player.titanShield = 0; player.phantomRevealT = 0; player.chaosSwitchT = 0; player.chaosActiveKey = null;
