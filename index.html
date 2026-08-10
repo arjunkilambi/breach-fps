@@ -220,6 +220,11 @@
   .chatBubble.me{align-self:flex-end;background:rgba(80,200,255,.28);border:1px solid rgba(80,200,255,.4)}
   .chatBubble.them{align-self:flex-start;background:rgba(255,255,255,.08);border:1px solid var(--line)}
   .friendRow .mbtn.small{padding:6px 12px;font-size:11px}
+  .settingRow{text-align:left}
+  .settingRow label{display:flex;justify-content:space-between;font-size:12px;letter-spacing:.08em;
+    color:#9fd8e6;text-transform:uppercase;margin-bottom:6px}
+  .settingRow label span{color:#8ef5ff;letter-spacing:0;text-transform:none}
+  .settingRow input[type=range]{pointer-events:auto;width:100%;accent-color:#4ec9ff;cursor:pointer}
 </style>
 </head>
 <body>
@@ -309,7 +314,21 @@
     <div class="mbtn ghost small" id="btnArmory">Armory</div>
     <div class="mbtn ghost small" id="btnLegend">Legend</div>
     <div class="mbtn ghost small" id="btnFriends">Friends</div>
+    <div class="mbtn ghost small" id="btnSettings">Settings</div>
     <div class="mbtn ghost small" id="btnAccount">Account</div>
+  </div>
+
+  <div class="panelbox hide" id="menuSettings" style="min-width:360px">
+    <div class="lbl">Settings</div>
+    <div class="settingRow">
+      <label for="sensSlider">Mouse Sensitivity <span id="sensVal">1.0x</span></label>
+      <input id="sensSlider" type="range" min="0.2" max="3" step="0.05" />
+    </div>
+    <div class="settingRow">
+      <label for="volSlider">Sound Volume <span id="volVal">50%</span></label>
+      <input id="volSlider" type="range" min="0" max="1" step="0.01" />
+    </div>
+    <div class="mbtn ghost small" id="btnBackSettings" style="margin-top:10px">Back</div>
   </div>
 
   <div class="panelbox hide" id="menuLegend" style="min-width:360px">
@@ -510,6 +529,16 @@
   <h1 style="font-size:44px">PAUSED</h1>
   <h2>Cursor released</h2>
   <div class="cta">CLICK TO RESUME</div>
+  <div id="pauseSettings" style="pointer-events:auto;width:280px;margin-top:22px">
+    <div class="settingRow">
+      <label for="pauseSensSlider">Mouse Sensitivity <span id="pauseSensVal">1.0x</span></label>
+      <input id="pauseSensSlider" type="range" min="0.2" max="3" step="0.05" />
+    </div>
+    <div class="settingRow">
+      <label for="pauseVolSlider">Sound Volume <span id="pauseVolVal">50%</span></label>
+      <input id="pauseVolSlider" type="range" min="0" max="1" step="0.01" />
+    </div>
+  </div>
   <div class="mbtn ghost small" id="btnLeaveMatch" style="margin-top:18px;pointer-events:auto">Leave Match</div>
 </div>
 
@@ -1785,7 +1814,10 @@ const Sound = (()=>{
   function ctx(){
     if(!ac){
       ac = new (window.AudioContext||window.webkitAudioContext)();
-      master = ac.createGain(); master.gain.value = .5; master.connect(ac.destination);
+      // `settings` (device volume pref) is declared further down this same
+      // script but is always initialized long before any sound actually
+      // plays (first sound needs a user gesture), so this closure read is safe.
+      master = ac.createGain(); master.gain.value = settings.volume; master.connect(ac.destination);
     }
     if(ac.state === 'suspended') ac.resume();
     return ac;
@@ -1823,6 +1855,7 @@ const Sound = (()=>{
   };
   const api = {
     resume(){ ctx(); },
+    setVolume(v){ if(master) master.gain.value = v; },
     shoot(weaponOrHeavy){
       const v = GUN_VOICE[weaponOrHeavy];
       if(v){
@@ -2020,6 +2053,24 @@ let flowTimer = 0;
 const flowFields = new Map();           // targetKey -> Int16Array, for multi-player chasing
 const keys = Object.create(null);
 let mouseDown = false;
+
+/* --------------------------------- settings -------------------------------- */
+// Local device prefs (sensitivity/volume) — not account-bound, so they live in
+// localStorage rather than Supabase and apply instantly without a round trip.
+const SETTINGS_KEY = 'breach.settings.v1';
+function loadSettings(){
+  try{
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if(raw){
+      const s = JSON.parse(raw);
+      const sens = Number(s.sensitivity), vol = Number(s.volume);
+      return { sensitivity: clamp(Number.isFinite(sens) ? sens : 1, 0.2, 3), volume: clamp(Number.isFinite(vol) ? vol : 0.5, 0, 1) };
+    }
+  }catch(e){ /* corrupt/blocked storage — fall back to defaults */ }
+  return { sensitivity: 1, volume: 0.5 };
+}
+const settings = loadSettings();
+function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){} }
 
 /* ------------------------------- multiplayer ------------------------------ */
 // netMode: 'solo' | 'host' | 'client'.  MODE: 'campaign' | 'coop' | 'deathmatch'.
@@ -4154,11 +4205,18 @@ function updateEnemy(e, dt){
   // connects, so backing off during the wind-up beats it
   if(e.windup > 0){
     e.windup -= dt;
-    if(e.windup <= 0 && tp && dist <= T.range + 0.3) dealDamageToPlayer(tp, T.dmg);
+    // Line-of-sight matters here too, not just for ranged attacks below — a
+    // melee swing that finishes while a wall slid between attacker and
+    // target (player ducked behind cover mid wind-up) shouldn't still connect.
+    if(e.windup <= 0 && tp && dist <= T.range + 0.3 && lineOfSight(e.x, e.y, tp.x, tp.y)) dealDamageToPlayer(tp, T.dmg);
   }
 
   if(e.alert && tp){
-    const inRange = dist <= T.range && (T.ranged ? sees : true);
+    // Melee enemies used to skip this check entirely (`T.ranged ? sees :
+    // true`), letting them land hits through walls whenever a player stood
+    // within range on the far side of one — line of sight is required for
+    // every attack type now, not just ranged.
+    const inRange = dist <= T.range && sees;
     if(inRange){
       // hold position and attack
       e.cool -= dt;
@@ -4978,8 +5036,12 @@ function update(dt){
   if(netMode !== 'client' && megaWarlordModeActive() && !gameOver) megaArtifactTick();
 
   // ---------- wave flow (campaign / co-op only — deathmatch/teams/ctf/tag have no waves) ----------
+  // !gameOver matches every sibling system above (tag countdown, mission
+  // artifacts, mega-artifacts) — without it, a mission/wave clear that ends
+  // the match in the same frame a wave-clear countdown is running can still
+  // spawn a fresh wave on top of the "Mission Complete" screen.
   const aliveCount = enemies.filter(e => !e.dead).length;
-  if(netMode !== 'client' && MODE !== 'deathmatch' && !isTeamMode(MODE) && MODE !== 'tag'){
+  if(netMode !== 'client' && MODE !== 'deathmatch' && !isTeamMode(MODE) && MODE !== 'tag' && !gameOver){
     if(aliveCount === 0 && livingPlayers().length > 0){
       if(!spawning){ spawning = true; waveTimer = wave === 0 ? 0.6 : 4; }
       waveTimer -= dt;
@@ -5242,7 +5304,10 @@ function handleNetEvent(evt){
     case 'ammo':
       feed(evt.text, evt.color);
       if(evt.targetId === myId){
-        const r = WEAPONS.rifle; r.reserve = Math.min(180, r.reserve + 40); Sound.pickup(); updateHUD();
+        // Refill whatever weapon the player is actually holding, not a
+        // hardcoded rifle — an ammo crate used to top off Rifle reserve even
+        // while carrying a Shotgun/SMG/etc, silently doing nothing for you.
+        const r = WEAPONS[player.weapon]; r.reserve = Math.min(r.maxReserve, r.reserve + 40); Sound.pickup(); updateHUD();
       }
       break;
     case 'weaponfound':
@@ -5799,7 +5864,7 @@ function setNetMsg(msg){
   if(c) c.textContent = msg;
 }
 function showPanel(id){
-  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse','menuMapPick','menuStoryPick','menuLogin','menuArmory','menuLegend','menuFriends','menuChat']) el(p).classList.toggle('hide', p !== id);
+  for(const p of ['menuMain','menuMulti','menuJoin','menuLobby','menuBrowse','menuMapPick','menuStoryPick','menuLogin','menuArmory','menuLegend','menuFriends','menuChat','menuSettings']) el(p).classList.toggle('hide', p !== id);
 }
 let pendingStoryHostMode = null;   // null = solo Story Mode; 'story' = hosting
 function showStoryPicker(hostMode){
@@ -6130,9 +6195,9 @@ addEventListener('mouseup', e => {
 
 addEventListener('mousemove', e => {
   if(document.pointerLockElement !== canvas) return;
-  player.a += e.movementX * 0.0022;
+  player.a += e.movementX * 0.0022 * settings.sensitivity;
   if(player.a > Math.PI) player.a -= TAU; else if(player.a < -Math.PI) player.a += TAU;
-  player.pitch = clamp(player.pitch - e.movementY * 0.0022, -1.2, 1.2);
+  player.pitch = clamp(player.pitch - e.movementY * 0.0022 * settings.sensitivity, -1.2, 1.2);
 });
 
 /* ------------------------- mobile touch controls -------------------------- */
@@ -6179,9 +6244,9 @@ document.addEventListener('touchmove', e => {
     } else if(t.identifier === lookTouchId){
       const dx = t.clientX - lookLast.x, dy = t.clientY - lookLast.y;
       lookLast.x = t.clientX; lookLast.y = t.clientY;
-      player.a += dx * 0.0045;
+      player.a += dx * 0.0045 * settings.sensitivity;
       if(player.a > Math.PI) player.a -= TAU; else if(player.a < -Math.PI) player.a += TAU;
-      player.pitch = clamp(player.pitch - dy * 0.0045, -1.2, 1.2);
+      player.pitch = clamp(player.pitch - dy * 0.0045 * settings.sensitivity, -1.2, 1.2);
     }
   }
 }, { passive:true });
@@ -6200,6 +6265,7 @@ document.addEventListener('pointerlockchange', () => {
     paused = false; el('pause').classList.add('hide');
   } else if(running && !gameOver && !cutsceneActive){
     paused = true; el('pause').classList.remove('hide');
+    syncPauseSettingsUI();
     setZoom(false);
   }
 });
@@ -6242,12 +6308,22 @@ function awardCoins(n){
   account.pendingCoins += n;
   renderAccountStatus(); renderLoginPanel(); refreshCoinHud();
 }
+// nextWave()/showGameOverScreen()/showMatchEndScreen() can all call this
+// within moments of each other (e.g. the final wave clears right as the
+// match ends). Without serializing, an older in-flight request that snapshot
+// a smaller `account.coins` can resolve AFTER a newer one and silently
+// overwrite the newer, larger total in Supabase. Queue instead of racing.
+let coinFlushInFlight = null;
 async function flushPendingCoins(){
   if(!supa || !account.user || !account.pendingCoins) return;
-  const amountSynced = account.pendingCoins;
-  const target = account.coins;
-  const { error } = await supa.from('profiles').update({ coins: target }).eq('id', account.user.id);
-  if(!error) account.pendingCoins -= amountSynced;
+  if(coinFlushInFlight){ await coinFlushInFlight; return flushPendingCoins(); }
+  coinFlushInFlight = (async () => {
+    const amountSynced = account.pendingCoins;
+    const target = account.coins;
+    const { error } = await supa.from('profiles').update({ coins: target }).eq('id', account.user.id);
+    if(!error) account.pendingCoins -= amountSynced;
+  })();
+  try{ await coinFlushInFlight; } finally{ coinFlushInFlight = null; }
 }
 async function loadProfile(){
   if(!supa || !account.user) return;
@@ -6278,6 +6354,27 @@ async function initAccount(){
   });
 }
 initAccount();
+
+/* ------------------------------- settings UI ------------------------------ */
+function renderSettingsPanel(){
+  el('sensSlider').value = settings.sensitivity;
+  el('sensVal').textContent = settings.sensitivity.toFixed(2) + 'x';
+  el('volSlider').value = settings.volume;
+  el('volVal').textContent = Math.round(settings.volume * 100) + '%';
+}
+el('btnSettings').addEventListener('click', () => { showPanel('menuSettings'); renderSettingsPanel(); });
+el('btnBackSettings').addEventListener('click', () => showPanel('menuMain'));
+el('sensSlider').addEventListener('input', e => {
+  settings.sensitivity = clamp(+e.target.value, 0.2, 3);
+  el('sensVal').textContent = settings.sensitivity.toFixed(2) + 'x';
+  saveSettings();
+});
+el('volSlider').addEventListener('input', e => {
+  settings.volume = clamp(+e.target.value, 0, 1);
+  el('volVal').textContent = Math.round(settings.volume * 100) + '%';
+  Sound.setVolume(settings.volume);
+  saveSettings();
+});
 
 el('btnAccount').addEventListener('click', () => { showPanel('menuLogin'); renderLoginPanel(); });
 el('btnBackLogin').addEventListener('click', () => showPanel('menuMain'));
@@ -6550,6 +6647,28 @@ function requestLock(){
 el('btnDeploy').addEventListener('click', () => beginMatch());
 el('pause').addEventListener('click', () => { el('pause').classList.add('hide'); requestLock(); });
 el('btnLeaveMatch').addEventListener('click', (e) => { e.stopPropagation(); Net.leaveToMenu(); });
+// The pause screen's own click handler resumes the match on ANY click inside
+// it (see above) — the sliders live inside that same screen, so every drag
+// needs to stop the click from bubbling or adjusting sensitivity/volume mid-
+// match would instantly un-pause and drop the player back into combat.
+el('pauseSettings').addEventListener('click', e => e.stopPropagation());
+function syncPauseSettingsUI(){
+  el('pauseSensSlider').value = settings.sensitivity;
+  el('pauseSensVal').textContent = settings.sensitivity.toFixed(2) + 'x';
+  el('pauseVolSlider').value = settings.volume;
+  el('pauseVolVal').textContent = Math.round(settings.volume * 100) + '%';
+}
+el('pauseSensSlider').addEventListener('input', e => {
+  settings.sensitivity = clamp(+e.target.value, 0.2, 3);
+  el('pauseSensVal').textContent = settings.sensitivity.toFixed(2) + 'x';
+  saveSettings();
+});
+el('pauseVolSlider').addEventListener('input', e => {
+  settings.volume = clamp(+e.target.value, 0, 1);
+  el('pauseVolVal').textContent = Math.round(settings.volume * 100) + '%';
+  Sound.setVolume(settings.volume);
+  saveSettings();
+});
 el('over').addEventListener('click', () => {
   el('over').classList.add('hide');
   if(netMode === 'solo') startGame(); else Net.leaveToMenu();
